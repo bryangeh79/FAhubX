@@ -1,0 +1,130 @@
+# Facebook Auto Bot Prometheus 配置
+
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+  external_labels:
+    cluster: 'facebook-auto-bot'
+    environment: 'production'
+
+# 告警规则文件
+rule_files:
+  - "alerts/*.yml"
+
+# 抓取配置
+scrape_configs:
+  # Prometheus 自身监控
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+    metrics_path: '/metrics'
+
+  # Node Exporter - 系统指标
+  - job_name: 'node'
+    static_configs:
+      - targets: ['node-exporter:9100']
+    metrics_path: '/metrics'
+
+  # Facebook Auto Bot 后端应用
+  - job_name: 'facebook-auto-bot-backend'
+    static_configs:
+      - targets: ['backend:3000']
+    metrics_path: '/metrics'
+    scrape_interval: 10s
+    scrape_timeout: 5s
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: instance
+        regex: '([^:]+)(?::\d+)?'
+        replacement: '${1}'
+
+  # Facebook Auto Bot 前端应用
+  - job_name: 'facebook-auto-bot-frontend'
+    static_configs:
+      - targets: ['frontend:5173']
+    metrics_path: '/api/metrics'
+    scrape_interval: 30s
+    scrape_timeout: 10s
+
+  # PostgreSQL 数据库
+  - job_name: 'postgresql'
+    static_configs:
+      - targets: ['postgres-exporter:9187']
+    metrics_path: '/metrics'
+    params:
+      collect[]:
+        - standard
+        - database
+        - bgwriter
+        - archiver
+
+  # Redis 缓存
+  - job_name: 'redis'
+    static_configs:
+      - targets: ['redis-exporter:9121']
+    metrics_path: '/metrics'
+
+  # WebSocket 服务器
+  - job_name: 'websocket-server'
+    static_configs:
+      - targets: ['websocket-server:3001']
+    metrics_path: '/metrics'
+    scrape_interval: 10s
+
+  # 任务调度器
+  - job_name: 'task-scheduler'
+    static_configs:
+      - targets: ['task-scheduler:3002']
+    metrics_path: '/metrics'
+    scrape_interval: 15s
+
+  # 黑盒监控 - HTTP 探针
+  - job_name: 'blackbox-http'
+    metrics_path: /probe
+    params:
+      module: [http_2xx]
+    static_configs:
+      - targets:
+        - http://backend:3000/health
+        - http://frontend:5173/
+        - http://websocket-server:3001/health
+        - http://task-scheduler:3002/health
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: __param_target
+      - source_labels: [__param_target]
+        target_label: instance
+      - target_label: __address__
+        replacement: blackbox-exporter:9115
+
+  # 黑盒监控 - TCP 探针
+  - job_name: 'blackbox-tcp'
+    metrics_path: /probe
+    params:
+      module: [tcp_connect]
+    static_configs:
+      - targets:
+        - postgres:5432
+        - redis:6379
+        - backend:3000
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: __param_target
+      - source_labels: [__param_target]
+        target_label: instance
+      - target_label: __address__
+        replacement: blackbox-exporter:9115
+
+# 远程写入配置（可选）
+remote_write:
+  - url: "https://prometheus-cloud.example.com/api/v1/write"
+    basic_auth:
+      username: "api-key"
+      password: "api-secret"
+
+# 远程读取配置（可选）
+remote_read:
+  - url: "https://prometheus-cloud.example.com/api/v1/read"
+    basic_auth:
+      username: "api-key"
+      password: "api-secret"

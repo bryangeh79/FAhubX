@@ -1,0 +1,53 @@
+{
+  "name": "@facebook-bot/monitoring-alerts",
+  "version": "1.0.0",
+  "description": "监控告警增强和通知系统",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "test": "jest",
+    "test:watch": "jest --watch",
+    "lint": "eslint src/**/*.ts",
+    "format": "prettier --write src/**/*.ts"
+  },
+  "dependencies": {
+    "winston": "^3.11.0",
+    "dayjs": "^1.11.10",
+    "lodash": "^4.17.21",
+    "uuid": "^9.0.1",
+    "axios": "^1.6.2",
+    "nodemailer": "^6.9.7",
+    "@slack/web-api": "^6.8.1",
+    "web-push": "^3.6.5",
+    "cron": "^3.1.6",
+    "@facebook-bot/health-monitor": "file:../health-monitor",
+    "@facebook-bot/session-manager": "file:../session-manager"
+  },
+  "devDependencies": {
+    "@types/node": "^20.10.0",
+    "@types/lodash": "^4.14.202",
+    "@types/uuid": "^9.0.7",
+    "@types/nodemailer": "^6.4.9",
+    "@types/web-push": "^3.3.2",
+    "@types/cron": "^2.0.1",
+    "typescript": "^5.3.0",
+    "jest": "^29.7.0",
+    "ts-jest": "^29.1.1",
+    "@types/jest": "^29.5.8",
+    "eslint": "^8.55.0",
+    "@typescript-eslint/eslint-plugin": "^6.13.0",
+    "@typescript-eslint/parser": "^6.13.0",
+    "prettier": "^3.1.0"
+  },
+  "keywords": [
+    "monitoring",
+    "alerts",
+    "notifications",
+    "dashboard",
+    "metrics"
+  ],
+  "author": "Facebook Auto Bot Team",
+  "license": "MIT"
+}

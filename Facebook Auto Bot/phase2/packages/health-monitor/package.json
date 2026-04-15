@@ -1,0 +1,51 @@
+{
+  "name": "@facebook-bot/health-monitor",
+  "version": "1.0.0",
+  "description": "账号健康监控和风险评估模块",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "test": "jest",
+    "test:watch": "jest --watch",
+    "lint": "eslint src/**/*.ts",
+    "format": "prettier --write src/**/*.ts"
+  },
+  "dependencies": {
+    "pg": "^8.11.3",
+    "winston": "^3.11.0",
+    "dayjs": "^1.11.10",
+    "lodash": "^4.17.21",
+    "uuid": "^9.0.1",
+    "axios": "^1.6.2",
+    "cron": "^3.1.6",
+    "@facebook-bot/puppeteer-executor": "file:../puppeteer-executor",
+    "@facebook-bot/session-manager": "file:../session-manager"
+  },
+  "devDependencies": {
+    "@types/node": "^20.10.0",
+    "@types/pg": "^8.10.7",
+    "@types/lodash": "^4.14.202",
+    "@types/uuid": "^9.0.7",
+    "@types/cron": "^2.0.1",
+    "typescript": "^5.3.0",
+    "jest": "^29.7.0",
+    "ts-jest": "^29.1.1",
+    "@types/jest": "^29.5.8",
+    "eslint": "^8.55.0",
+    "@typescript-eslint/eslint-plugin": "^6.13.0",
+    "@typescript-eslint/parser": "^6.13.0",
+    "prettier": "^3.1.0"
+  },
+  "keywords": [
+    "health",
+    "monitoring",
+    "facebook",
+    "account",
+    "risk",
+    "detection"
+  ],
+  "author": "Facebook Auto Bot Team",
+  "license": "MIT"
+}

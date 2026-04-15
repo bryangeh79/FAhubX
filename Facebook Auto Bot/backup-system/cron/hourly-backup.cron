@@ -1,0 +1,9 @@
+# Facebook Auto Bot 每小时备份任务
+# 每小时执行数据库增量备份
+0 * * * * root /workspace/backup-system/scripts/database-backup.sh --incremental >> /var/log/facebook-auto-bot/backup-hourly.log 2>&1
+
+# 每小时30分执行文件系统增量备份
+30 * * * * root /workspace/backup-system/scripts/filesystem-backup.sh --incremental >> /var/log/facebook-auto-bot/backup-hourly.log 2>&1
+
+# 每小时检查备份系统健康
+45 * * * * root /workspace/backup-system/scripts/check-backup-health.sh >> /var/log/facebook-auto-bot/health-cron.log 2>&1

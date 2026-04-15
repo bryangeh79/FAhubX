@@ -1,0 +1,52 @@
+{
+  "name": "@facebook-bot/task-engine",
+  "version": "1.0.0",
+  "description": "任务执行引擎",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "test": "jest",
+    "test:watch": "jest --watch",
+    "lint": "eslint src/**/*.ts",
+    "format": "prettier --write src/**/*.ts"
+  },
+  "dependencies": {
+    "@facebook-bot/facebook-operations": "file:../operations",
+    "@facebook-bot/puppeteer-executor": "file:../../packages/puppeteer-executor",
+    "@facebook-bot/session-manager": "file:../../packages/session-manager",
+    "bull": "^4.11.5",
+    "ioredis": "^5.3.2",
+    "rxjs": "^7.8.1",
+    "uuid": "^9.0.1",
+    "winston": "^3.11.0",
+    "dayjs": "^1.11.10",
+    "lodash": "^4.17.21"
+  },
+  "devDependencies": {
+    "@types/node": "^20.10.0",
+    "@types/bull": "^3.15.6",
+    "@types/ioredis": "^5.0.0",
+    "@types/lodash": "^4.14.202",
+    "@types/uuid": "^9.0.7",
+    "typescript": "^5.3.0",
+    "jest": "^29.7.0",
+    "ts-jest": "^29.1.1",
+    "@types/jest": "^29.5.8",
+    "eslint": "^8.55.0",
+    "@typescript-eslint/eslint-plugin": "^6.13.0",
+    "@typescript-eslint/parser": "^6.13.0",
+    "prettier": "^3.1.0"
+  },
+  "keywords": [
+    "task",
+    "engine",
+    "scheduler",
+    "queue",
+    "facebook",
+    "automation"
+  ],
+  "author": "Facebook Auto Bot Team",
+  "license": "MIT"
+}

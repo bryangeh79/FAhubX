@@ -1,0 +1,194 @@
+/* PWA 安装提示组件样式 */
+
+.pwa-install-prompt {
+  padding: 8px 0;
+}
+
+.install-benefits-card {
+  margin-bottom: 20px;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.install-benefits-card .ant-card-head {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+.install-benefits-card .ant-card-body {
+  padding-top: 8px;
+}
+
+.benefit-item {
+  text-align: center;
+  padding: 16px;
+  border-radius: 8px;
+  background: #fafafa;
+  transition: all 0.3s ease;
+  height: 100%;
+}
+
+.benefit-item:hover {
+  background: #f0f0f0;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.benefit-icon {
+  font-size: 24px;
+  color: #1890ff;
+  margin-bottom: 12px;
+  display: block;
+}
+
+.benefit-item .ant-typography {
+  margin: 0;
+}
+
+.benefit-item .ant-typography strong {
+  display: block;
+  margin-bottom: 4px;
+  font-size: 14px;
+}
+
+.install-alert {
+  margin-bottom: 20px;
+  border-radius: 8px;
+}
+
+.installation-progress {
+  text-align: center;
+  padding: 40px 20px;
+}
+
+.installation-progress .ant-typography {
+  margin-bottom: 24px;
+}
+
+.loading-spinner {
+  width: 50px;
+  height: 50px;
+  margin: 20px auto;
+  border: 3px solid #f3f3f3;
+  border-top: 3px solid #1890ff;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.installation-success {
+  text-align: center;
+  padding: 40px 20px;
+}
+
+.success-icon {
+  font-size: 64px;
+  color: #52c41a;
+  margin-bottom: 24px;
+  display: block;
+}
+
+.installation-success .ant-typography {
+  margin-bottom: 12px;
+}
+
+.manual-instructions {
+  padding: 16px 0;
+}
+
+.install-instructions {
+  margin: 24px 0;
+}
+
+.install-instructions .ant-steps {
+  margin-top: 16px;
+}
+
+.install-instructions .ant-steps-item-title {
+  font-size: 14px;
+}
+
+.install-instructions .ant-steps-item-description {
+  font-size: 12px;
+}
+
+.manual-instructions-alert {
+  margin-top: 24px;
+  border-radius: 8px;
+}
+
+.platform-info {
+  text-align: center;
+  margin-top: 20px;
+  padding-top: 16px;
+  border-top: 1px solid #f0f0f0;
+}
+
+.platform-info .ant-typography {
+  font-size: 12px;
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+  .install-benefits-card .ant-col {
+    margin-bottom: 16px;
+  }
+  
+  .install-benefits-card .ant-col:last-child {
+    margin-bottom: 0;
+  }
+  
+  .benefit-item {
+    padding: 12px;
+  }
+  
+  .benefit-icon {
+    font-size: 20px;
+    margin-bottom: 8px;
+  }
+  
+  .installation-progress,
+  .installation-success {
+    padding: 30px 16px;
+  }
+  
+  .success-icon {
+    font-size: 48px;
+    margin-bottom: 16px;
+  }
+}
+
+/* 暗色主题支持 */
+@media (prefers-color-scheme: dark) {
+  .install-benefits-card {
+    background: #1f1f1f;
+    border-color: #303030;
+  }
+  
+  .benefit-item {
+    background: #262626;
+  }
+  
+  .benefit-item:hover {
+    background: #303030;
+  }
+  
+  .install-alert,
+  .manual-instructions-alert {
+    background: #262626;
+    border-color: #303030;
+  }
+  
+  .platform-info {
+    border-top-color: #303030;
+  }
+  
+  .loading-spinner {
+    border-color: #303030;
+    border-top-color: #1890ff;
+  }
+}

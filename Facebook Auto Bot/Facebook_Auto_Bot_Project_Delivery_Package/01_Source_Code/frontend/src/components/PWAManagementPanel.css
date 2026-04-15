@@ -1,0 +1,312 @@
+/* PWA 管理面板样式 */
+
+.pwa-management-panel {
+  padding: 16px;
+}
+
+.pwa-management-compact {
+  margin-bottom: 16px;
+}
+
+.pwa-management-compact .ant-card-body {
+  padding: 12px;
+}
+
+/* 存储信息 */
+.storage-info {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  background: #f6ffed;
+  border: 1px solid #b7eb8f;
+  border-radius: 6px;
+  margin-bottom: 16px;
+}
+
+.storage-info .anticon {
+  color: #52c41a;
+  font-size: 18px;
+}
+
+.storage-info .ant-progress {
+  flex: 1;
+  margin: 0 8px;
+}
+
+/* 通知统计 */
+.notification-stats {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px;
+  background: #f0f5ff;
+  border: 1px solid #adc6ff;
+  border-radius: 6px;
+  margin-bottom: 16px;
+}
+
+.notification-stats .ant-badge {
+  margin-right: 8px;
+}
+
+/* 通知列表项 */
+.notification-read {
+  opacity: 0.7;
+}
+
+.notification-unread {
+  background: #f6ffed;
+  border-radius: 4px;
+  margin: 2px 0;
+}
+
+.notification-unread:hover {
+  background: #e6f7ff;
+  cursor: pointer;
+}
+
+.ant-list-item.notification-read:hover {
+  background: #fafafa;
+}
+
+/* 通知测试区域 */
+.notification-test {
+  padding: 12px;
+  background: #fff7e6;
+  border: 1px solid #ffd591;
+  border-radius: 6px;
+  margin-top: 16px;
+}
+
+.notification-test .ant-space {
+  margin-top: 8px;
+}
+
+.notification-test .ant-btn {
+  font-size: 12px;
+  padding: 2px 8px;
+}
+
+/* 设置项 */
+.setting-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  background: #fafafa;
+  border-radius: 6px;
+  margin-bottom: 8px;
+}
+
+.setting-item .ant-switch {
+  min-width: 44px;
+}
+
+.setting-item .ant-typography {
+  flex: 1;
+}
+
+.setting-item .anticon {
+  color: #8c8c8c;
+  cursor: help;
+}
+
+/* 模态框内容 */
+.ant-modal-body .ant-descriptions {
+  margin-top: 16px;
+}
+
+.ant-modal-body .ant-list {
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+  .pwa-management-panel {
+    padding: 8px;
+  }
+  
+  .storage-info {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+  
+  .storage-info .ant-progress {
+    width: 100%;
+    margin: 4px 0;
+  }
+  
+  .notification-stats {
+    flex-wrap: wrap;
+  }
+  
+  .setting-item {
+    flex-wrap: wrap;
+  }
+}
+
+/* 暗色主题支持 */
+@media (prefers-color-scheme: dark) {
+  .storage-info {
+    background: #162312;
+    border-color: #274916;
+  }
+  
+  .notification-stats {
+    background: #111d2c;
+    border-color: #153450;
+  }
+  
+  .notification-unread {
+    background: #162312;
+  }
+  
+  .notification-unread:hover {
+    background: #111d2c;
+  }
+  
+  .ant-list-item.notification-read:hover {
+    background: #1f1f1f;
+  }
+  
+  .notification-test {
+    background: #2b1d11;
+    border-color: #593815;
+  }
+  
+  .setting-item {
+    background: #1f1f1f;
+  }
+  
+  .setting-item .anticon {
+    color: #8c8c8c;
+  }
+}
+
+/* 动画效果 */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.pwa-management-panel {
+  animation: fadeIn 0.3s ease-out;
+}
+
+/* 滚动条样式 */
+.pwa-management-panel ::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+.pwa-management-panel ::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 3px;
+}
+
+.pwa-management-panel ::-webkit-scrollbar-thumb {
+  background: #c1c1c1;
+  border-radius: 3px;
+}
+
+.pwa-management-panel ::-webkit-scrollbar-thumb:hover {
+  background: #a8a8a8;
+}
+
+/* 暗色主题滚动条 */
+@media (prefers-color-scheme: dark) {
+  .pwa-management-panel ::-webkit-scrollbar-track {
+    background: #303030;
+  }
+  
+  .pwa-management-panel ::-webkit-scrollbar-thumb {
+    background: #555;
+  }
+  
+  .pwa-management-panel ::-webkit-scrollbar-thumb:hover {
+    background: #666;
+  }
+}
+
+/* 卡片悬停效果 */
+.ant-card {
+  transition: all 0.3s ease;
+}
+
+.ant-card:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+/* 按钮组样式 */
+.ant-space {
+  width: 100%;
+}
+
+.ant-space > * {
+  flex-shrink: 0;
+}
+
+/* 统计卡片样式 */
+.ant-statistic-content {
+  font-size: 24px;
+}
+
+.ant-statistic-title {
+  font-size: 14px;
+  color: #8c8c8c;
+}
+
+/* 进度条样式 */
+.ant-progress-line {
+  margin: 8px 0;
+}
+
+.ant-progress-text {
+  font-size: 12px;
+}
+
+/* 标签样式 */
+.ant-tag {
+  margin: 2px;
+  font-size: 12px;
+}
+
+/* 列表样式 */
+.ant-list-item {
+  padding: 12px;
+  border-radius: 4px;
+}
+
+.ant-list-item-meta {
+  align-items: center;
+}
+
+.ant-list-item-meta-title {
+  margin-bottom: 4px;
+}
+
+.ant-list-item-meta-description {
+  font-size: 12px;
+}
+
+/* 徽章样式 */
+.ant-badge-count {
+  font-size: 12px;
+  min-width: 20px;
+  height: 20px;
+  line-height: 20px;
+}
+
+.ant-badge-dot {
+  width: 8px;
+  height: 8px;
+}

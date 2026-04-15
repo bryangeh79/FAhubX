@@ -1,0 +1,30 @@
+# Facebook Auto Bot 每日备份任务
+# 每天00:00执行数据库全量备份
+0 0 * * * root /workspace/backup-system/scripts/database-backup.sh --full >> /var/log/facebook-auto-bot/backup-cron.log 2>&1
+
+# 每天01:00执行文件系统全量备份
+0 1 * * * root /workspace/backup-system/scripts/filesystem-backup.sh --full >> /var/log/facebook-auto-bot/backup-cron.log 2>&1
+
+# 每天02:00执行配置备份
+0 2 * * * root /workspace/backup-system/scripts/config-backup.sh >> /var/log/facebook-auto-bot/backup-cron.log 2>&1
+
+# 每天03:00执行日志备份
+0 3 * * * root /workspace/backup-system/scripts/log-backup.sh >> /var/log/facebook-auto-bot/backup-cron.log 2>&1
+
+# 每天04:00验证最新备份
+0 4 * * * root /workspace/backup-system/scripts/backup-verify.sh --latest >> /var/log/facebook-auto-bot/verify-cron.log 2>&1
+
+# 每天05:00清理旧备份
+0 5 * * * root /workspace/backup-system/scripts/backup-cleanup.sh --days=30 >> /var/log/facebook-auto-bot/cleanup-cron.log 2>&1
+
+# 每天06:00生成备份报告
+0 6 * * * root /workspace/backup-system/scripts/generate-backup-report.sh >> /var/log/facebook-auto-bot/report-cron.log 2>&1
+
+# 每天12:00检查备份状态
+0 12 * * * root /workspace/backup-system/scripts/check-backup-status.sh >> /var/log/facebook-auto-bot/status-cron.log 2>&1
+
+# 每天18:00检查磁盘空间
+0 18 * * * root /workspace/backup-system/scripts/check-storage-space.sh >> /var/log/facebook-auto-bot/storage-cron.log 2>&1
+
+# 每天23:00发送每日备份报告
+0 23 * * * root /workspace/backup-system/scripts/send-daily-report.sh >> /var/log/facebook-auto-bot/report-cron.log 2>&1

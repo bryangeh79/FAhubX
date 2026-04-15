@@ -1,0 +1,120 @@
+import { Controller, Get, Post, Patch, Delete, Body, Param, UseGuards, Request, Query } from '@nestjs/common';
+import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
+import { User } from './entities/user.entity';
+import * as bcrypt from 'bcryptjs';
+
+@ApiTags('Admin - 用户管理')
+@ApiBearerAuth()
+@UseGuards(JwtAuthGuard)
+@Controller('admin/users')
+export class AdminUsersController {
+
+  constructor(
+    @InjectRepository(User)
+    private readonly userRepo: Repository<User>,
+  ) {}
+
+  private assertAdmin(req: any) {
+    if (req.user?.role !== 'admin') {
+      throw Object.assign(new Error('无权限，仅管理员可操作'), { status: 403 });
+    }
+  }
+
+  /** 获取所有租户列表 */
+  @Get()
+  @ApiOperation({ summary: '获取所有用户（Admin）' })
+  async findAll(@Request() req, @Query('page') page = '1', @Query('limit') limit = '20') {
+    this.assertAdmin(req);
+    const [users, total] = await this.userRepo.findAndCount({
+      order: { createdAt: 'DESC' },
+      take: Math.min(parseInt(limit), 100),
+      skip: (parseInt(page) - 1) * parseInt(limit),
+      select: ['id', 'email', 'username', 'fullName', 'role', 'plan', 'maxAccounts', 'subscriptionExpiry', 'status', 'createdAt', 'emailVerified'],
+    });
+    return { users, total, page: parseInt(page), limit: parseInt(limit) };
+  }
+
+  /** 创建新租户 */
+  @Post()
+  @ApiOperation({ summary: '创建新租户账号（Admin）' })
+  async create(@Request() req, @Body() body: {
+    email: string;
+    username: string;
+    password: string;
+    fullName?: string;
+    role?: 'admin' | 'tenant';
+    plan?: 'basic' | 'pro';
+    subscriptionExpiry?: string | null;
+  }) {
+    this.assertAdmin(req);
+    const existing = await this.userRepo.findOne({ where: [{ email: body.email }, { username: body.username }] });
+    if (existing) throw Object.assign(new Error('邮箱或用户名已存在'), { status: 400 });
+
+    const plan = body.plan || 'basic';
+    const maxAccounts = plan === 'pro' ? 30 : 10;
+    const passwordHash = await bcrypt.hash(body.password, 12);
+    const user = this.userRepo.create({
+      email: body.email.toLowerCase().trim(),
+      username: body.username.toLowerCase().trim(),
+      passwordHash,
+      fullName: body.fullName || body.username,
+      role: body.role || 'tenant',
+      plan,
+      maxAccounts,
+      subscriptionExpiry: body.subscriptionExpiry ? new Date(body.subscriptionExpiry) : null,
+      status: 'active',
+      emailVerified: true,
+    } as any);
+    const saved = await this.userRepo.save(user);
+    const { passwordHash: _, ...result } = saved as any;
+    return result;
+  }
+
+  /** 修改用户状态 / 角色 */
+  @Patch(':id')
+  @ApiOperation({ summary: '更新用户（Admin）' })
+  async update(@Request() req, @Param('id') id: string, @Body() body: {
+    status?: 'active' | 'suspended';
+    role?: 'admin' | 'tenant';
+    fullName?: string;
+    password?: string;
+    subscriptionExpiry?: string | null;
+  }) {
+    this.assertAdmin(req);
+    const update: any = {};
+    if (body.status) update.status = body.status;
+    if (body.role) update.role = body.role;
+    if (body.fullName) update.fullName = body.fullName;
+    if (body.password) update.passwordHash = await bcrypt.hash(body.password, 12);
+    if ('subscriptionExpiry' in body) update.subscriptionExpiry = body.subscriptionExpiry ? new Date(body.subscriptionExpiry) : null;
+    await this.userRepo.update({ id }, update);
+    return this.userRepo.findOne({ where: { id }, select: ['id', 'email', 'username', 'fullName', 'role', 'status', 'createdAt'] });
+  }
+
+  /** 删除用户 */
+  @Delete(':id')
+  @ApiOperation({ summary: '删除用户（Admin）' })
+  async remove(@Request() req, @Param('id') id: string) {
+    this.assertAdmin(req);
+    if (id === req.user.id) throw Object.assign(new Error('不能删除自己的账号'), { status: 400 });
+    await this.userRepo.delete({ id });
+    return { success: true };
+  }
+
+  /** 获取系统概览统计 */
+  @Get('stats/overview')
+  @ApiOperation({ summary: '系统统计（Admin）' })
+  async stats(@Request() req) {
+    this.assertAdmin(req);
+    const [totalUsers, activeUsers, adminCount, tenantCount] = await Promise.all([
+      this.userRepo.count(),
+      this.userRepo.count({ where: { status: 'active' } }),
+      this.userRepo.count({ where: { role: 'admin' } } as any),
+      this.userRepo.count({ where: { role: 'tenant' } } as any),
+    ]);
+    return { totalUsers, activeUsers, adminCount, tenantCount };
+  }
+}

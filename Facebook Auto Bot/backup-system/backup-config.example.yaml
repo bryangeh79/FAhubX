@@ -1,0 +1,73 @@
+# Facebook Auto Bot 备份配置示例
+# 复制此文件为 backup-config.yaml 并修改配置
+
+# 全局配置
+global:
+  environment: production
+  backup_id: facebook-auto-bot
+  timezone: UTC
+  
+# 数据库配置
+database:
+  connection:
+    host: localhost
+    port: 5432
+    database: facebook_auto_bot
+    username: postgres
+    password: ${DB_PASSWORD}  # 从环境变量获取
+    
+  backup:
+    full:
+      enabled: true
+      retention_days: 30
+      compression: gzip
+      encryption: aes256
+      encryption_key: ${BACKUP_ENCRYPTION_KEY}
+      
+    incremental:
+      enabled: true
+      retention_days: 7
+
+# 文件系统配置
+filesystem:
+  paths:
+    - /workspace/backend
+    - /workspace/frontend
+    - /workspace/docker-compose.yml
+    - /workspace/.env
+    
+  backup:
+    full:
+      enabled: true
+      retention_days: 30
+      compression: gzip
+      encryption: aes256
+      encryption_key: ${BACKUP_ENCRYPTION_KEY}
+
+# 存储配置
+storage:
+  local:
+    enabled: true
+    path: /var/backups/facebook-auto-bot
+    
+  remote:
+    enabled: false
+    type: sftp
+    host: backup.example.com
+    username: backupuser
+    password: ${REMOTE_PASSWORD}
+    
+  cloud:
+    enabled: false
+    provider: aws
+    bucket: facebook-auto-bot-backups
+    access_key: ${AWS_ACCESS_KEY_ID}
+    secret_key: ${AWS_SECRET_ACCESS_KEY}
+
+# 环境变量说明
+# 需要在运行前设置以下环境变量：
+# export DB_PASSWORD="your_database_password"
+# export BACKUP_ENCRYPTION_KEY="your_encryption_key_32_chars"
+# export REMOTE_PASSWORD="remote_backup_password"  # 如果启用远程备份
+# export AWS_ACCESS_KEY_ID="your_aws_key"         # 如果启用云备份
+# export AWS_SECRET_ACCESS_KEY="your_aws_secret"  # 如果启用云备份

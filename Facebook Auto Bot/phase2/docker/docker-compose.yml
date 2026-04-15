@@ -1,0 +1,91 @@
+version: '3.8'
+
+services:
+  puppeteer-executor:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    container_name: puppeteer-executor
+    restart: unless-stopped
+    environment:
+      - NODE_ENV=production
+      - PUPPETEER_EXECUTABLE_PATH=/usr/bin/google-chrome-stable
+      - PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
+      - CHROME_PATH=/usr/bin/google-chrome-stable
+      - LOG_LEVEL=info
+      - MAX_CONCURRENT_SESSIONS=5
+      - SESSION_TIMEOUT=300000
+    volumes:
+      - ./data/sessions:/app/data/sessions
+      - ./data/logs:/app/data/logs
+      - ./data/screenshots:/app/data/screenshots
+    ports:
+      - "3000:3000"
+    networks:
+      - puppeteer-network
+    healthcheck:
+      test: ["CMD", "node", "healthcheck.js"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # VPN容器示例（需要根据实际VPN配置调整）
+  vpn-client:
+    image: dperson/openvpn-client
+    container_name: vpn-client
+    cap_add:
+      - NET_ADMIN
+    devices:
+      - /dev/net/tun
+    restart: unless-stopped
+    environment:
+      - VPN_ENABLED=true
+      - VPN_TYPE=openvpn
+    volumes:
+      - ./vpn/config.ovpn:/vpn/vpn.conf
+      - ./vpn/auth.txt:/vpn/auth.txt:ro
+    networks:
+      puppeteer-network:
+        ipv4_address: 172.20.0.10
+
+  # Redis用于会话缓存
+  redis:
+    image: redis:7-alpine
+    container_name: puppeteer-redis
+    restart: unless-stopped
+    command: redis-server --appendonly yes
+    volumes:
+      - redis-data:/data
+    ports:
+      - "6379:6379"
+    networks:
+      - puppeteer-network
+
+  # PostgreSQL用于数据存储
+  postgres:
+    image: postgres:15-alpine
+    container_name: puppeteer-postgres
+    restart: unless-stopped
+    environment:
+      - POSTGRES_DB=puppeteer_db
+      - POSTGRES_USER=puppeteer_user
+      - POSTGRES_PASSWORD=puppeteer_password
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./database/init.sql:/docker-entrypoint-initdb.d/init.sql
+    ports:
+      - "5432:5432"
+    networks:
+      - puppeteer-network
+
+networks:
+  puppeteer-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16
+
+volumes:
+  redis-data:
+  postgres-data:

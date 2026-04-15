@@ -1,0 +1,556 @@
+# Swagger/OpenAPI 配置
+# Facebook Auto Bot API 文档配置
+
+openapi: 3.0.0
+info:
+  title: Facebook Auto Bot API
+  description: |
+    Facebook自动化机器人SaaS平台API文档
+    
+    主要功能模块：
+    1. 用户认证和授权
+    2. Facebook账号管理
+    3. 任务调度和执行
+    4. 对话剧本管理
+    5. 系统监控和统计
+    
+    版本: 1.0.0
+  termsOfService: https://fbautobot.com/terms
+  contact:
+    name: API支持
+    email: api-support@fbautobot.com
+    url: https://fbautobot.com/support
+  license:
+    name: 私有API
+    url: https://fbautobot.com/license
+  version: 1.0.0
+
+servers:
+  - url: http://localhost:3000
+    description: 开发环境
+  - url: https://api.staging.fbautobot.com
+    description: 测试环境
+  - url: https://api.fbautobot.com
+    description: 生产环境
+
+tags:
+  - name: 认证
+    description: 用户认证、注册、登录、令牌管理
+  - name: Facebook账号管理
+    description: Facebook账号的CRUD操作和状态管理
+  - name: 任务调度
+    description: 自动化任务的创建、调度、执行和监控
+  - name: 对话剧本
+    description: 对话剧本的管理和执行
+  - name: 系统监控
+    description: 系统状态、统计信息和活动日志
+  - name: 用户管理
+    description: 用户信息和管理
+
+paths:
+  # 认证相关接口
+  /auth/register:
+    $ref: './api-specs/auth/register.yaml'
+  /auth/login:
+    $ref: './api-specs/auth/login.yaml'
+  /auth/refresh:
+    $ref: './api-specs/auth/refresh.yaml'
+  /auth/logout:
+    $ref: './api-specs/auth/logout.yaml'
+  /auth/profile:
+    $ref: './api-specs/auth/profile.yaml'
+  /auth/change-password:
+    $ref: './api-specs/auth/change-password.yaml'
+
+  # Facebook账号管理接口
+  /facebook-accounts:
+    get:
+      $ref: './api-specs/facebook-accounts/list.yaml'
+    post:
+      $ref: './api-specs/facebook-accounts/create.yaml'
+  
+  /facebook-accounts/{id}:
+    get:
+      $ref: './api-specs/facebook-accounts/get.yaml'
+    patch:
+      $ref: './api-specs/facebook-accounts/update.yaml'
+    delete:
+      $ref: './api-specs/facebook-accounts/delete.yaml'
+  
+  /facebook-accounts/stats:
+    get:
+      $ref: './api-specs/facebook-accounts/stats.yaml'
+  
+  /facebook-accounts/expiring:
+    get:
+      $ref: './api-specs/facebook-accounts/expiring.yaml'
+  
+  /facebook-accounts/{id}/test-connection:
+    post:
+      $ref: './api-specs/facebook-accounts/test-connection.yaml'
+  
+  /facebook-accounts/{id}/login:
+    post:
+      $ref: './api-specs/facebook-accounts/login.yaml'
+
+  # 任务调度接口 (待实现)
+  /tasks:
+    get:
+      summary: 获取任务列表
+      description: 获取用户的所有任务列表，支持分页和过滤
+      tags:
+        - 任务调度
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/PageParam'
+        - $ref: '#/components/parameters/LimitParam'
+        - $ref: '#/components/parameters/StatusFilter'
+      responses:
+        '200':
+          description: 获取成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaskListResponse'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+    
+    post:
+      summary: 创建新任务
+      description: 创建一个新的自动化任务
+      tags:
+        - 任务调度
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateTaskRequest'
+      responses:
+        '201':
+          description: 创建成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaskResponse'
+        '400':
+          $ref: '#/components/responses/BadRequestError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+
+  # 对话剧本接口 (待实现)
+  /conversation/scripts:
+    get:
+      summary: 获取对话剧本列表
+      description: 获取所有可用的对话剧本
+      tags:
+        - 对话剧本
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/PageParam'
+        - $ref: '#/components/parameters/LimitParam'
+      responses:
+        '200':
+          description: 获取成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ScriptListResponse'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+
+  # 仪表板接口 (待实现)
+  /dashboard/stats:
+    get:
+      summary: 获取仪表板统计
+      description: 获取系统总体统计信息
+      tags:
+        - 系统监控
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: 获取成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DashboardStats'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: |
+        使用JWT Bearer令牌进行认证。
+        在登录或注册后获取access_token，将其添加到请求头：
+        Authorization: Bearer {access_token}
+
+  parameters:
+    PageParam:
+      name: page
+      in: query
+      description: 页码
+      required: false
+      schema:
+        type: integer
+        minimum: 1
+        default: 1
+    
+    LimitParam:
+      name: limit
+      in: query
+      description: 每页数量
+      required: false
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 20
+    
+    StatusFilter:
+      name: status
+      in: query
+      description: 状态过滤
+      required: false
+      schema:
+        type: string
+        enum: [active, inactive, pending, error]
+    
+    IdPathParam:
+      name: id
+      in: path
+      description: 资源ID
+      required: true
+      schema:
+        type: string
+        format: uuid
+
+  responses:
+    UnauthorizedError:
+      description: 未授权访问
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    
+    BadRequestError:
+      description: 请求参数错误
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    
+    NotFoundError:
+      description: 资源不存在
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    
+    ConflictError:
+      description: 资源冲突
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    
+    InternalServerError:
+      description: 服务器内部错误
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+
+  schemas:
+    # 通用响应模型
+    ErrorResponse:
+      type: object
+      properties:
+        statusCode:
+          type: integer
+          description: HTTP状态码
+        message:
+          type: string
+          description: 错误消息
+        error:
+          type: string
+          description: 错误类型
+        timestamp:
+          type: string
+          format: date-time
+          description: 错误发生时间
+        path:
+          type: string
+          description: 请求路径
+      required:
+        - statusCode
+        - message
+        - timestamp
+    
+    SuccessResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          description: 操作是否成功
+        message:
+          type: string
+          description: 成功消息
+        data:
+          type: object
+          description: 响应数据
+      required:
+        - success
+    
+    # 分页响应模型
+    PaginatedResponse:
+      type: object
+      properties:
+        items:
+          type: array
+          description: 数据项列表
+        meta:
+          type: object
+          properties:
+            total:
+              type: integer
+              description: 总记录数
+            page:
+              type: integer
+              description: 当前页码
+            limit:
+              type: integer
+              description: 每页数量
+            pages:
+              type: integer
+              description: 总页数
+          required:
+            - total
+            - page
+            - limit
+    
+    # 认证相关模型
+    TokenResponse:
+      type: object
+      properties:
+        access_token:
+          type: string
+          description: 访问令牌
+        refresh_token:
+          type: string
+          description: 刷新令牌
+        expires_in:
+          type: integer
+          description: 访问令牌过期时间（秒）
+        token_type:
+          type: string
+          description: 令牌类型
+          default: bearer
+      required:
+        - access_token
+        - refresh_token
+    
+    # Facebook账号模型
+    FacebookAccount:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: 账号ID
+        facebookId:
+          type: string
+          description: Facebook账号ID
+        username:
+          type: string
+          description: Facebook用户名
+        email:
+          type: string
+          format: email
+          description: 关联邮箱
+        accountType:
+          type: string
+          enum: [personal, page, business]
+          description: 账号类型
+        status:
+          type: string
+          enum: [active, inactive, pending, error]
+          description: 账号状态
+        verified:
+          type: boolean
+          description: 是否已验证
+        createdAt:
+          type: string
+          format: date-time
+          description: 创建时间
+        updatedAt:
+          type: string
+          format: date-time
+          description: 更新时间
+      required:
+        - facebookId
+        - username
+        - accountType
+        - status
+    
+    FacebookAccountListResponse:
+      allOf:
+        - $ref: '#/components/schemas/PaginatedResponse'
+        - type: object
+          properties:
+            items:
+              type: array
+              items:
+                $ref: '#/components/schemas/FacebookAccount'
+    
+    # 任务模型 (待完善)
+    Task:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: 任务ID
+        name:
+          type: string
+          description: 任务名称
+        description:
+          type: string
+          description: 任务描述
+        status:
+          type: string
+          enum: [pending, running, completed, failed, cancelled]
+          description: 任务状态
+        schedule:
+          type: string
+          description: 调度表达式
+        createdAt:
+          type: string
+          format: date-time
+          description: 创建时间
+        updatedAt:
+          type: string
+          format: date-time
+          description: 更新时间
+    
+    TaskListResponse:
+      allOf:
+        - $ref: '#/components/schemas/PaginatedResponse'
+        - type: object
+          properties:
+            items:
+              type: array
+              items:
+                $ref: '#/components/schemas/Task'
+    
+    CreateTaskRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          description: 任务名称
+          minLength: 3
+          maxLength: 100
+        description:
+          type: string
+          description: 任务描述
+          maxLength: 500
+        schedule:
+          type: string
+          description: 调度表达式
+        scriptId:
+          type: string
+          format: uuid
+          description: 对话剧本ID
+        accountIds:
+          type: array
+          items:
+            type: string
+            format: uuid
+          description: Facebook账号ID列表
+      required:
+        - name
+        - schedule
+    
+    # 对话剧本模型 (待完善)
+    ConversationScript:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: 剧本ID
+        name:
+          type: string
+          description: 剧本名称
+        description:
+          type: string
+          description: 剧本描述
+        content:
+          type: object
+          description: 剧本内容
+        createdAt:
+          type: string
+          format: date-time
+          description: 创建时间
+        updatedAt:
+          type: string
+          format: date-time
+          description: 更新时间
+    
+    ScriptListResponse:
+      allOf:
+        - $ref: '#/components/schemas/PaginatedResponse'
+        - type: object
+          properties:
+            items:
+              type: array
+              items:
+                $ref: '#/components/schemas/ConversationScript'
+    
+    # 仪表板统计模型
+    DashboardStats:
+      type: object
+      properties:
+        totalAccounts:
+          type: integer
+          description: 总账号数
+        activeAccounts:
+          type: integer
+          description: 活跃账号数
+        totalTasks:
+          type: integer
+          description: 总任务数
+        runningTasks:
+          type: integer
+          description: 运行中任务数
+        completedTasks:
+          type: integer
+          description: 已完成任务数
+        successRate:
+          type: number
+          format: float
+          description: 任务成功率
+        systemStatus:
+          type: string
+          enum: [healthy, warning, error]
+          description: 系统状态
+        lastUpdated:
+          type: string
+          format: date-time
+          description: 最后更新时间
+
+security:
+  - bearerAuth: []
+
+externalDocs:
+  description: 了解更多关于Facebook Auto Bot
+  url: https://docs.fbautobot.com

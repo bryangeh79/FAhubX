@@ -1,0 +1,286 @@
+import React, { useEffect, useState } from 'react';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { ConfigProvider, App as AntdApp, theme, notification, Button } from 'antd';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
+import { CloseOutlined } from '@ant-design/icons';
+
+import { AuthProvider } from './contexts/AuthContext';
+import { NotificationProvider } from './contexts/NotificationContext';
+import { PWAProvider } from './contexts/PWAContext';
+import Layout from './components/Layout';
+import LoginPage from './pages/LoginPage';
+import RegisterPage from './pages/RegisterPage';
+import DashboardPage from './pages/DashboardPage';
+import AccountsPage from './pages/AccountsPage';
+import AccountDetailPage from './pages/AccountDetailPage';
+import TasksPage from './pages/TasksPage';
+import TaskCreatePage from './pages/TaskCreatePage';
+import TaskDetailPage from './pages/TaskDetailPage';
+import TaskMonitorPage from './pages/TaskMonitorPage';
+import ConversationPage from './pages/ConversationPage';
+import SettingsPage from './pages/SettingsPage';
+import NotFoundPage from './pages/NotFoundPage';
+import PrivateRoute from './components/PrivateRoute';
+import PWAInstallPrompt from './components/PWAInstallPrompt';
+import OfflinePage from './components/OfflinePage';
+import PWAManagementPanel from './components/PWAManagementPanel';
+
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 5 * 60 * 1000, // 5分钟
+      retry: 1,
+      refetchOnWindowFocus: false,
+    },
+  },
+});
+
+function App() {
+  const { defaultAlgorithm, darkAlgorithm } = theme;
+  const isDarkMode = false; // 可以从用户偏好设置中获取
+  const [showInstallPrompt, setShowInstallPrompt] = useState(false);
+  const [showOfflinePage, setShowOfflinePage] = useState(false);
+  const [showPWAPanel, setShowPWAPanel] = useState(false);
+
+  useEffect(() => {
+    // 检查网络状态
+    const handleOnline = () => {
+      setShowOfflinePage(false);
+      notification.success({
+        message: '网络已恢复',
+        description: '您已重新连接到互联网',
+        placement: 'bottomRight',
+      });
+    };
+
+    const handleOffline = () => {
+      setShowOfflinePage(true);
+      notification.warning({
+        message: '网络连接已断开',
+        description: '您当前处于离线状态',
+        placement: 'bottomRight',
+        duration: 5,
+      });
+    };
+
+    // 检查是否应该显示安装提示
+    const checkInstallPrompt = () => {
+      const dismissed = localStorage.getItem('pwa_install_choice') === 'dismissed';
+      const installed = window.matchMedia('(display-mode: standalone)').matches || 
+                       ('standalone' in navigator && (navigator as any).standalone);
+      
+      if (!dismissed && !installed) {
+        // 延迟显示安装提示
+        setTimeout(() => {
+          setShowInstallPrompt(true);
+        }, 5000);
+      }
+    };
+
+    // 设置事件监听器
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+    
+    // 初始检查
+    checkInstallPrompt();
+    setShowOfflinePage(!navigator.onLine);
+
+    // 监听 Service Worker 更新
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.addEventListener('controllerchange', () => {
+        notification.info({
+          message: '应用已更新',
+          description: '新版本已就绪，请刷新页面',
+          placement: 'bottomRight',
+          duration: 0,
+          btn: (
+            <Button 
+              type="primary" 
+              size="small" 
+              onClick={() => window.location.reload()}
+            >
+              刷新
+            </Button>
+          ),
+        });
+      });
+    }
+
+    // 监听键盘快捷键 (Ctrl+Shift+P 打开 PWA 面板)
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.ctrlKey && e.shiftKey && e.key === 'P') {
+        e.preventDefault();
+        setShowPWAPanel(!showPWAPanel);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, []);
+
+  const handleInstallPromptClose = () => {
+    setShowInstallPrompt(false);
+  };
+
+  const handleInstallSuccess = () => {
+    notification.success({
+      message: '安装成功',
+      description: 'Facebook Auto Bot 已成功安装到您的设备',
+      placement: 'bottomRight',
+    });
+  };
+
+  return (
+    <QueryClientProvider client={queryClient}>
+      <ConfigProvider
+        theme={{
+          algorithm: isDarkMode ? darkAlgorithm : defaultAlgorithm,
+          token: {
+            colorPrimary: '#1890ff',
+            borderRadius: 6,
+            colorBgContainer: '#ffffff',
+          },
+          components: {
+            Layout: {
+              headerBg: '#001529',
+              headerColor: '#ffffff',
+              siderBg: '#ffffff',
+              triggerBg: '#001529',
+              triggerColor: '#ffffff',
+            },
+            Menu: {
+              darkItemBg: '#001529',
+              darkItemColor: '#ffffff',
+              darkItemSelectedBg: '#1890ff',
+              darkItemSelectedColor: '#ffffff',
+            },
+          },
+        }}
+      >
+        <AntdApp>
+          <PWAProvider>
+            <NotificationProvider>
+              <AuthProvider>
+                {/* PWA 安装提示 */}
+                <PWAInstallPrompt
+                  visible={showInstallPrompt}
+                  onClose={handleInstallPromptClose}
+                  onInstall={handleInstallSuccess}
+                  autoShow={true}
+                  showOnLoad={true}
+                  rememberChoice={true}
+                />
+
+                {/* 离线页面 */}
+                {showOfflinePage && (
+                  <div style={{
+                    position: 'fixed',
+                    top: 0,
+                    left: 0,
+                    right: 0,
+                    bottom: 0,
+                    zIndex: 9999,
+                    background: 'white',
+                  }}>
+                    <OfflinePage 
+                      onRetry={() => window.location.reload()}
+                      showDetails={true}
+                    />
+                  </div>
+                )}
+
+                {/* PWA 管理面板 */}
+                {showPWAPanel && (
+                  <div style={{
+                    position: 'fixed',
+                    top: '50%',
+                    left: '50%',
+                    transform: 'translate(-50%, -50%)',
+                    zIndex: 10000,
+                    width: '90%',
+                    maxWidth: '1200px',
+                    maxHeight: '90vh',
+                    overflow: 'auto',
+                    background: 'white',
+                    borderRadius: '8px',
+                    boxShadow: '0 10px 40px rgba(0, 0, 0, 0.3)',
+                  }}>
+                    <div style={{
+                      position: 'absolute',
+                      top: '10px',
+                      right: '10px',
+                      zIndex: 10001,
+                    }}>
+                      <Button 
+                        type="text" 
+                        icon={<CloseOutlined />}
+                        onClick={() => setShowPWAPanel(false)}
+                      />
+                    </div>
+                    <PWAManagementPanel 
+                      compact={false}
+                      showAdvanced={true}
+                    />
+                  </div>
+                )}
+
+                <Router>
+                  <Routes>
+                    {/* 公开路由 */}
+                    <Route path="/login" element={<LoginPage />} />
+                    <Route path="/register" element={<RegisterPage />} />
+
+                    {/* 受保护的路由 */}
+                    <Route
+                      path="/"
+                      element={
+                        <PrivateRoute>
+                          <Layout />
+                        </PrivateRoute>
+                      }
+                    >
+                      <Route index element={<Navigate to="/dashboard" replace />} />
+                      <Route path="dashboard" element={<DashboardPage />} />
+                      <Route path="accounts" element={<AccountsPage />} />
+                      <Route path="accounts/:id" element={<AccountDetailPage />} />
+                      <Route path="tasks" element={<TasksPage />} />
+                      <Route path="tasks/create" element={<TaskCreatePage />} />
+                      <Route path="tasks/:id" element={<TaskDetailPage />} />
+                      <Route path="tasks/:id/edit" element={<TaskCreatePage />} />
+                      <Route path="tasks/monitor" element={<TaskMonitorPage />} />
+                      <Route path="conversation" element={<ConversationPage />} />
+                      <Route path="settings" element={<SettingsPage />} />
+                      {/* PWA 管理页面 */}
+                      <Route path="pwa" element={(
+                        <div style={{ padding: '24px' }}>
+                          <PWAManagementPanel 
+                            compact={false}
+                            showAdvanced={true}
+                          />
+                        </div>
+                      )} />
+                    </Route>
+
+                    {/* 404页面 */}
+                    <Route path="*" element={<NotFoundPage />} />
+                  </Routes>
+                </Router>
+              </AuthProvider>
+            </NotificationProvider>
+          </PWAProvider>
+        </AntdApp>
+      </ConfigProvider>
+      {process.env.NODE_ENV === 'development' && (
+        <ReactQueryDevtools initialIsOpen={false} />
+      )}
+    </QueryClientProvider>
+  );
+}
+
+export default App;

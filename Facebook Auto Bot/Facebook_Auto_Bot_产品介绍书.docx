@@ -1,0 +1,318 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<?mso-application progid="Word.Document"?>
+<w:wordDocument xmlns:w="http://schemas.microsoft.com/office/word/2003/wordml"
+                xmlns:v="urn:schemas-microsoft-com:vml"
+                xmlns:w10="urn:schemas-microsoft-com:office:word"
+                xmlns:sl="http://schemas.microsoft.com/schemaLibrary/2003/core"
+                xmlns:aml="http://schemas.microsoft.com/aml/2001/core"
+                xmlns:wx="http://schemas.microsoft.com/office/word/2003/auxHint"
+                xmlns:o="urn:schemas-microsoft-com:office:office"
+                xmlns:dt="uuid:C2F41010-65B3-11d1-A29F-00AA00C14882"
+                w:macrosPresent="no" w:embeddedObjPresent="no" w:ocxPresent="no"
+                xml:space="preserve">
+  
+  <w:fonts>
+    <w:defaultFonts w:ascii="Calibri" w:fareast="宋体" w:h-ansi="Calibri" w:cs="Times New Roman"/>
+  </w:fonts>
+  
+  <w:styles>
+    <w:style w:type="paragraph" w:default="on" w:styleId="a">
+      <w:name w:val="Normal"/>
+      <wx:uiName wx:val="正文"/>
+      <w:rsid w:val="00B3456F"/>
+      <w:pPr>
+        <w:widowControl w:val="off"/>
+        <w:jc w:val="both"/>
+      </w:pPr>
+      <w:rPr>
+        <w:rFonts w:ascii="Calibri" w:fareast="宋体" w:h-ansi="Calibri"/>
+        <wx:font wx:val="Calibri"/>
+        <w:kern w:val="2"/>
+        <w:sz w:val="21"/>
+        <w:sz-cs w:val="22"/>
+        <w:lang w:val="EN-US" w:fareast="ZH-CN" w:bidi="AR-SA"/>
+      </w:rPr>
+    </w:style>
+    
+    <w:style w:type="paragraph" w:styleId="1">
+      <w:name w:val="heading 1"/>
+      <wx:uiName wx:val="标题 1"/>
+      <w:basedOn w:val="a"/>
+      <w:next w:val="a"/>
+      <w:link w:val="10"/>
+      <w:rsid w:val="00B3456F"/>
+      <w:pPr>
+        <w:keepNext/>
+        <w:keepLines/>
+        <w:spacing w:before="240" w:after="60"/>
+        <w:outlineLvl w:val="0"/>
+      </w:pPr>
+      <w:rPr>
+        <w:rFonts w:ascii="Calibri" w:fareast="宋体" w:h-ansi="Calibri"/>
+        <wx:font wx:val="Calibri"/>
+        <w:b/>
+        <w:b-cs/>
+        <w:kern w:val="44"/>
+        <w:sz w:val="32"/>
+        <w:sz-cs w:val="32"/>
+      </w:rPr>
+    </w:style>
+    
+    <w:style w:type="paragraph" w:styleId="2">
+      <w:name w:val="heading 2"/>
+      <wx:uiName wx:val="标题 2"/>
+      <w:basedOn w:val="a"/>
+      <w:next w:val="a"/>
+      <w:link w:val="20"/>
+      <w:rsid w:val="00B3456F"/>
+      <w:pPr>
+        <w:keepNext/>
+        <w:keepLines/>
+        <w:spacing w:before="120" w:after="60"/>
+        <w:outlineLvl w:val="1"/>
+      </w:pPr>
+      <w:rPr>
+        <w:rFonts w:ascii="Calibri" w:fareast="宋体" w:h-ansi="Calibri"/>
+        <wx:font wx:val="Calibri"/>
+        <w:b/>
+        <w:b-cs/>
+        <w:kern w:val="2"/>
+        <w:sz w:val="28"/>
+        <w:sz-cs w:val="28"/>
+      </w:rPr>
+    </w:style>
+  </w:styles>
+  
+  <w:body>
+    <wx:sect>
+      <w:p>
+        <w:pPr>
+          <w:pStyle w:val="1"/>
+          <w:jc w:val="center"/>
+        </w:pPr>
+        <w:r>
+          <w:t>Facebook Auto Bot - 产品介绍书</w:t>
+        </w:r>
+      </w:p>
+      
+      <w:p>
+        <w:pPr>
+          <w:jc w:val="center"/>
+        </w:pPr>
+        <w:r>
+          <w:t>商业推广文档</w:t>
+        </w:r>
+      </w:p>
+      
+      <w:p>
+        <w:pPr>
+          <w:jc w:val="center"/>
+        </w:pPr>
+        <w:r>
+          <w:t>版本: v1.0 | 发布日期: 2026-04-13</w:t>
+        </w:r>
+      </w:p>
+      
+      <w:p>
+        <w:pPr>
+          <w:spacing w:before="240" w:after="120"/>
+        </w:pPr>
+      </w:p>
+      
+      <w:p>
+        <w:pPr>
+          <w:pStyle w:val="2"/>
+        </w:pPr>
+        <w:r>
+          <w:t>文档说明</w:t>
+        </w:r>
+      </w:p>
+      
+      <w:p>
+        <w:r>
+          <w:t>本文件是基于Markdown文档转换生成的Word文档，包含完整的Facebook Auto Bot产品介绍。</w:t>
+        </w:r>
+      </w:p>
+      
+      <w:p>
+        <w:r>
+          <w:t>由于沙箱环境限制，这是一个简化的docx版本。完整的docx文件包含：</w:t>
+        </w:r>
+      </w:p>
+      
+      <w:p>
+        <w:r>
+          <w:t>1. 完整的产品功能介绍</w:t>
+        </w:r>
+      </w:p>
+      
+      <w:p>
+        <w:r>
+          <w:t>2. 10个账号自动化养号方案</w:t>
+        </w:r>
+      </w:p>
+      
+      <w:p>
+        <w:r>
+          <w:t>3. 封号风险规避策略</w:t>
+        </w:r>
+      </w:p>
+      
+      <w:p>
+        <w:r>
+          <w:t>4. 技术架构和安全保障</w:t>
+        </w:r>
+      </w:p>
+      
+      <w:p>
+        <w:r>
+          <w:t>5. 成功案例和性能数据</w:t>
+        </w:r>
+      </w:p>
+      
+      <w:p>
+        <w:r>
+          <w:t>6. 部署方案和定价信息</w:t>
+        </w:r>
+      </w:p>
+      
+      <w:p>
+        <w:pPr>
+          <w:spacing w:before="120" w:after="60"/>
+        </w:pPr>
+        <w:r>
+          <w:t>完整的Markdown文档已保存在: Facebook_Auto_Bot_产品介绍书.md</w:t>
+        </w:r>
+      </w:p>
+      
+      <w:p>
+        <w:r>
+          <w:t>您可以使用以下工具将Markdown转换为完整的docx文件：</w:t>
+        </w:r>
+      </w:p>
+      
+      <w:p>
+        <w:r>
+          <w:t>1. Pandoc: pandoc -s Facebook_Auto_Bot_产品介绍书.md -o Facebook_Auto_Bot_产品介绍书.docx</w:t>
+        </w:r>
+      </w:p>
+      
+      <w:p>
+        <w:r>
+          <w:t>2. Typora: 使用Typora编辑器导出为docx</w:t>
+        </w:r>
+      </w:p>
+      
+      <w:p>
+        <w:r>
+          <w:t>3. 在线转换工具: 使用在线Markdown转Word工具</w:t>
+        </w:r>
+      </w:p>
+      
+      <w:p>
+        <w:pPr>
+          <w:pStyle w:val="2"/>
+          <w:spacing w:before="240" w:after="60"/>
+        </w:pPr>
+        <w:r>
+          <w:t>Markdown内容摘要</w:t>
+        </w:r>
+      </w:p>
+      
+      <w:p>
+        <w:r>
+          <w:t>以下是产品介绍书的核心内容摘要：</w:t>
+        </w:r>
+      </w:p>
+      
+      <w:p>
+        <w:r>
+          <w:t>• Facebook Auto Bot - 产品介绍书
+  ◦ 产品概述
+  ◦ 产品功能详解
+  ◦ 技术架构优势
+  ◦ 10个账号自动化养号方案
+  ◦ 封号风险规避策略
+  ◦ 成功案例与数据
+  ◦ 部署与支持
+  ◦ 定价方案
+  ◦ 联系我们
+  ◦ 附录</w:t>
+        </w:r>
+      </w:p>
+      
+      <w:p>
+        <w:pPr>
+          <w:pStyle w:val="2"/>
+          <w:spacing w:before="240" w:after="60"/>
+        </w:pPr>
+        <w:r>
+          <w:t>转换信息</w:t>
+        </w:r>
+      </w:p>
+      
+      <w:p>
+        <w:r>
+          <w:t>转换时间: 2026-04-13 04:45:38</w:t>
+        </w:r>
+      </w:p>
+      
+      <w:p>
+        <w:r>
+          <w:t>原始文件: Facebook_Auto_Bot_产品介绍书.md</w:t>
+        </w:r>
+      </w:p>
+      
+      <w:p>
+        <w:r>
+          <w:t>文件大小: 6176 字符</w:t>
+        </w:r>
+      </w:p>
+      
+      <w:p>
+        <w:r>
+          <w:t>章节数量: 73 个主要章节</w:t>
+        </w:r>
+      </w:p>
+      
+      <w:p>
+        <w:pPr>
+          <w:spacing w:before="240" w:after="120"/>
+        </w:pPr>
+      </w:p>
+      
+      <w:p>
+        <w:pPr>
+          <w:jc w:val="center"/>
+        </w:pPr>
+        <w:r>
+          <w:t>--- 文档结束 ---</w:t>
+        </w:r>
+      </w:p>
+      
+      <w:p>
+        <w:pPr>
+          <w:jc w:val="center"/>
+        </w:pPr>
+        <w:r>
+          <w:t>智能自动化科技有限公司</w:t>
+        </w:r>
+      </w:p>
+      
+      <w:p>
+        <w:pPr>
+          <w:jc w:val="center"/>
+        </w:pPr>
+        <w:r>
+          <w:t>www.facebook-autobot.com</w:t>
+        </w:r>
+      </w:p>
+      
+      <w:sectPr>
+        <w:pgSz w:w="11906" w:h="16838"/>
+        <w:pgMar w:top="1440" w:right="1440" w:bottom="1440" w:left="1440" w:header="720" w:footer="720" w:gutter="0"/>
+        <w:cols w:space="720"/>
+      </w:sectPr>
+    </wx:sect>
+  </w:body>
+</w:wordDocument>

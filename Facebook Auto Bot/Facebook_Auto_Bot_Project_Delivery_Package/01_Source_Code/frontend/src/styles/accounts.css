@@ -1,0 +1,409 @@
+/* 账号管理页面样式 */
+
+.accounts-page,
+.account-detail-page {
+  min-height: 100vh;
+  background-color: #f5f5f5;
+}
+
+/* 响应式调整 */
+@media (max-width: 768px) {
+  .accounts-page .ant-card,
+  .account-detail-page .ant-card {
+    margin: 8px;
+  }
+  
+  .accounts-page .ant-table,
+  .account-detail-page .ant-table {
+    overflow-x: auto;
+  }
+  
+  .accounts-page .ant-table-thead > tr > th,
+  .account-detail-page .ant-table-thead > tr > th {
+    white-space: nowrap;
+  }
+  
+  .accounts-page .ant-space,
+  .account-detail-page .ant-space {
+    flex-wrap: wrap;
+  }
+  
+  .accounts-page .ant-btn,
+  .account-detail-page .ant-btn {
+    margin-bottom: 8px;
+  }
+}
+
+/* 账号状态标签 */
+.account-status-tag {
+  font-size: 12px;
+  padding: 2px 8px;
+  border-radius: 10px;
+}
+
+.account-status-active {
+  background-color: #f6ffed;
+  border-color: #b7eb8f;
+  color: #52c41a;
+}
+
+.account-status-disabled {
+  background-color: #fafafa;
+  border-color: #d9d9d9;
+  color: #8c8c8c;
+}
+
+.account-status-banned {
+  background-color: #fff2f0;
+  border-color: #ffccc7;
+  color: #ff4d4f;
+}
+
+.account-status-suspended {
+  background-color: #fffbe6;
+  border-color: #ffe58f;
+  color: #faad14;
+}
+
+/* VPN状态指示器 */
+.vpn-status-indicator {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  margin-right: 6px;
+}
+
+.vpn-status-connected {
+  background-color: #52c41a;
+  box-shadow: 0 0 0 2px rgba(82, 196, 26, 0.2);
+}
+
+.vpn-status-disconnected {
+  background-color: #ff4d4f;
+  box-shadow: 0 0 0 2px rgba(255, 77, 79, 0.2);
+}
+
+/* 性能图表容器 */
+.performance-chart-container {
+  background: white;
+  border-radius: 8px;
+  padding: 16px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+/* 批量操作面板 */
+.batch-operations-panel {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  background: white;
+  padding: 16px;
+  border-bottom: 1px solid #f0f0f0;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+/* 账号卡片 */
+.account-card {
+  transition: all 0.3s ease;
+  border: 1px solid #f0f0f0;
+}
+
+.account-card:hover {
+  border-color: #1890ff;
+  box-shadow: 0 4px 12px rgba(24, 144, 255, 0.2);
+  transform: translateY(-2px);
+}
+
+.account-card-selected {
+  border-color: #1890ff;
+  background-color: #e6f7ff;
+}
+
+/* 表单样式 */
+.account-form-section {
+  margin-bottom: 24px;
+  padding: 16px;
+  background: white;
+  border-radius: 8px;
+  border: 1px solid #f0f0f0;
+}
+
+.account-form-section-title {
+  font-size: 16px;
+  font-weight: 600;
+  margin-bottom: 16px;
+  color: #1890ff;
+  border-bottom: 2px solid #1890ff;
+  padding-bottom: 8px;
+}
+
+/* 加载状态 */
+.loading-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(255, 255, 255, 0.8);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  border-radius: 8px;
+}
+
+/* 空状态 */
+.empty-state {
+  text-align: center;
+  padding: 48px 24px;
+  color: #8c8c8c;
+}
+
+.empty-state-icon {
+  font-size: 48px;
+  color: #d9d9d9;
+  margin-bottom: 16px;
+}
+
+.empty-state-title {
+  font-size: 18px;
+  font-weight: 500;
+  margin-bottom: 8px;
+  color: #262626;
+}
+
+.empty-state-description {
+  font-size: 14px;
+  color: #8c8c8c;
+  margin-bottom: 24px;
+}
+
+/* 统计卡片 */
+.stats-card {
+  text-align: center;
+  border: none;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.stats-card-value {
+  font-size: 24px;
+  font-weight: 600;
+  color: #1890ff;
+  margin: 8px 0;
+}
+
+.stats-card-label {
+  font-size: 14px;
+  color: #8c8c8c;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+/* 标签云 */
+.tag-cloud {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 8px 0;
+}
+
+.tag-cloud-item {
+  padding: 4px 12px;
+  background: #f0f0f0;
+  border-radius: 16px;
+  font-size: 12px;
+  color: #595959;
+  transition: all 0.3s ease;
+}
+
+.tag-cloud-item:hover {
+  background: #1890ff;
+  color: white;
+  transform: scale(1.05);
+}
+
+/* 操作按钮组 */
+.action-button-group {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.action-button {
+  min-width: 80px;
+}
+
+/* 响应式表格单元格 */
+.responsive-table-cell {
+  word-break: break-word;
+}
+
+@media (max-width: 576px) {
+  .responsive-table-cell {
+    font-size: 12px;
+  }
+}
+
+/* 模态框样式 */
+.account-modal {
+  max-width: 90vw;
+}
+
+@media (max-width: 768px) {
+  .account-modal {
+    width: 95vw !important;
+    max-width: 95vw;
+    margin: 8px;
+  }
+  
+  .account-modal .ant-modal-content {
+    padding: 16px;
+  }
+}
+
+/* 选项卡样式 */
+.account-tabs {
+  background: white;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.account-tabs .ant-tabs-nav {
+  padding: 0 16px;
+  background: #fafafa;
+  margin: 0;
+}
+
+.account-tabs .ant-tabs-content {
+  padding: 16px;
+}
+
+/* 时间线样式 */
+.activity-timeline {
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.activity-timeline-item {
+  padding: 8px 0;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.activity-timeline-item:last-child {
+  border-bottom: none;
+}
+
+.activity-timeline-time {
+  font-size: 12px;
+  color: #8c8c8c;
+  margin-bottom: 4px;
+}
+
+.activity-timeline-action {
+  font-weight: 500;
+  color: #262626;
+}
+
+.activity-timeline-details {
+  font-size: 12px;
+  color: #595959;
+  margin-top: 2px;
+}
+
+/* 进度条样式 */
+.progress-bar-container {
+  margin: 16px 0;
+}
+
+.progress-bar-label {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 4px;
+  font-size: 12px;
+  color: #8c8c8c;
+}
+
+.progress-bar-value {
+  font-weight: 500;
+  color: #262626;
+}
+
+/* 工具提示样式 */
+.custom-tooltip {
+  max-width: 300px;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+/* 动画效果 */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.fade-in {
+  animation: fadeIn 0.3s ease-out;
+}
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateX(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.slide-in {
+  animation: slideIn 0.3s ease-out;
+}
+
+@keyframes pulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(24, 144, 255, 0.4);
+  }
+  70% {
+    box-shadow: 0 0 0 10px rgba(24, 144, 255, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(24, 144, 255, 0);
+  }
+}
+
+.pulse {
+  animation: pulse 2s infinite;
+}
+
+/* 滚动条样式 */
+.custom-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: #d9d9d9 #f5f5f5;
+}
+
+.custom-scrollbar::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: #f5f5f5;
+  border-radius: 3px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: #d9d9d9;
+  border-radius: 3px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: #bfbfbf;
+}

@@ -1,0 +1,42 @@
+{
+  "name": "facebook-bot-phase2",
+  "version": "2.1.0",
+  "description": "Facebook Auto Bot Phase 2.0 - Puppeteer浏览器自动化执行引擎",
+  "private": true,
+  "workspaces": [
+    "packages/*"
+  ],
+  "scripts": {
+    "build": "npm run build --workspaces",
+    "test": "npm run test --workspaces",
+    "lint": "npm run lint --workspaces",
+    "format": "npm run format --workspaces",
+    "dev": "cd packages/puppeteer-executor && npm run dev",
+    "start": "cd packages/puppeteer-executor && npm start",
+    "docker:build": "./scripts/docker-build.sh",
+    "docker:test": "./scripts/docker-build.sh --test",
+    "docker:push": "./scripts/docker-build.sh --push",
+    "clean": "rm -rf packages/*/dist packages/*/node_modules packages/*/coverage"
+  },
+  "keywords": [
+    "puppeteer",
+    "automation",
+    "facebook",
+    "bot",
+    "docker"
+  ],
+  "author": "Facebook Auto Bot Team",
+  "license": "MIT",
+  "engines": {
+    "node": ">=18.0.0",
+    "npm": ">=8.0.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/your-org/facebook-auto-bot.git"
+  },
+  "bugs": {
+    "url": "https://github.com/your-org/facebook-auto-bot/issues"
+  },
+  "homepage": "https://github.com/your-org/facebook-auto-bot#readme"
+}

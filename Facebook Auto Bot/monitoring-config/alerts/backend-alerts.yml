@@ -1,0 +1,207 @@
+# Facebook Auto Bot 后端告警规则
+
+groups:
+  - name: backend_alerts
+    rules:
+      # API 性能告警
+      - alert: HighAPIResponseTime
+        expr: rate(http_request_duration_seconds_sum{job="facebook-auto-bot-backend", method!="OPTIONS"}[5m]) / rate(http_request_duration_seconds_count{job="facebook-auto-bot-backend", method!="OPTIONS"}[5m]) > 0.5
+        for: 2m
+        labels:
+          severity: warning
+          component: backend
+          service: api
+        annotations:
+          summary: "API响应时间过高"
+          description: "{{ $labels.instance }} 的API平均响应时间超过500ms (当前值: {{ $value }}s)"
+          runbook_url: "https://wiki.example.com/runbooks/high-api-response-time"
+
+      - alert: HighAPIErrorRate
+        expr: rate(http_requests_total{job="facebook-auto-bot-backend", status=~"5.."}[5m]) / rate(http_requests_total{job="facebook-auto-bot-backend"}[5m]) > 0.05
+        for: 1m
+        labels:
+          severity: critical
+          component: backend
+          service: api
+        annotations:
+          summary: "API错误率过高"
+          description: "{{ $labels.instance }} 的API错误率超过5% (当前值: {{ $value | humanizePercentage }})"
+          runbook_url: "https://wiki.example.com/runbooks/high-api-error-rate"
+
+      # 数据库连接告警
+      - alert: DatabaseConnectionPoolHighUsage
+        expr: pg_stat_database_numbackends{job="postgresql"} / pg_stat_database_setting_max_connections * 100 > 80
+        for: 5m
+        labels:
+          severity: warning
+          component: database
+          service: postgresql
+        annotations:
+          summary: "数据库连接池使用率过高"
+          description: "{{ $labels.instance }} 的数据库连接池使用率超过80% (当前值: {{ $value }}%)"
+          runbook_url: "https://wiki.example.com/runbooks/database-connection-pool-high-usage"
+
+      - alert: SlowDatabaseQueries
+        expr: rate(pg_stat_statements_total_time{job="postgresql"}[5m]) / rate(pg_stat_statements_calls{job="postgresql"}[5m]) > 0.1
+        for: 2m
+        labels:
+          severity: warning
+          component: database
+          service: postgresql
+        annotations:
+          summary: "数据库查询过慢"
+          description: "{{ $labels.instance }} 的平均查询时间超过100ms (当前值: {{ $value }}s)"
+          runbook_url: "https://wiki.example.com/runbooks/slow-database-queries"
+
+      # Redis 缓存告警
+      - alert: RedisHighMemoryUsage
+        expr: redis_memory_used_bytes{job="redis"} / redis_memory_max_bytes{job="redis"} * 100 > 85
+        for: 5m
+        labels:
+          severity: warning
+          component: cache
+          service: redis
+        annotations:
+          summary: "Redis内存使用率过高"
+          description: "{{ $labels.instance }} 的Redis内存使用率超过85% (当前值: {{ $value }}%)"
+          runbook_url: "https://wiki.example.com/runbooks/redis-high-memory-usage"
+
+      - alert: LowRedisCacheHitRate
+        expr: rate(redis_keyspace_hits_total{job="redis"}[5m]) / (rate(redis_keyspace_hits_total{job="redis"}[5m]) + rate(redis_keyspace_misses_total{job="redis"}[5m])) * 100 < 90
+        for: 10m
+        labels:
+          severity: warning
+          component: cache
+          service: redis
+        annotations:
+          summary: "Redis缓存命中率过低"
+          description: "{{ $labels.instance }} 的Redis缓存命中率低于90% (当前值: {{ $value }}%)"
+          runbook_url: "https://wiki.example.com/runbooks/low-redis-cache-hit-rate"
+
+      # 系统资源告警
+      - alert: HighCPUUsage
+        expr: 100 - (avg by(instance) (rate(node_cpu_seconds_total{job="node", mode="idle"}[5m])) * 100) > 80
+        for: 5m
+        labels:
+          severity: warning
+          component: system
+        annotations:
+          summary: "CPU使用率过高"
+          description: "{{ $labels.instance }} 的CPU使用率超过80% (当前值: {{ $value }}%)"
+          runbook_url: "https://wiki.example.com/runbooks/high-cpu-usage"
+
+      - alert: HighMemoryUsage
+        expr: (node_memory_MemTotal_bytes{job="node"} - node_memory_MemAvailable_bytes{job="node"}) / node_memory_MemTotal_bytes{job="node"} * 100 > 85
+        for: 5m
+        labels:
+          severity: warning
+          component: system
+        annotations:
+          summary: "内存使用率过高"
+          description: "{{ $labels.instance }} 的内存使用率超过85% (当前值: {{ $value }}%)"
+          runbook_url: "https://wiki.example.com/runbooks/high-memory-usage"
+
+      - alert: HighDiskUsage
+        expr: (node_filesystem_size_bytes{job="node", fstype!="tmpfs"} - node_filesystem_free_bytes{job="node", fstype!="tmpfs"}) / node_filesystem_size_bytes{job="node", fstype!="tmpfs"} * 100 > 85
+        for: 10m
+        labels:
+          severity: warning
+          component: system
+        annotations:
+          summary: "磁盘使用率过高"
+          description: "{{ $labels.instance }} 的磁盘使用率超过85% (当前值: {{ $value }}%)"
+          runbook_url: "https://wiki.example.com/runbooks/high-disk-usage"
+
+      # 服务健康告警
+      - alert: ServiceDown
+        expr: up{job=~"facebook-auto-bot-backend|facebook-auto-bot-frontend|websocket-server|task-scheduler"} == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "服务不可用"
+          description: "{{ $labels.instance }} 的 {{ $labels.job }} 服务已宕机"
+          runbook_url: "https://wiki.example.com/runbooks/service-down"
+
+      - alert: HighHTTPErrorRate
+        expr: rate(http_requests_total{job=~"facebook-auto-bot-backend|facebook-auto-bot-frontend", status=~"4..|5.."}[5m]) / rate(http_requests_total{job=~"facebook-auto-bot-backend|facebook-auto-bot-frontend"}[5m]) * 100 > 10
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "HTTP错误率过高"
+          description: "{{ $labels.instance }} 的HTTP错误率超过10% (当前值: {{ $value }}%)"
+          runbook_url: "https://wiki.example.com/runbooks/high-http-error-rate"
+
+      # 业务指标告警
+      - alert: HighTaskFailureRate
+        expr: rate(task_executions_total{status="failed"}[1h]) / rate(task_executions_total[1h]) * 100 > 5
+        for: 30m
+        labels:
+          severity: warning
+          component: business
+          service: task-scheduler
+        annotations:
+          summary: "任务失败率过高"
+          description: "任务失败率超过5% (当前值: {{ $value }}%)"
+          runbook_url: "https://wiki.example.com/runbooks/high-task-failure-rate"
+
+      - alert: LowAccountHealthRate
+        expr: avg(account_health_status{status="healthy"}) * 100 < 90
+        for: 1h
+        labels:
+          severity: warning
+          component: business
+          service: account-manager
+        annotations:
+          summary: "账号健康率过低"
+          description: "账号健康率低于90% (当前值: {{ $value }}%)"
+          runbook_url: "https://wiki.example.com/runbooks/low-account-health-rate"
+
+      # WebSocket 连接告警
+      - alert: WebSocketHighDisconnectRate
+        expr: rate(websocket_disconnections_total[5m]) / rate(websocket_connections_total[5m]) * 100 > 10
+        for: 5m
+        labels:
+          severity: warning
+          component: realtime
+          service: websocket
+        annotations:
+          summary: "WebSocket断开连接率过高"
+          description: "WebSocket断开连接率超过10% (当前值: {{ $value }}%)"
+          runbook_url: "https://wiki.example.com/runbooks/websocket-high-disconnect-rate"
+
+      - alert: WebSocketHighLatency
+        expr: websocket_message_latency_seconds{quantile="0.95"} > 1
+        for: 2m
+        labels:
+          severity: warning
+          component: realtime
+          service: websocket
+        annotations:
+          summary: "WebSocket消息延迟过高"
+          description: "WebSocket P95消息延迟超过1秒 (当前值: {{ $value }}s)"
+          runbook_url: "https://wiki.example.com/runbooks/websocket-high-latency"
+
+      # 前端性能告警
+      - alert: FrontendHighLoadTime
+        expr: frontend_page_load_time_seconds{quantile="0.95"} > 3
+        for: 5m
+        labels:
+          severity: warning
+          component: frontend
+        annotations:
+          summary: "前端页面加载时间过长"
+          description: "前端P95页面加载时间超过3秒 (当前值: {{ $value }}s)"
+          runbook_url: "https://wiki.example.com/runbooks/frontend-high-load-time"
+
+      - alert: FrontendHighJSBundleSize
+        expr: frontend_js_bundle_size_bytes > 500000
+        for: 0m
+        labels:
+          severity: info
+          component: frontend
+        annotations:
+          summary: "前端JS包大小过大"
+          description: "前端JS包大小超过500KB (当前值: {{ $value | humanize1024 }}B)"
+          runbook_url: "https://wiki.example.com/runbooks/frontend-high-js-bundle-size"

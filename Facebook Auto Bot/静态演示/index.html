@@ -1,0 +1,489 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Facebook Auto Bot - 静态演示</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/antd/5.12.8/antd.min.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: #f0f2f5;
+        }
+        
+        .app-container {
+            display: flex;
+            min-height: 100vh;
+        }
+        
+        .sidebar {
+            width: 250px;
+            background: #001529;
+            color: white;
+            padding: 20px 0;
+        }
+        
+        .sidebar-header {
+            padding: 0 20px 20px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        .sidebar-header h1 {
+            font-size: 18px;
+            font-weight: 600;
+            color: white;
+        }
+        
+        .sidebar-header p {
+            font-size: 12px;
+            opacity: 0.7;
+            margin-top: 5px;
+        }
+        
+        .menu {
+            padding: 20px 0;
+        }
+        
+        .menu-item {
+            padding: 12px 20px;
+            display: flex;
+            align-items: center;
+            color: rgba(255, 255, 255, 0.65);
+            text-decoration: none;
+            transition: all 0.3s;
+        }
+        
+        .menu-item:hover {
+            background: rgba(255, 255, 255, 0.1);
+            color: white;
+        }
+        
+        .menu-item.active {
+            background: #1890ff;
+            color: white;
+        }
+        
+        .menu-item i {
+            margin-right: 10px;
+            font-size: 16px;
+        }
+        
+        .content {
+            flex: 1;
+            padding: 20px;
+            overflow-y: auto;
+        }
+        
+        .page-header {
+            margin-bottom: 20px;
+        }
+        
+        .page-header h1 {
+            font-size: 24px;
+            color: #333;
+            margin-bottom: 8px;
+        }
+        
+        .page-header p {
+            color: #666;
+        }
+        
+        .card-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        
+        .card {
+            background: white;
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        }
+        
+        .card h3 {
+            color: #1890ff;
+            margin-bottom: 10px;
+            font-size: 16px;
+        }
+        
+        .card p {
+            color: #666;
+            font-size: 14px;
+            line-height: 1.5;
+        }
+        
+        .demo-section {
+            background: white;
+            border-radius: 8px;
+            padding: 30px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        }
+        
+        .demo-section h2 {
+            color: #333;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #f0f0f0;
+        }
+        
+        .feature-list {
+            list-style: none;
+            padding: 0;
+        }
+        
+        .feature-list li {
+            padding: 10px 0;
+            border-bottom: 1px solid #f0f0f0;
+            display: flex;
+            align-items: center;
+        }
+        
+        .feature-list li:last-child {
+            border-bottom: none;
+        }
+        
+        .feature-list li:before {
+            content: "✓";
+            color: #52c41a;
+            margin-right: 10px;
+            font-weight: bold;
+        }
+        
+        .status-badge {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 12px;
+            margin-left: 10px;
+        }
+        
+        .status-ready {
+            background: #f6ffed;
+            color: #52c41a;
+            border: 1px solid #b7eb8f;
+        }
+        
+        .status-building {
+            background: #fff7e6;
+            color: #faad14;
+            border: 1px solid #ffd591;
+        }
+        
+        .login-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+        
+        .login-modal {
+            background: white;
+            border-radius: 12px;
+            padding: 40px;
+            width: 90%;
+            max-width: 400px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+        }
+        
+        .login-modal h2 {
+            color: #333;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+        
+        .form-group {
+            margin-bottom: 20px;
+        }
+        
+        .form-input {
+            width: 100%;
+            padding: 12px 16px;
+            border: 2px solid #e8e8e8;
+            border-radius: 8px;
+            font-size: 16px;
+        }
+        
+        .login-button {
+            width: 100%;
+            padding: 14px;
+            background: #1890ff;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+        }
+        
+        .system-status {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: white;
+            border-radius: 8px;
+            padding: 15px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            font-size: 14px;
+        }
+        
+        .system-status h4 {
+            color: #333;
+            margin-bottom: 8px;
+        }
+    </style>
+</head>
+<body>
+    <div id="loginOverlay" class="login-overlay">
+        <div class="login-modal">
+            <h2>Facebook Auto Bot 登录</h2>
+            <div class="form-group">
+                <input type="text" id="username" class="form-input" placeholder="用户名" value="admin">
+            </div>
+            <div class="form-group">
+                <input type="password" id="password" class="form-input" placeholder="密码" value="admin123">
+            </div>
+            <button class="login-button" onclick="handleLogin()">登录</button>
+        </div>
+    </div>
+    
+    <div class="app-container" id="appContainer" style="display: none;">
+        <div class="sidebar">
+            <div class="sidebar-header">
+                <h1>Facebook Auto Bot</h1>
+                <p>专业自动化管理系统</p>
+            </div>
+            
+            <div class="menu">
+                <a href="#" class="menu-item active" onclick="showPage('dashboard')">
+                    <i>📊</i> 仪表板
+                </a>
+                <a href="#" class="menu-item" onclick="showPage('accounts')">
+                    <i>👤</i> 账号管理
+                </a>
+                <a href="#" class="menu-item" onclick="showPage('vpn')">
+                    <i>🛡️</i> VPN配置
+                </a>
+                <a href="#" class="menu-item" onclick="showPage('anti-detection')">
+                    <i>🔒</i> 反检测配置
+                </a>
+                <a href="#" class="menu-item" onclick="showPage('login-status')">
+                    <i>📈</i> 状态监控
+                </a>
+                <a href="#" class="menu-item" onclick="showPage('tasks')">
+                    <i>💬</i> 任务调度
+                </a>
+            </div>
+        </div>
+        
+        <div class="content">
+            <!-- 仪表板页面 -->
+            <div id="dashboardPage" class="page-content">
+                <div class="page-header">
+                    <h1>系统仪表板</h1>
+                    <p>Facebook Auto Bot 系统概览和关键指标</p>
+                </div>
+                
+                <div class="card-grid">
+                    <div class="card">
+                        <h3>账号状态</h3>
+                        <p>10个Facebook账号，8个在线，2个需要验证</p>
+                    </div>
+                    <div class="card">
+                        <h3>VPN连接</h3>
+                        <p>6个VPN节点，平均延迟120ms</p>
+                    </div>
+                    <div class="card">
+                        <h3>任务执行</h3>
+                        <p>今日执行12个任务，成功率92%</p>
+                    </div>
+                    <div class="card">
+                        <h3>系统健康</h3>
+                        <p>整体健康评分：94/100</p>
+                    </div>
+                </div>
+                
+                <div class="demo-section">
+                    <h2>系统功能概览</h2>
+                    <ul class="feature-list">
+                        <li>5步Facebook账号配置向导 <span class="status-badge status-ready">就绪</span></li>
+                        <li>VPN管理 + 账号关联系统 <span class="status-badge status-ready">就绪</span></li>
+                        <li>反检测配置独立面板 <span class="status-badge status-ready">就绪</span></li>
+                        <li>登录状态实时监控 <span class="status-badge status-ready">就绪</span></li>
+                        <li>任务调度管理系统 <span class="status-badge status-ready">就绪</span></li>
+                        <li>完整的路由和导航 <span class="status-badge status-ready">就绪</span></li>
+                    </ul>
+                </div>
+            </div>
+            
+            <!-- 账号管理页面 -->
+            <div id="accountsPage" class="page-content" style="display: none;">
+                <div class="page-header">
+                    <h1>账号管理</h1>
+                    <p>Facebook账号配置和管理</p>
+                </div>
+                
+                <div class="demo-section">
+                    <h2>5步配置向导</h2>
+                    <p>全新的账号配置流程，引导用户完成完整设置：</p>
+                    
+                    <div style="margin: 20px 0; padding: 20px; background: #f6ffed; border-radius: 8px;">
+                        <h3 style="color: #52c41a; margin-bottom: 15px;">配置步骤：</h3>
+                        <ol style="padding-left: 20px; line-height: 2;">
+                            <li><strong>基本信息</strong> - 账号名称、登录凭证</li>
+                            <li><strong>VPN配置</strong> - 选择VPN节点、IP轮换策略</li>
+                            <li><strong>反检测配置</strong> - 浏览器指纹、行为模拟</li>
+                            <li><strong>登录测试</strong> - 实时测试验证配置</li>
+                            <li><strong>会话管理</strong> - 保存会话、有效期设置</li>
+                        </ol>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- VPN配置页面 -->
+            <div id="vpnPage" class="page-content" style="display: none;">
+                <div class="page-header">
+                    <h1>VPN配置管理</h1>
+                    <p>VPN节点配置和账号关联</p>
+                </div>
+                
+                <div class="demo-section">
+                    <h2>VPN管理功能</h2>
+                    <ul class="feature-list">
+                        <li>VPN节点CRUD管理</li>
+                        <li>账号-VPN关联配置</li>
+                        <li>IP轮换策略设置</li>
+                        <li>连接质量实时监控</li>
+                        <li>故障切换自动处理</li>
+                    </ul>
+                </div>
+            </div>
+            
+            <!-- 反检测配置页面 -->
+            <div id="antiDetectionPage" class="page-content" style="display: none;">
+                <div class="page-header">
+                    <h1>反检测配置</h1>
+                    <p>浏览器指纹伪装和行为模拟配置</p>
+                </div>
+                
+                <div class="demo-section">
+                    <h2>反检测功能特性</h2>
+                    <ul class="feature-list">
+                        <li>浏览器指纹伪装 (User-Agent、屏幕分辨率、时区等)</li>
+                        <li>人类行为模拟 (鼠标轨迹、键盘输入、页面滚动)</li>
+                        <li>设备伪装配置 (桌面/移动设备、操作系统、浏览器)</li>
+                        <li>预设模板库 (8个常用配置模板)</li>
+                        <li>批量应用到多个账号</li>
+                        <li>配置导入/导出功能</li>
+                    </ul>
+                </div>
+            </div>
+            
+            <!-- 状态监控页面 -->
+            <div id="loginStatusPage" class="page-content" style="display: none;">
+                <div class="page-header">
+                    <h1>登录状态监控</h1>
+                    <p>实时监控Facebook账号登录状态</p>
+                </div>
+                
+                <div class="demo-section">
+                    <h2>监控功能</h2>
+                    <ul class="feature-list">
+                        <li>实时状态显示 (在线、离线、验证中、失败)</li>
+                        <li>健康状态仪表板 (综合评分0-100)</li>
+                        <li>失败原因详细分析</li>
+                        <li>自动重连配置</li>
+                        <li>历史状态趋势图表</li>
+                        <li>实时WebSocket更新</li>
+                    </ul>
+                </div>
+            </div>
+            
+            <!-- 任务调度页面 -->
+            <div id="tasksPage" class="page-content" style="display: none;">
+                <div class="page-header">
+                    <h1>任务调度管理</h1>
+                    <p>自动化任务调度和执行</p>
+                </div>
+                
+                <div class="demo-section">
+                    <h2>任务调度功能</h2>
+                    <ul class="feature-list">
+                        <li>50个预设对话脚本</li>
+                        <li>智能时间安排</li>
+                        <li>多账号并行执行</li>
+                        <li>执行进度实时监控</li>
+                        <li>任务日志和报告</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="system-status">
+        <h4>系统状态</h4>
+        <div>前端代码: <span style="color: #52c41a;">完成 98%</span></div>
+        <div>构建环境: <span style="color: #faad14;">修复中</span></div>
+        <div>后端API: <span style="color: #1890ff;">待开发</span></div>
+    </div>
+
+    <script>
+        function handleLogin() {
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+            
+            if (username === 'admin' && password === 'admin123') {
+                document.getElementById('loginOverlay').style.display = 'none';
+                document.getElementById('appContainer').style.display = 'flex';
+                showPage('dashboard');
+            } else {
+                alert('请使用默认账号：admin / admin123');
+            }
+        }
+        
+        function showPage(pageName) {
+            // 隐藏所有页面
+            document.querySelectorAll('.page-content').forEach(el => {
+                el.style.display = 'none';
+            });
+            
+            // 显示选中的页面
+            document.getElementById(pageName + 'Page').style.display = 'block';
+            
+            // 更新菜单激活状态
+            document.querySelectorAll('.menu-item').forEach(el => {
+                el.classList.remove('active');
+            });
+            
+            // 找到对应的菜单项并激活
+            const menuItems = document.querySelectorAll('.menu-item');
+            for (let i = 0; i < menuItems.length; i++) {
+                if (menuItems[i].getAttribute('onclick')?.includes(pageName)) {
+                    menuItems[i].classList.add('active');
+                    break;
+                }
+            }
+        }
+        
+        // 自动填充登录信息
+        document.addEventListener('DOMContentLoaded', function() {
+            document.getElementById('username').value = 'admin';
+            document.getElementById('password').value = 'admin123';
+        });
+    </script>
+</body>
+</html>

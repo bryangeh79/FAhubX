@@ -1,0 +1,371 @@
+# Facebook Auto Bot 备份配置
+# 版本: 1.0.0
+
+# 全局配置
+global:
+  environment: production
+  backup_id: facebook-auto-bot
+  timezone: UTC
+  log_level: info
+  log_file: /var/log/facebook-auto-bot/backup.log
+  temp_dir: /tmp/facebook-auto-bot-backup
+  max_retries: 3
+  retry_delay: 60  # 秒
+
+# 通知配置
+notifications:
+  enabled: true
+  on_success: false
+  on_failure: true
+  on_warning: true
+  
+  email:
+    enabled: false
+    smtp_host: smtp.gmail.com
+    smtp_port: 587
+    smtp_username: ${EMAIL_USERNAME}
+    smtp_password: ${EMAIL_PASSWORD}
+    from: backup@example.com
+    to:
+      - admin@example.com
+      - ops@example.com
+  
+  slack:
+    enabled: false
+    webhook_url: ${SLACK_WEBHOOK_URL}
+    channel: "#backup-alerts"
+  
+  webhook:
+    enabled: false
+    url: ${WEBHOOK_URL}
+    secret: ${WEBHOOK_SECRET}
+
+# 数据库备份配置
+database:
+  enabled: true
+  type: postgresql
+  version: 15
+  
+  connection:
+    host: ${DB_HOST:-localhost}
+    port: ${DB_PORT:-5432}
+    database: ${DB_NAME:-facebook_auto_bot}
+    username: ${DB_USERNAME:-postgres}
+    password: ${DB_PASSWORD}
+    ssl_mode: prefer
+    
+  backup:
+    # 备份类型
+    full:
+      enabled: true
+      schedule: "0 0 * * *"  # 每天00:00
+      retention_days: 30
+      compression: gzip
+      encryption: aes256
+      encryption_key: ${BACKUP_ENCRYPTION_KEY}
+      
+    incremental:
+      enabled: true
+      schedule: "0 * * * *"   # 每小时
+      retention_days: 7
+      compression: gzip
+      encryption: aes256
+      encryption_key: ${BACKUP_ENCRYPTION_KEY}
+      
+    # 备份选项
+    options:
+      format: custom          # custom, plain, directory
+      jobs: 4                 # 并行备份作业数
+      verbose: true
+      no_owner: true
+      no_privileges: true
+      clean: true
+      
+    # 表排除列表（不需要备份的表）
+    exclude_tables:
+      - audit_logs.*
+      - task_executions.*
+      - conversation_executions.*
+      
+    # 表包含列表（只备份这些表）
+    include_tables: []  # 空表示备份所有表
+    
+  verification:
+    enabled: true
+    verify_after_backup: true
+    verify_schedule: "30 0 * * *"  # 每天00:30
+    verify_retention: true
+
+# 文件系统备份配置
+filesystem:
+  enabled: true
+  
+  # 备份路径
+  paths:
+    - path: /workspace/backend
+      type: directory
+      recursive: true
+      exclude:
+        - "**/node_modules"
+        - "**/.git"
+        - "**/*.log"
+        - "**/tmp"
+        - "**/dist"
+        - "**/build"
+        
+    - path: /workspace/frontend
+      type: directory
+      recursive: true
+      exclude:
+        - "**/node_modules"
+        - "**/.git"
+        - "**/*.log"
+        - "**/dist"
+        - "**/build"
+        
+    - path: /workspace/docker-compose.yml
+      type: file
+      
+    - path: /workspace/.env
+      type: file
+      sensitive: true
+      
+    - path: /workspace/backup-system
+      type: directory
+      recursive: true
+      
+    - path: /workspace/docs
+      type: directory
+      recursive: true
+      
+    - path: /workspace/infrastructure
+      type: directory
+      recursive: true
+  
+  backup:
+    full:
+      enabled: true
+      schedule: "0 1 * * *"  # 每天01:00
+      retention_days: 30
+      compression: gzip
+      encryption: aes256
+      encryption_key: ${BACKUP_ENCRYPTION_KEY}
+      
+    incremental:
+      enabled: true
+      schedule: "30 * * * *"  # 每小时30分
+      retention_days: 7
+      compression: gzip
+      encryption: aes256
+      encryption_key: ${BACKUP_ENCRYPTION_KEY}
+      
+  verification:
+    enabled: true
+    checksum_algorithm: sha256
+    verify_after_backup: true
+
+# 配置备份
+config:
+  enabled: true
+  
+  paths:
+    - /workspace/backend/.env
+    - /workspace/backend/package.json
+    - /workspace/backend/tsconfig.json
+    - /workspace/frontend/.env
+    - /workspace/frontend/package.json
+    - /workspace/frontend/tsconfig.json
+    - /workspace/docker-compose.yml
+    - /workspace/backup-system/backup-config.yaml
+    
+  backup:
+    schedule: "0 2 * * *"  # 每天02:00
+    retention_days: 90
+    compression: gzip
+    encryption: aes256
+    encryption_key: ${BACKUP_ENCRYPTION_KEY}
+
+# 日志备份
+logs:
+  enabled: true
+  
+  paths:
+    - /var/log/facebook-auto-bot/backend.log
+    - /var/log/facebook-auto-bot/frontend.log
+    - /var/log/facebook-auto-bot/backup.log
+    - /var/log/facebook-auto-bot/error.log
+    
+  backup:
+    schedule: "0 3 * * *"  # 每天03:00
+    retention_days: 7
+    compression: gzip
+    rotation:
+      enabled: true
+      max_size: 100M  # 100MB
+      max_files: 10
+
+# 存储配置
+storage:
+  # 本地存储
+  local:
+    enabled: true
+    path: /var/backups/facebook-auto-bot
+    max_size_gb: 100
+    min_free_gb: 10
+    organization:
+      by_date: true
+      by_type: true
+      
+  # 远程存储 (SFTP)
+  remote:
+    enabled: ${REMOTE_BACKUP_ENABLED:-false}
+    type: sftp
+    host: ${REMOTE_HOST:-backup.example.com}
+    port: ${REMOTE_PORT:-22}
+    username: ${REMOTE_USERNAME:-backupuser}
+    password: ${REMOTE_PASSWORD}
+    path: /backups/facebook-auto-bot
+    max_retries: 3
+    timeout: 300  # 秒
+    
+  # 云存储 (AWS S3)
+  cloud:
+    enabled: ${CLOUD_BACKUP_ENABLED:-false}
+    provider: aws
+    bucket: ${AWS_BUCKET:-facebook-auto-bot-backups}
+    region: ${AWS_REGION:-us-east-1}
+    access_key: ${AWS_ACCESS_KEY_ID}
+    secret_key: ${AWS_SECRET_ACCESS_KEY}
+    path: backups/
+    storage_class: STANDARD_IA  # 低频访问存储
+    lifecycle:
+      enabled: true
+      transition_days: 30  # 30天后转为GLACIER
+      expiration_days: 365  # 365天后删除
+    
+  # 备份轮换策略
+  rotation:
+    daily: 7      # 保留最近7天的每日备份
+    weekly: 4     # 保留最近4周的每周备份
+    monthly: 12   # 保留最近12个月的每月备份
+    yearly: 3     # 保留最近3年的每年备份
+
+# 监控配置
+monitoring:
+  enabled: true
+  
+  # 健康检查
+  health_check:
+    schedule: "*/5 * * * *"  # 每5分钟
+    checks:
+      - disk_space
+      - backup_age
+      - backup_size
+      - backup_integrity
+      
+  # 指标收集
+  metrics:
+    enabled: true
+    push_gateway: ${PROMETHEUS_PUSH_GATEWAY}
+    interval: 60  # 秒
+    
+    metrics:
+      - backup_duration_seconds
+      - backup_size_bytes
+      - backup_age_seconds
+      - backup_success_total
+      - backup_failure_total
+      
+  # 告警规则
+  alerts:
+    - name: backup_failed
+      condition: backup_failure_total > 0
+      severity: critical
+      cooldown: 300  # 秒
+      
+    - name: backup_stale
+      condition: backup_age_seconds > 86400  # 24小时
+      severity: warning
+      
+    - name: disk_space_low
+      condition: disk_free_percent < 10
+      severity: critical
+      
+    - name: backup_size_anomaly
+      condition: abs(backup_size_bytes - avg_over_time(backup_size_bytes[7d])) > avg_over_time(backup_size_bytes[7d]) * 0.5
+      severity: warning
+
+# 恢复配置
+recovery:
+  test_mode: false
+  dry_run: false
+  
+  # 恢复点目标 (RPO)
+  rpo:
+    database: 3600  # 1小时
+    filesystem: 86400  # 24小时
+    config: 86400  # 24小时
+    
+  # 恢复时间目标 (RTO)
+  rto:
+    data_deletion: 3600  # 1小时
+    system_failure: 14400  # 4小时
+    disaster: 86400  # 24小时
+    
+  # 恢复测试
+  test:
+    enabled: true
+    schedule: "0 4 * * 0"  # 每周日04:00
+    retention: 7  # 保留7个测试恢复
+
+# 安全配置
+security:
+  encryption:
+    algorithm: aes-256-gcm
+    key_rotation_days: 90
+    key_storage: vault  # vault, file, env
+    
+  access_control:
+    backup_files_permission: 600  # 只有所有者可读写
+    backup_dir_permission: 700    # 只有所有者可访问
+    
+  audit:
+    enabled: true
+    log_all_operations: true
+    retention_days: 365
+
+# 高级配置
+advanced:
+  # 并行处理
+  parallelism:
+    max_workers: 4
+    database_workers: 2
+    filesystem_workers: 2
+    
+  # 资源限制
+  resources:
+    max_memory_mb: 4096
+    max_cpu_percent: 50
+    io_priority: idle
+    
+  # 网络配置
+  network:
+    timeout: 300  # 秒
+    retries: 3
+    bandwidth_limit: 0  # 0表示无限制，单位KB/s
+    
+  # 错误处理
+  error_handling:
+    continue_on_error: false
+    partial_backup: false
+    fail_fast: true
+
+# 环境变量引用说明
+# 以下环境变量需要在运行前设置：
+# DB_PASSWORD: 数据库密码
+# BACKUP_ENCRYPTION_KEY: 备份加密密钥（至少32字符）
+# REMOTE_PASSWORD: 远程备份密码（如果启用）
+# AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY: AWS凭证（如果启用）
+# EMAIL_USERNAME, EMAIL_PASSWORD: 邮件通知凭证（如果启用）
+# SLACK_WEBHOOK_URL: Slack Webhook URL（如果启用）
+# WEBHOOK_URL, WEBHOOK_SECRET: 自定义Webhook（如果启用）

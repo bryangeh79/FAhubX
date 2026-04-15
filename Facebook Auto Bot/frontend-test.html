@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Facebook Auto Bot 前端测试</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            line-height: 1.6;
+        }
+        .status {
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 5px;
+            border-left: 5px solid;
+        }
+        .success {
+            background-color: #d4edda;
+            border-color: #28a745;
+            color: #155724;
+        }
+        .warning {
+            background-color: #fff3cd;
+            border-color: #ffc107;
+            color: #856404;
+        }
+        .error {
+            background-color: #f8d7da;
+            border-color: #dc3545;
+            color: #721c24;
+        }
+        .info {
+            background-color: #d1ecf1;
+            border-color: #17a2b8;
+            color: #0c5460;
+        }
+        .test-button {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        .test-button:hover {
+            background-color: #0056b3;
+        }
+        .result {
+            margin-top: 10px;
+            padding: 10px;
+            background-color: #f8f9fa;
+            border-radius: 5px;
+            white-space: pre-wrap;
+            font-family: monospace;
+        }
+    </style>
+</head>
+<body>
+    <h1>Facebook Auto Bot 系统测试</h1>
+    
+    <div class="status info">
+        <h3>系统状态</h3>
+        <p><strong>前端</strong>: http://localhost:5174</p>
+        <p><strong>后端API</strong>: http://localhost:3000</p>
+        <p><strong>测试时间</strong>: <span id="current-time"></span></p>
+    </div>
+
+    <div class="status info">
+        <h3>登录凭证</h3>
+        <p><strong>用户名</strong>: admin</p>
+        <p><strong>密码</strong>: admin123</p>
+    </div>
+
+    <h2>API 测试</h2>
+    
+    <div>
+        <button class="test-button" onclick="testHealth()">测试健康检查</button>
+        <button class="test-button" onclick="testLogin()">测试登录</button>
+        <button class="test-button" onclick="testDashboard()">测试仪表板</button>
+        <button class="test-button" onclick="testAccounts()">测试账号管理</button>
+    </div>
+
+    <div id="test-results"></div>
+
+    <h2>功能验证清单</h2>
+    <ul>
+        <li>✅ 项目记忆唤醒完成</li>
+        <li>✅ TypeScript编译错误修复</li>
+        <li>✅ 前端构建成功</li>
+        <li>✅ 后端API运行正常</li>
+        <li>✅ 认证系统工作正常</li>
+        <li>✅ 前后端集成验证</li>
+        <li>🔲 端到端用户流程测试</li>
+        <li>🔲 UI组件交互测试</li>
+        <li>🔲 错误处理测试</li>
+        <li>🔲 性能测试</li>
+    </ul>
+
+    <div class="status success">
+        <h3>调试完成总结</h3>
+        <p>系统已从构建错误状态成功恢复到可工作状态。基础功能验证通过，可以进行下一步的功能扩展和深度测试。</p>
+        <p><strong>系统状态</strong>: ✅ 可工作，✅ 可测试</p>
+        <p><strong>下一步</strong>: 端到端功能测试和功能扩展</p>
+    </div>
+
+    <script>
+        // 显示当前时间
+        document.getElementById('current-time').textContent = new Date().toLocaleString('zh-CN', {
+            timeZone: 'Asia/Kuala_Lumpur'
+        });
+
+        function showResult(title, data, isSuccess = true) {
+            const resultsDiv = document.getElementById('test-results');
+            const resultDiv = document.createElement('div');
+            resultDiv.className = 'status ' + (isSuccess ? 'success' : 'error');
+            resultDiv.innerHTML = `<h4>${title}</h4><div class="result">${JSON.stringify(data, null, 2)}</div>`;
+            resultsDiv.appendChild(resultDiv);
+        }
+
+        async function testHealth() {
+            try {
+                const response = await fetch('http://localhost:3000/api/health');
+                const data = await response.json();
+                showResult('健康检查', data, response.ok);
+            } catch (error) {
+                showResult('健康检查失败', { error: error.message }, false);
+            }
+        }
+
+        async function testLogin() {
+            try {
+                const response = await fetch('http://localhost:3000/api/auth/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        username: 'admin',
+                        password: 'admin123'
+                    })
+                });
+                const data = await response.json();
+                showResult('登录测试', data, response.ok);
+                
+                // 保存token供其他测试使用
+                if (data.access_token) {
+                    window.token = data.access_token;
+                    showResult('Token保存', { token: '已保存（用于后续测试）' }, true);
+                }
+            } catch (error) {
+                showResult('登录测试失败', { error: error.message }, false);
+            }
+        }
+
+        async function testDashboard() {
+            if (!window.token) {
+                showResult('仪表板测试', { error: '请先登录获取token' }, false);
+                return;
+            }
+            
+            try {
+                const response = await fetch('http://localhost:3000/api/dashboard/stats', {
+                    headers: { 'Authorization': `Bearer ${window.token}` }
+                });
+                const data = await response.json();
+                showResult('仪表板数据', data, response.ok);
+            } catch (error) {
+                showResult('仪表板测试失败', { error: error.message }, false);
+            }
+        }
+
+        async function testAccounts() {
+            if (!window.token) {
+                showResult('账号管理测试', { error: '请先登录获取token' }, false);
+                return;
+            }
+            
+            try {
+                const response = await fetch('http://localhost:3000/api/accounts', {
+                    headers: { 'Authorization': `Bearer ${window.token}` }
+                });
+                const data = await response.json();
+                showResult('账号列表', data, response.ok);
+            } catch (error) {
+                showResult('账号管理测试失败', { error: error.message }, false);
+            }
+        }
+
+        // 自动运行基础测试
+        setTimeout(() => {
+            testHealth();
+            setTimeout(testLogin, 1000);
+        }, 500);
+    </script>
+</body>
+</html>

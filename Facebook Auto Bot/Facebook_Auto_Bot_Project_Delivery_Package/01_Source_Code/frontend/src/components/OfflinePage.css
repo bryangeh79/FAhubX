@@ -1,0 +1,200 @@
+/* 离线页面组件样式 */
+
+.offline-page {
+  padding: 24px;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.offline-icon {
+  font-size: 72px;
+  color: #ff4d4f;
+  margin-bottom: 24px;
+}
+
+.offline-details {
+  margin-top: 32px;
+}
+
+.queue-stats {
+  margin-bottom: 16px;
+}
+
+.queue-stats .ant-col {
+  text-align: center;
+}
+
+.queue-stats .ant-badge {
+  width: 100%;
+}
+
+.queue-stats .ant-card {
+  background: transparent;
+  border: none;
+  text-align: center;
+  padding: 8px;
+}
+
+.queue-stats .ant-card .ant-typography {
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.cache-item {
+  margin-bottom: 12px;
+  padding: 8px;
+  background: #fafafa;
+  border-radius: 4px;
+}
+
+.cache-progress {
+  margin-top: 4px;
+}
+
+.cache-progress .ant-progress {
+  margin-bottom: 4px;
+}
+
+.cache-progress .ant-typography {
+  font-size: 11px;
+}
+
+.storage-info {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 12px;
+  padding: 8px;
+  background: #e6f7ff;
+  border-radius: 4px;
+  border: 1px solid #91d5ff;
+}
+
+.storage-info .anticon {
+  color: #1890ff;
+}
+
+.info-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 0;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.info-item:last-child {
+  border-bottom: none;
+}
+
+.info-item .anticon {
+  font-size: 14px;
+}
+
+.offline-alert {
+  margin-top: 24px;
+  border-radius: 8px;
+}
+
+/* 暗色主题支持 */
+@media (prefers-color-scheme: dark) {
+  .offline-icon {
+    color: #ff7875;
+  }
+  
+  .cache-item {
+    background: #262626;
+  }
+  
+  .storage-info {
+    background: #111b26;
+    border-color: #153450;
+  }
+  
+  .info-item {
+    border-bottom-color: #303030;
+  }
+  
+  .offline-alert {
+    background: #262626;
+    border-color: #303030;
+  }
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+  .offline-page {
+    padding: 16px;
+  }
+  
+  .offline-icon {
+    font-size: 48px;
+  }
+  
+  .queue-stats .ant-col {
+    margin-bottom: 8px;
+  }
+  
+  .queue-stats .ant-col:last-child {
+    margin-bottom: 0;
+  }
+  
+  .offline-details .ant-col {
+    margin-bottom: 16px;
+  }
+  
+  .offline-details .ant-col:last-child {
+    margin-bottom: 0;
+  }
+}
+
+/* 动画效果 */
+@keyframes pulse {
+  0% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+  100% {
+    opacity: 1;
+  }
+}
+
+.syncing {
+  animation: pulse 1.5s infinite;
+}
+
+/* 滚动条样式 */
+.offline-page ::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+.offline-page ::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 3px;
+}
+
+.offline-page ::-webkit-scrollbar-thumb {
+  background: #c1c1c1;
+  border-radius: 3px;
+}
+
+.offline-page ::-webkit-scrollbar-thumb:hover {
+  background: #a8a8a8;
+}
+
+/* 暗色主题滚动条 */
+@media (prefers-color-scheme: dark) {
+  .offline-page ::-webkit-scrollbar-track {
+    background: #303030;
+  }
+  
+  .offline-page ::-webkit-scrollbar-thumb {
+    background: #555;
+  }
+  
+  .offline-page ::-webkit-scrollbar-thumb:hover {
+    background: #666;
+  }
+}

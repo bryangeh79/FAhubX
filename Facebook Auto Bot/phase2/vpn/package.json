@@ -1,0 +1,36 @@
+{
+  "name": "facebook-autobot-vpn-manager",
+  "version": "1.0.0",
+  "description": "VPN Manager for Facebook Auto Bot System",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "test": "jest",
+    "test:watch": "jest --watch",
+    "lint": "eslint src/**/*.ts"
+  },
+  "dependencies": {
+    "axios": "^1.6.0",
+    "geoip-lite": "^1.4.7",
+    "node-fetch": "^3.3.0",
+    "ping": "^0.4.4",
+    "speedtest-net": "^2.2.0",
+    "winston": "^3.11.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.10.0",
+    "@types/ping": "^0.4.3",
+    "@types/jest": "^29.5.0",
+    "typescript": "^5.3.0",
+    "jest": "^29.7.0",
+    "ts-jest": "^29.1.0",
+    "eslint": "^8.55.0",
+    "@typescript-eslint/parser": "^6.13.0",
+    "@typescript-eslint/eslint-plugin": "^6.13.0"
+  },
+  "keywords": ["vpn", "openvpn", "wireguard", "ip-management", "facebook-bot"],
+  "author": "Facebook Auto Bot Team",
+  "license": "MIT"
+}

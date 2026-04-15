@@ -1,0 +1,24 @@
+# Facebook Auto Bot 每周清理任务
+# 每周日01:00执行完整备份验证
+0 1 * * 0 root /workspace/backup-system/scripts/backup-verify.sh --all --verbose >> /var/log/facebook-auto-bot/verify-weekly.log 2>&1
+
+# 每周日02:00执行恢复测试
+0 2 * * 0 root /workspace/backup-system/scripts/test-recovery.sh >> /var/log/facebook-auto-bot/recovery-test.log 2>&1
+
+# 每周日03:00优化数据库备份
+0 3 * * 0 root /workspace/backup-system/scripts/optimize-backups.sh >> /var/log/facebook-auto-bot/optimize-cron.log 2>&1
+
+# 每周日04:00清理临时文件
+0 4 * * 0 root /workspace/backup-system/scripts/cleanup-temp-files.sh >> /var/log/facebook-auto-bot/cleanup-weekly.log 2>&1
+
+# 每周日05:00生成周度报告
+0 5 * * 0 root /workspace/backup-system/scripts/generate-weekly-report.sh >> /var/log/facebook-auto-bot/report-weekly.log 2>&1
+
+# 每周一00:00清理超过90天的配置备份
+0 0 * * 1 root /workspace/backup-system/scripts/backup-cleanup.sh --type=config --days=90 >> /var/log/facebook-auto-bot/cleanup-config.log 2>&1
+
+# 每月1号02:00归档月度备份
+0 2 1 * * root /workspace/backup-system/scripts/archive-monthly-backups.sh >> /var/log/facebook-auto-bot/archive-cron.log 2>&1
+
+# 每季度第一天03:00执行完整灾难恢复测试
+0 3 1 */3 * root /workspace/backup-system/scripts/disaster-recovery-test.sh >> /var/log/facebook-auto-bot/disaster-test.log 2>&1

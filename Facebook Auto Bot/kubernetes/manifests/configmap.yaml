@@ -1,0 +1,43 @@
+# Facebook Auto Bot 配置映射
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: fbautobot-config
+  namespace: fbautobot
+data:
+  # 应用配置
+  NODE_ENV: "production"
+  PORT: "3000"
+  API_URL: "https://api.yourdomain.com"
+  WS_URL: "wss://api.yourdomain.com"
+  
+  # 数据库连接配置
+  DB_HOST: "postgres"
+  DB_PORT: "5432"
+  DB_NAME: "fbautobot_production"
+  
+  # Redis 配置
+  REDIS_HOST: "redis"
+  REDIS_PORT: "6379"
+  
+  # RabbitMQ 配置
+  RABBITMQ_URL: "amqp://admin:@rabbitmq:5672"
+  
+  # MinIO 配置
+  MINIO_ENDPOINT: "minio:9000"
+  
+  # 日志配置
+  LOG_LEVEL: "info"
+  LOG_FORMAT: "json"
+  
+  # Prometheus 配置
+  prometheus.yml: |
+    global:
+      scrape_interval: 15s
+      evaluation_interval: 15s
+    
+    scrape_configs:
+      - job_name: 'backend'
+        static_configs:
+          - targets: ['backend:3000']
+        metrics_path: '/metrics'

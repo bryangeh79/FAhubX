@@ -1,0 +1,293 @@
+version: '3.8'
+
+services:
+  # Phase 2.2 主服务
+  phase2:
+    build: .
+    image: facebook-bot-phase2:2.2.0
+    container_name: facebook-bot-phase2
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_NAME=${DB_NAME:-facebook_bot}
+      - DB_USER=${DB_USER:-postgres}
+      - DB_PASSWORD=${DB_PASSWORD}
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - SESSION_ENCRYPTION_KEY=${SESSION_ENCRYPTION_KEY}
+      - LOG_LEVEL=${LOG_LEVEL:-info}
+      - LOG_FILE=true
+      - LOG_FILE_PATH=/app/logs/app.log
+    volumes:
+      - ./configs:/app/configs:ro
+      - ./data:/app/data
+      - ./logs:/app/logs
+      - /var/run/docker.sock:/var/run/docker.sock
+      - phase2_screenshots:/app/screenshots
+    networks:
+      - phase2-network
+      - vpn-network
+    depends_on:
+      - postgres
+      - redis
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:3000/health', (res) => { process.exit(res.statusCode === 200 ? 0 : 1) }).on('error', () => process.exit(1))"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 2G
+        reservations:
+          cpus: '0.5'
+          memory: 512M
+    labels:
+      - "com.facebook-bot.version=2.2.0"
+      - "com.facebook-bot.component=phase2"
+      - "traefik.enable=true"
+      - "traefik.http.routers.phase2.rule=Host(`phase2.example.com`)"
+      - "traefik.http.services.phase2.loadbalancer.server.port=3000"
+
+  # PostgreSQL数据库
+  postgres:
+    image: postgres:15-alpine
+    container_name: phase2-postgres
+    restart: unless-stopped
+    environment:
+      - POSTGRES_DB=${DB_NAME:-facebook_bot}
+      - POSTGRES_USER=${DB_USER:-postgres}
+      - POSTGRES_PASSWORD=${DB_PASSWORD}
+      - POSTGRES_INITDB_ARGS=--encoding=UTF8 --locale=C
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./init-db.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    networks:
+      - phase2-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-postgres}"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 1G
+        reservations:
+          cpus: '0.25'
+          memory: 256M
+
+  # Redis缓存
+  redis:
+    image: redis:7-alpine
+    container_name: phase2-redis
+    restart: unless-stopped
+    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD:-}
+    volumes:
+      - redis_data:/data
+    networks:
+      - phase2-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "--raw", "incr", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M
+        reservations:
+          cpus: '0.1'
+          memory: 128M
+
+  # VPN服务 (OpenVPN)
+  openvpn:
+    image: dperson/openvpn-client:latest
+    container_name: phase2-openvpn
+    restart: unless-stopped
+    cap_add:
+      - NET_ADMIN
+    devices:
+      - /dev/net/tun
+    volumes:
+      - ./vpn-configs:/vpn:ro
+      - ./vpn-auth:/auth:ro
+    environment:
+      - FIREWALL=1
+      - DNS=8.8.8.8,1.1.1.1
+    networks:
+      - vpn-network
+    command: '-r 192.168.0.0/24 -f ""'
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 256M
+
+  # 监控服务 (Prometheus)
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: phase2-prometheus
+    restart: unless-stopped
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+      - '--storage.tsdb.retention.time=30d'
+      - '--web.enable-lifecycle'
+    networks:
+      - phase2-network
+    ports:
+      - "9090:9090"
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M
+
+  # 可视化仪表板 (Grafana)
+  grafana:
+    image: grafana/grafana:latest
+    container_name: phase2-grafana
+    restart: unless-stopped
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASSWORD:-admin}
+      - GF_INSTALL_PLUGINS=grafana-piechart-panel
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./grafana-dashboards:/etc/grafana/provisioning/dashboards:ro
+      - ./grafana-datasources:/etc/grafana/provisioning/datasources:ro
+    networks:
+      - phase2-network
+    ports:
+      - "3001:3000"
+    depends_on:
+      - prometheus
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M
+
+  # 日志收集 (Loki)
+  loki:
+    image: grafana/loki:latest
+    container_name: phase2-loki
+    restart: unless-stopped
+    volumes:
+      - loki_data:/loki
+      - ./loki-config.yaml:/etc/loki/local-config.yaml:ro
+    command: -config.file=/etc/loki/local-config.yaml
+    networks:
+      - phase2-network
+    ports:
+      - "3100:3100"
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M
+
+  # 日志代理 (Promtail)
+  promtail:
+    image: grafana/promtail:latest
+    container_name: phase2-promtail
+    restart: unless-stopped
+    volumes:
+      - ./logs:/var/log/phase2:ro
+      - ./promtail-config.yaml:/etc/promtail/config.yaml:ro
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+      - /var/run/docker.sock:/var/run/docker.sock
+    command: -config.file=/etc/promtail/config.yaml
+    networks:
+      - phase2-network
+    depends_on:
+      - loki
+    deploy:
+      resources:
+        limits:
+          cpus: '0.25'
+          memory: 256M
+
+  # 反向代理 (Traefik - 可选)
+  traefik:
+    image: traefik:v3.0
+    container_name: phase2-traefik
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+      - "8080:8080"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ./traefik.yml:/etc/traefik/traefik.yml:ro
+      - ./certs:/certs:ro
+    networks:
+      - phase2-network
+    command:
+      - "--api.insecure=true"
+      - "--providers.docker=true"
+      - "--providers.docker.exposedbydefault=false"
+      - "--entrypoints.web.address=:80"
+      - "--entrypoints.websecure.address=:443"
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 256M
+
+# 网络配置
+networks:
+  phase2-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16
+  vpn-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.21.0.0/16
+
+# 卷配置
+volumes:
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local
+  prometheus_data:
+    driver: local
+  grafana_data:
+    driver: local
+  loki_data:
+    driver: local
+  phase2_screenshots:
+    driver: local
+
+# 使用说明:
+# 1. 复制.env.example为.env并配置环境变量
+# 2. 创建必要的配置文件目录: mkdir -p configs vpn-configs vpn-auth certs logs
+# 3. 启动服务: docker-compose up -d
+# 4. 查看日志: docker-compose logs -f phase2
+# 5. 停止服务: docker-compose down
+# 6. 清理数据: docker-compose down -v
+
+# 生产环境建议:
+# 1. 使用外部数据库和Redis服务
+# 2. 配置TLS证书
+# 3. 设置备份策略
+# 4. 配置监控告警
+# 5. 使用密钥管理服务
