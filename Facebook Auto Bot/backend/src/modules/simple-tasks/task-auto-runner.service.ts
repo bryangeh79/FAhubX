@@ -3,7 +3,7 @@ import { Cron, CronExpression } from '@nestjs/schedule';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, LessThanOrEqual } from 'typeorm';
 import { Task, TaskStatus } from '../task-scheduler/entities/task.entity';
-import { appendLog, clearLogs } from './simple-tasks.service';
+import { SimpleTasksService, appendLog, clearLogs } from './simple-tasks.service';
 import { BrowserSessionService } from '../facebook-accounts/browser-session.service';
 import { AccountWarmingService } from '../task-executor/integrations/account-warming.service';
 import { FacebookChatService } from '../task-executor/integrations/facebook-chat.service';
@@ -25,6 +25,7 @@ export class TaskAutoRunnerService implements OnModuleInit {
     private readonly chatService: FacebookChatService,
     private readonly postService: FacebookPostService,
     private readonly socialService: FacebookSocialService,
+    private readonly simpleTasksService: SimpleTasksService,
     private readonly dataSource: DataSource,
   ) {}
 
@@ -55,12 +56,18 @@ export class TaskAutoRunnerService implements OnModuleInit {
     for (const task of dueTasks) {
       if (this.running.has(task.id)) continue;
 
+      // ── Claim this task immediately to prevent race conditions ─────────────
+      // Add to running set BEFORE any async checks so concurrent cron ticks
+      // cannot pick up the same task.
+      this.running.add(task.id);
+
       // Skip tasks whose scheduledAt is more than 24h in the past
       // (these are stale — user probably forgot about them, don't auto-run)
       const ageMs = now.getTime() - new Date(task.scheduledAt).getTime();
       if (ageMs > 24 * 60 * 60 * 1000) {
         this.logger.warn(`⏭ 跳过过期超过24小时的任务: ${task.name}`);
         await this.saveTaskResult(task.id, false, '任务已超时 24 小时，自动取消');
+        this.running.delete(task.id);
         continue;
       }
 
@@ -79,6 +86,7 @@ export class TaskAutoRunnerService implements OnModuleInit {
         );
         if (parseInt(count, 10) > 0) {
           this.logger.debug(`Batch wait: task ${task.id} group ${params.batchGroup} — prior group not done`);
+          this.running.delete(task.id);
           continue;
         }
       }
@@ -87,7 +95,6 @@ export class TaskAutoRunnerService implements OnModuleInit {
       const taskAction = params.taskAction || task.taskAction;
 
       this.logger.log(`⏰ 定时触发任务: ${task.name} (id=${task.id})`);
-      this.running.add(task.id);
 
       // Mark as RUNNING immediately
       await this.taskRepo.update({ id: task.id }, { status: TaskStatus.RUNNING });
@@ -129,6 +136,7 @@ export class TaskAutoRunnerService implements OnModuleInit {
   /**
    * Persist the task final status + result to DB.
    * Always writes completedAt and result so the frontend error tooltip works.
+   * Also persists in-memory logs to the DB for later retrieval.
    */
   private async saveTaskResult(taskId: string, success: boolean, error?: string) {
     await this.taskRepo.update(
@@ -141,6 +149,8 @@ export class TaskAutoRunnerService implements OnModuleInit {
           : { success: false, error: error || '任务执行失败' },
       } as any,
     );
+    // Persist in-memory execution logs to DB (same as updateStatus does)
+    await this.simpleTasksService.persistLogsToDb(taskId).catch(() => {});
   }
 
   private async executeTask(

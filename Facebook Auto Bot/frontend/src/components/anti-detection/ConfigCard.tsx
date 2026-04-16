@@ -3,7 +3,7 @@ import { Card, Tag, Space, Typography, Tooltip, Badge } from 'antd';
 import {
   DesktopOutlined, MobileOutlined, TabletOutlined,
   WindowsOutlined, AppleOutlined, LinuxOutlined, AndroidOutlined,
-  ChromeOutlined, FirefoxOutlined, SafariOutlined, GlobalOutlined,
+  ChromeOutlined, FireOutlined, CompassOutlined, GlobalOutlined,
   CheckCircleOutlined, ExclamationCircleOutlined,
 } from '@ant-design/icons';
 import { AntiDetectionConfig, DeviceSimulation } from '../../types/facebook-login';
@@ -40,8 +40,8 @@ const ConfigCard: React.FC<ConfigCardProps> = ({
 
   const browserIconMap = {
     chrome: <ChromeOutlined />,
-    firefox: <FirefoxOutlined />,
-    safari: <SafariOutlined />,
+    firefox: <FireOutlined />,
+    safari: <CompassOutlined />,
     edge: <GlobalOutlined />,
   };
 

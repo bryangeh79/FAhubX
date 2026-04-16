@@ -11,15 +11,30 @@ export interface ExecutionLogEntry {
 }
 
 // In-memory log store per taskId
+// Limits: max 500 tasks retained, max 1000 log entries per task
+const MAX_LOG_TASKS = 500;
+const MAX_LOG_ENTRIES_PER_TASK = 1000;
 const executionLogs = new Map<string, ExecutionLogEntry[]>();
 
 export function appendLog(taskId: string, level: ExecutionLogEntry['level'], message: string) {
-  if (!executionLogs.has(taskId)) executionLogs.set(taskId, []);
-  executionLogs.get(taskId)!.push({
+  if (!executionLogs.has(taskId)) {
+    // Evict oldest task if at capacity
+    if (executionLogs.size >= MAX_LOG_TASKS) {
+      const oldestKey = executionLogs.keys().next().value;
+      if (oldestKey) executionLogs.delete(oldestKey);
+    }
+    executionLogs.set(taskId, []);
+  }
+  const logs = executionLogs.get(taskId)!;
+  logs.push({
     time: new Date().toLocaleTimeString('zh-CN'),
     level,
     message,
   });
+  // Trim oldest entries if over limit
+  if (logs.length > MAX_LOG_ENTRIES_PER_TASK) {
+    logs.splice(0, logs.length - MAX_LOG_ENTRIES_PER_TASK);
+  }
 }
 
 export function getLogs(taskId: string): ExecutionLogEntry[] {

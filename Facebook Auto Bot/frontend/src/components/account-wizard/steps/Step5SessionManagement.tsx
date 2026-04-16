@@ -21,6 +21,7 @@ import {
   Progress,
   Badge,
   Timeline,
+  Select,
 } from 'antd';
 import {
   SaveOutlined,
@@ -39,6 +40,7 @@ import {
 
 import { ExtendedFacebookAccount, LoginSession } from '../../../types/facebook-login';
 import { facebookLoginService } from '../../../services/facebook-login';
+import { accountsService } from '../../../services/accounts';
 
 const { Title, Text } = Typography;
 
@@ -176,7 +178,7 @@ const Step5SessionManagement: React.FC<Step5SessionManagementProps> = ({
     try {
       if (accountId) {
         // 这里应该调用实际的API清除所有会话
-        await facebookLoginService.clearAccountSessions(accountId);
+        await accountsService.clearAccountSessions(accountId);
       }
       
       setSessions([]);

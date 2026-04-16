@@ -51,6 +51,20 @@ async function bootstrap() {
   // 获取配置服务
   const configService = app.get(ConfigService);
 
+  // ── 生产环境启动校验：禁止使用默认密钥 ────────────────────────────────────
+  if (process.env.NODE_ENV === 'production') {
+    const jwtSecret = configService.get('JWT_SECRET', '');
+    if (!jwtSecret || jwtSecret.includes('change-in-production') || jwtSecret.length < 32) {
+      console.error('❌ FATAL: JWT_SECRET 未配置或使用默认值，生产环境禁止启动！请在 .env 中设置强密钥。');
+      process.exit(1);
+    }
+    const dbPassword = configService.get('DB_PASSWORD', '');
+    if (!dbPassword || dbPassword === 'password') {
+      console.error('❌ FATAL: DB_PASSWORD 使用默认值 "password"，生产环境禁止启动！');
+      process.exit(1);
+    }
+  }
+
   // 安全中间件
   app.use(helmet({
     contentSecurityPolicy: configService.get('CONTENT_SECURITY_POLICY', true),
@@ -97,8 +111,12 @@ async function bootstrap() {
   );
 
   // CORS 配置
+  const isProduction = process.env.NODE_ENV === 'production';
+  const corsOrigin = configService.get('CORS_ORIGIN', '');
   app.enableCors({
-    origin: (origin, callback) => callback(null, origin || '*'),  // 开发模式：反射所有来源
+    origin: isProduction
+      ? (corsOrigin || 'https://yourdomain.com')  // 生产环境：仅允许指定域名
+      : (origin: string, callback: Function) => callback(null, origin || 'http://localhost:5173'),  // 开发模式：允许本地前端
     credentials: configService.get('CORS_CREDENTIALS', true),
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
     allowedHeaders: [

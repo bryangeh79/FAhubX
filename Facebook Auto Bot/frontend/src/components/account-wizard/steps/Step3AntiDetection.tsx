@@ -26,8 +26,8 @@ import {
   MobileOutlined,
   TabletOutlined,
   ChromeOutlined,
-  FirefoxOutlined,
-  SafariOutlined,
+  FireOutlined,
+  CompassOutlined,
   WindowsOutlined,
   AppleOutlined,
   AndroidOutlined,
@@ -225,8 +225,8 @@ const Step3AntiDetection: React.FC<Step3AntiDetectionProps> = ({
   const renderBrowserIcon = (browser: string) => {
     switch (browser) {
       case 'chrome': return <ChromeOutlined />;
-      case 'firefox': return <FirefoxOutlined />;
-      case 'safari': return <SafariOutlined />;
+      case 'firefox': return <FireOutlined />;
+      case 'safari': return <CompassOutlined />;
       default: return <ChromeOutlined />;
     }
   };
@@ -302,7 +302,7 @@ const Step3AntiDetection: React.FC<Step3AntiDetectionProps> = ({
                             {renderDeviceIcon(config.deviceSimulation.deviceType)}
                             {renderBrowserIcon(config.deviceSimulation.browser)}
                             <span>{config.name}</span>
-                            <Tag color={config.enabled ? 'green' : 'default'} size="small">
+                            <Tag color={config.enabled ? 'green' : 'default'} style={{ fontSize: 12 }}>
                               {config.enabled ? '启用' : '禁用'}
                             </Tag>
                           </Space>
@@ -859,13 +859,13 @@ const Step3AntiDetection: React.FC<Step3AntiDetectionProps> = ({
                           </Option>
                           <Option value="firefox">
                             <Space>
-                              <FirefoxOutlined />
+                              <FireOutlined />
                               <span>Firefox</span>
                             </Space>
                           </Option>
                           <Option value="safari">
                             <Space>
-                              <SafariOutlined />
+                              <CompassOutlined />
                               <span>Safari</span>
                             </Space>
                           </Option>

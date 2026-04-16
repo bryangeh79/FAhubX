@@ -413,10 +413,15 @@ const ExecutionLogModal: React.FC<{
     setErrorReason(null);
     setStopping(false);
 
+    let pollInterval: ReturnType<typeof setInterval> | null = null;
+    let elapsedInterval: ReturnType<typeof setInterval> | null = null;
+    let cancelled = false;
+
     const fetchLogs = async () => {
       try {
         const res = await api.get(`/tasks/${taskId}/logs`);
         const data = res.data?.data || res.data;
+        if (cancelled) return 'running';
         setLogs(data?.logs || []);
         const s = data?.status || 'running';
         setStatus(s);
@@ -426,25 +431,35 @@ const ExecutionLogModal: React.FC<{
       return 'running';
     };
 
+    // Start elapsed timer immediately
+    elapsedInterval = setInterval(() => setElapsed(Math.floor((Date.now() - startTime) / 1000)), 1000);
+
     // Fetch immediately on open
     fetchLogs().then(s => {
+      if (cancelled) return;
       if (s === 'completed' || s === 'failed' || s === 'cancelled') {
         onStatusChange?.(taskId, s as TaskStatus);
         return; // Already done — no need to poll
       }
       // Only poll if still running
-      const interval = setInterval(async () => {
+      pollInterval = setInterval(async () => {
         const s2 = await fetchLogs();
+        if (cancelled) return;
         if (s2 === 'completed' || s2 === 'failed' || s2 === 'cancelled') {
-          clearInterval(interval);
+          if (pollInterval) clearInterval(pollInterval);
+          pollInterval = null;
           onStatusChange?.(taskId, s2 as TaskStatus);
         }
       }, 2000);
-      const elapsedInterval = setInterval(() => setElapsed(Math.floor((Date.now() - startTime) / 1000)), 1000);
-      // Cleanup stored in ref so we can clear on unmount
-      return () => { clearInterval(interval); clearInterval(elapsedInterval); };
     });
-  }, [taskId]);
+
+    // Cleanup: clear ALL intervals on unmount or taskId change
+    return () => {
+      cancelled = true;
+      if (pollInterval) clearInterval(pollInterval);
+      if (elapsedInterval) clearInterval(elapsedInterval);
+    };
+  }, [taskId, onStatusChange]);
 
   useEffect(() => {
     logEndRef.current?.scrollIntoView({ behavior: 'smooth' });

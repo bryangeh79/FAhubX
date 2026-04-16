@@ -106,7 +106,10 @@ export class SimpleTasksController {
     appendLog(id, 'info', `任务类型：${taskAction}`);
 
     // Run async (don't await — return immediately so frontend can poll logs)
-    this.runTask(req.user.id, id, taskAction, params, task).catch(() => {});
+    this.runTask(req.user.id, id, taskAction, params, task).catch((err) => {
+      appendLog(id, 'error', `❌ 任务执行未捕获异常：${err?.message || err}`);
+      this.service.updateStatus(req.user.id, id, TaskStatus.FAILED, err?.message || '未知异常').catch(() => {});
+    });
 
     return { success: true, message: '任务已开始执行，请查看实时日志' };
   }

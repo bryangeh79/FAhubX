@@ -26,7 +26,9 @@ export class DatabaseConfig implements TypeOrmOptionsFactory {
       ],
       synchronize: false,
       logging: this.configService.get('database.logging', false),
-      ssl: this.configService.get('database.ssl', false) ? { rejectUnauthorized: false } : false,
+      ssl: this.configService.get('database.ssl', false)
+        ? { rejectUnauthorized: process.env.NODE_ENV === 'production' }  // 生产环境验证证书，开发环境跳过
+        : false,
     };
   }
 }

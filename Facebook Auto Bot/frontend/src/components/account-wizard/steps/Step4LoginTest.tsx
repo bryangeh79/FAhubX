@@ -477,9 +477,8 @@ const Step4LoginTest: React.FC<Step4LoginTestProps> = ({
                       <Alert
                         message={item.errors[0]}
                         type="error"
-                        size="small"
                         showIcon
-                        style={{ marginTop: 8 }}
+                        style={{ marginTop: 8, padding: '4px 12px' }}
                       />
                     )}
                   </Card>

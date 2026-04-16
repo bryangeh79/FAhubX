@@ -100,8 +100,8 @@ export class BrowserSessionService implements OnModuleDestroy {
       this.sessions.set(accountId, session);
       this.launching.delete(accountId);
 
-      // Clean up when browser disconnects
-      browser.on('disconnected', () => {
+      // Clean up when browser disconnects (use 'once' to auto-remove listener)
+      browser.once('disconnected', () => {
         this.logger.warn(`[${accountId}] Browser disconnected`);
         const s = this.sessions.get(accountId);
         if (s) s.status = 'closed';
@@ -147,6 +147,7 @@ export class BrowserSessionService implements OnModuleDestroy {
     const session = this.sessions.get(accountId);
     if (session) {
       try {
+        session.browser.removeAllListeners('disconnected');
         await session.browser.close();
       } catch (_) {}
       session.status = 'closed';
