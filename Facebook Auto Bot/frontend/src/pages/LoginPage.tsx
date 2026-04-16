@@ -73,26 +73,7 @@ const LoginPage: React.FC = () => {
           </Form.Item>
         </Form>
 
-        <Divider plain>
-          <Text type="secondary" style={{ fontSize: 12 }}>
-            测试账号信息
-          </Text>
-        </Divider>
-
-        <div
-          style={{
-            background: '#f6f8fa',
-            borderRadius: 8,
-            padding: '10px 14px',
-            marginBottom: 16,
-          }}
-        >
-          <Text type="secondary" style={{ fontSize: 13 }}>
-            测试账号: <Text code>admin@fbautobot.com</Text> / <Text code>Admin123!</Text>
-          </Text>
-        </div>
-
-        <div style={{ textAlign: 'center', color: '#999', fontSize: 12 }}>
+        <div style={{ textAlign: 'center', color: '#999', fontSize: 12, marginTop: 16 }}>
           <p style={{ margin: 0 }}>© 2026 FAhubX Platform</p>
         </div>
       </Card>
