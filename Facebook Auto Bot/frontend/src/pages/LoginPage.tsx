@@ -44,11 +44,15 @@ const LoginPage: React.FC = () => {
     >
       <Card style={{ width: 420, boxShadow: '0 8px 32px rgba(0,0,0,0.2)', borderRadius: 12 }}>
         <div style={{ textAlign: 'center', marginBottom: 32 }}>
-          <div style={{ fontSize: 40, marginBottom: 8 }}>🤖</div>
+          <img
+            src="/logo.png"
+            alt="FAhubX Logo"
+            style={{ width: 72, height: 72, objectFit: 'contain', marginBottom: 8, borderRadius: 12 }}
+          />
           <Title level={2} style={{ margin: 0, color: '#1a1a2e' }}>
             FAhubX
           </Title>
-          <p style={{ color: '#666', marginTop: 8, marginBottom: 0 }}>多账号自动化管理平台</p>
+          <p style={{ color: '#666', marginTop: 8, marginBottom: 0 }}>Facebook 多账号自动化管理系统</p>
         </div>
 
         <Form name="login" onFinish={onFinish} layout="vertical" size="large">
