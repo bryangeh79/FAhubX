@@ -26,6 +26,7 @@ import { CreateFacebookAccountDto } from './dto/create-facebook-account.dto';
 import { UpdateFacebookAccountDto } from './dto/update-facebook-account.dto';
 import { FacebookAccountResponseDto } from './dto/facebook-account-response.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { SubscriptionGuard } from '../../common/guards/subscription.guard';
 import { RefreshTokenDto } from './dto/refresh-token.dto';
 import { SyncAccountDto } from './dto/sync-account.dto';
 
@@ -40,6 +41,7 @@ export class FacebookAccountsController {
   ) {}
 
   @Post()
+  @UseGuards(SubscriptionGuard)
   @ApiOperation({ summary: '创建Facebook账号' })
   @ApiResponse({
     status: HttpStatus.CREATED,

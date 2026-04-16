@@ -7,7 +7,7 @@ import {
   ForbiddenException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, MoreThan, LessThanOrEqual } from 'typeorm';
+import { Repository, MoreThan, LessThanOrEqual, DataSource } from 'typeorm';
 import { ConfigService } from '@nestjs/config';
 import * as crypto from 'crypto';
 
@@ -22,6 +22,7 @@ export class FacebookAccountsService {
     @InjectRepository(FacebookAccount)
     private readonly facebookAccountsRepository: Repository<FacebookAccount>,
     private readonly configService: ConfigService,
+    private readonly dataSource: DataSource,
   ) {}
 
   /**
@@ -31,6 +32,24 @@ export class FacebookAccountsService {
     userId: string,
     createFacebookAccountDto: CreateFacebookAccountDto,
   ): Promise<FacebookAccountResponseDto> {
+    // ── 配额校验：检查账号数量是否已达上限 ────────────────────────────────
+    const [user] = await this.dataSource.query(
+      `SELECT role, "max_accounts" AS "maxAccounts" FROM users WHERE id = $1`,
+      [userId],
+    );
+    if (user && user.role !== 'admin') {
+      const [{ count }] = await this.dataSource.query(
+        `SELECT COUNT(*) AS count FROM facebook_accounts WHERE "userId" = $1 AND "deletedAt" IS NULL`,
+        [userId],
+      );
+      const currentCount = parseInt(count, 10);
+      if (currentCount >= user.maxAccounts) {
+        throw new ForbiddenException(
+          `已达账号上限（${currentCount}/${user.maxAccounts}），请联系管理员升级配套`,
+        );
+      }
+    }
+
     // 检查该用户邮箱是否已添加过
     const existingAccount = await this.facebookAccountsRepository.findOne({
       where: { email: createFacebookAccountDto.email, userId },
@@ -382,6 +401,8 @@ export class FacebookAccountsService {
    */
   async getStats(userId: string): Promise<{
     totalAccounts: number;
+    maxAccounts: number;
+    plan: string;
     activeAccounts: number;
     expiredAccounts: number;
     pageAccounts: number;
@@ -398,8 +419,16 @@ export class FacebookAccountsService {
 
     const thresholdDate = new Date(Date.now() + 24 * 60 * 60 * 1000);
 
+    // 获取用户配额信息
+    const [user] = await this.dataSource.query(
+      `SELECT plan, max_accounts AS "maxAccounts" FROM users WHERE id = $1`,
+      [userId],
+    );
+
     return {
       totalAccounts: allAccounts.length,
+      maxAccounts: user?.maxAccounts ?? 10,
+      plan: user?.plan ?? 'basic',
       activeAccounts: allAccounts.filter(a => a.status === 'active').length,
       expiredAccounts: allAccounts.filter(a => a.status === 'error').length,
       pageAccounts: allAccounts.filter(a => a.accountType === 'page').length,

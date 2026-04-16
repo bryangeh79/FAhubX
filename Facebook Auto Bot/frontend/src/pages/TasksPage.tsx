@@ -398,6 +398,12 @@ const ExecutionLogModal: React.FC<{
   const [elapsed, setElapsed] = useState(0);
   const logEndRef = React.useRef<HTMLDivElement>(null);
 
+  // Use ref for onStatusChange to avoid infinite loop:
+  // The parent passes an inline arrow function which creates a new reference on every render.
+  // If we put it in useEffect deps, it triggers re-run → setLogs → parent re-render → new ref → loop.
+  const onStatusChangeRef = React.useRef(onStatusChange);
+  onStatusChangeRef.current = onStatusChange;
+
   // Parse total duration from log messages (e.g. "模拟时长：10 分钟")
   const totalSeconds = React.useMemo(() => {
     const match = logs.find(l => l.message.includes('模拟时长'));
@@ -416,6 +422,12 @@ const ExecutionLogModal: React.FC<{
     let pollInterval: ReturnType<typeof setInterval> | null = null;
     let elapsedInterval: ReturnType<typeof setInterval> | null = null;
     let cancelled = false;
+
+    // Helper: stop ALL timers when task finishes
+    const stopAllTimers = () => {
+      if (pollInterval) { clearInterval(pollInterval); pollInterval = null; }
+      if (elapsedInterval) { clearInterval(elapsedInterval); elapsedInterval = null; }
+    };
 
     const fetchLogs = async () => {
       try {
@@ -438,7 +450,8 @@ const ExecutionLogModal: React.FC<{
     fetchLogs().then(s => {
       if (cancelled) return;
       if (s === 'completed' || s === 'failed' || s === 'cancelled') {
-        onStatusChange?.(taskId, s as TaskStatus);
+        stopAllTimers();
+        onStatusChangeRef.current?.(taskId, s as TaskStatus);
         return; // Already done — no need to poll
       }
       // Only poll if still running
@@ -446,9 +459,8 @@ const ExecutionLogModal: React.FC<{
         const s2 = await fetchLogs();
         if (cancelled) return;
         if (s2 === 'completed' || s2 === 'failed' || s2 === 'cancelled') {
-          if (pollInterval) clearInterval(pollInterval);
-          pollInterval = null;
-          onStatusChange?.(taskId, s2 as TaskStatus);
+          stopAllTimers();
+          onStatusChangeRef.current?.(taskId, s2 as TaskStatus);
         }
       }, 2000);
     });
@@ -459,7 +471,7 @@ const ExecutionLogModal: React.FC<{
       if (pollInterval) clearInterval(pollInterval);
       if (elapsedInterval) clearInterval(elapsedInterval);
     };
-  }, [taskId, onStatusChange]);
+  }, [taskId]);
 
   useEffect(() => {
     logEndRef.current?.scrollIntoView({ behavior: 'smooth' });

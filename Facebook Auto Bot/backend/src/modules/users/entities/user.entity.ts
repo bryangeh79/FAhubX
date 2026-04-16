@@ -47,6 +47,14 @@ export class User {
   @Column({ type: 'timestamptz', nullable: true, name: 'subscription_expiry' })
   subscriptionExpiry: Date | null;
 
+  @ApiProperty({ description: '最大任务数', example: 50 })
+  @Column({ type: 'int', default: 50, name: 'max_tasks' })
+  maxTasks: number;
+
+  @ApiProperty({ description: '最大剧本数', example: 10 })
+  @Column({ type: 'int', default: 10, name: 'max_scripts' })
+  maxScripts: number;
+
   @ApiProperty({ description: '用户状态', example: 'active', enum: ['active', 'suspended', 'deleted'] })
   @Column({ type: 'varchar', length: 20, default: 'active' })
   @Index('idx_users_status')
@@ -163,5 +171,25 @@ export class User {
 
   getDataRetention(): string {
     return this.preferences?.privacy?.dataRetention ?? '7days';
+  }
+
+  isSubscriptionExpired(): boolean {
+    if (this.role === 'admin') return false;
+    if (!this.subscriptionExpiry) return false; // null = 永久有效
+    return new Date() > this.subscriptionExpiry;
+  }
+
+  /** 配套默认值映射 */
+  static getPlanDefaults(plan: 'basic' | 'pro' | 'admin'): {
+    maxAccounts: number;
+    maxTasks: number;
+    maxScripts: number;
+  } {
+    switch (plan) {
+      case 'pro':    return { maxAccounts: 30,   maxTasks: 200, maxScripts: 50 };
+      case 'admin':  return { maxAccounts: 9999, maxTasks: 9999, maxScripts: 9999 };
+      case 'basic':
+      default:       return { maxAccounts: 10,   maxTasks: 50,  maxScripts: 10 };
+    }
   }
 }

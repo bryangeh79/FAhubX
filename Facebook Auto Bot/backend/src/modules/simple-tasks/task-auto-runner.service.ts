@@ -91,6 +91,21 @@ export class TaskAutoRunnerService implements OnModuleInit {
         }
       }
 
+      // ── Subscription expiry guard ────────────────────────────────────────
+      if (task.userId) {
+        const [owner] = await this.dataSource.query(
+          `SELECT role, "subscription_expiry" AS "subscriptionExpiry" FROM users WHERE id = $1`,
+          [task.userId],
+        );
+        if (owner && owner.role !== 'admin' && owner.subscriptionExpiry &&
+            new Date(owner.subscriptionExpiry) < now) {
+          this.logger.warn(`⏭ 跳过任务: ${task.name} — 用户订阅已过期`);
+          await this.saveTaskResult(task.id, false, '订阅已过期，任务无法执行，请联系管理员续期');
+          this.running.delete(task.id);
+          continue;
+        }
+      }
+
       const headless: boolean = params.headless !== undefined ? Boolean(params.headless) : true;
       const taskAction = params.taskAction || task.taskAction;
 

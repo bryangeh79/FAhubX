@@ -1,6 +1,6 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, ForbiddenException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, DataSource } from 'typeorm';
 import { Task, TaskStatus, TaskType } from '../task-scheduler/entities/task.entity';
 import { TaskExecutionLog, LogStatus } from '../task-scheduler/entities/task-execution-log.entity';
 
@@ -64,9 +64,28 @@ export class SimpleTasksService {
     private readonly repo: Repository<Task>,
     @InjectRepository(TaskExecutionLog)
     private readonly logRepo: Repository<TaskExecutionLog>,
+    private readonly dataSource: DataSource,
   ) {}
 
   async create(userId: string, body: any): Promise<Task> {
+    // ── 任务数量配额校验 ──────────────────────────────────────────────────
+    const [user] = await this.dataSource.query(
+      `SELECT role, max_tasks AS "maxTasks" FROM users WHERE id = $1`,
+      [userId],
+    );
+    if (user && user.role !== 'admin') {
+      const [{ count }] = await this.dataSource.query(
+        `SELECT COUNT(*) AS count FROM tasks WHERE "userId" = $1 AND status NOT IN ('completed', 'failed', 'cancelled')`,
+        [userId],
+      );
+      const activeCount = parseInt(count, 10);
+      if (activeCount >= user.maxTasks) {
+        throw new ForbiddenException(
+          `活跃任务已达上限（${activeCount}/${user.maxTasks}），请删除已完成的任务或升级配套`,
+        );
+      }
+    }
+
     const task = this.repo.create({
       name: body.name,
       description: body.description,

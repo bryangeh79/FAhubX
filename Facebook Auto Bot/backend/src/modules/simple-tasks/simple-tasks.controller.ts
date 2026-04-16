@@ -5,6 +5,7 @@ import {
 import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
 import { SimpleTasksService, appendLog, clearLogs } from './simple-tasks.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { SubscriptionGuard } from '../../common/guards/subscription.guard';
 import { TaskStatus } from '../task-scheduler/entities/task.entity';
 import { BrowserSessionService } from '../facebook-accounts/browser-session.service';
 import { AccountWarmingService } from '../task-executor/integrations/account-warming.service';
@@ -19,6 +20,9 @@ import { ChatScriptsService } from '../chat-scripts/chat-scripts.service';
 @UseGuards(JwtAuthGuard)
 @ApiBearerAuth()
 export class SimpleTasksController {
+  /** Track monitoring browsers opened via "查看窗口", keyed by taskId */
+  private readonly monitorBrowsers = new Map<string, any[]>();
+
   constructor(
     private readonly service: SimpleTasksService,
     private readonly browserSessionService: BrowserSessionService,
@@ -30,13 +34,26 @@ export class SimpleTasksController {
     private readonly dataSource: DataSource,
   ) {}
 
+  /** Close all monitoring browsers for a given task */
+  private closeMonitorBrowsers(taskId: string) {
+    const browsers = this.monitorBrowsers.get(taskId);
+    if (browsers) {
+      for (const browser of browsers) {
+        browser.close().catch(() => {});
+      }
+      this.monitorBrowsers.delete(taskId);
+    }
+  }
+
   @Post()
+  @UseGuards(SubscriptionGuard)
   @ApiOperation({ summary: '创建任务' })
   async create(@Request() req, @Body() body: any) {
     return this.service.create(req.user.id, body);
   }
 
   @Post('batch')
+  @UseGuards(SubscriptionGuard)
   @ApiOperation({ summary: '批量创建任务（分批执行）' })
   async batchCreate(@Request() req, @Body() body: { tasks: any[] }) {
     const created: any[] = [];
@@ -90,6 +107,7 @@ export class SimpleTasksController {
   }
 
   @Post(':id/execute')
+  @UseGuards(SubscriptionGuard)
   @ApiOperation({ summary: '立即执行任务' })
   async execute(@Request() req, @Param('id') id: string) {
     const task = await this.service.findOne(req.user.id, id);
@@ -347,6 +365,9 @@ export class SimpleTasksController {
       const reason = err.message || '未知异常';
       appendLog(taskId, 'error', `❌ 执行异常：${reason}`);
       await this.service.updateStatus(userId, taskId, TaskStatus.FAILED, reason);
+    } finally {
+      // 任务结束后自动关闭"查看窗口"打开的监控浏览器
+      this.closeMonitorBrowsers(taskId);
     }
   }
 
@@ -654,8 +675,19 @@ export class SimpleTasksController {
           await page.goto('https://www.facebook.com/', { waitUntil: 'domcontentloaded', timeout: 15000 }).catch(() => {});
         }
 
-        // 15 分钟后自动关闭，避免遗留进程
-        setTimeout(() => browser.close().catch(() => {}), 15 * 60 * 1000);
+        // 存入 Map，任务完成时自动关闭；15 分钟兜底关闭
+        if (!this.monitorBrowsers.has(id)) this.monitorBrowsers.set(id, []);
+        this.monitorBrowsers.get(id)!.push(browser);
+        setTimeout(() => {
+          browser.close().catch(() => {});
+          // 清理 Map 中对应的引用
+          const list = this.monitorBrowsers.get(id);
+          if (list) {
+            const idx = list.indexOf(browser);
+            if (idx >= 0) list.splice(idx, 1);
+            if (list.length === 0) this.monitorBrowsers.delete(id);
+          }
+        }, 15 * 60 * 1000);
         opened.push(acc?.name || accountId);
       } catch { /* 单个账号失败不影响其他账号 */ }
     }
@@ -664,7 +696,7 @@ export class SimpleTasksController {
 
     return {
       success: true,
-      message: `已打开 ${opened.length} 个监控窗口：${opened.join('、')}（独立窗口，不影响运行中的任务，15 分钟后自动关闭）`,
+      message: `已打开 ${opened.length} 个监控窗口：${opened.join('、')}（独立窗口，任务完成后自动关闭）`,
     };
   }
 

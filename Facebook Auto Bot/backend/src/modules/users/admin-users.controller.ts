@@ -54,7 +54,8 @@ export class AdminUsersController {
     if (existing) throw Object.assign(new Error('邮箱或用户名已存在'), { status: 400 });
 
     const plan = body.plan || 'basic';
-    const maxAccounts = plan === 'pro' ? 30 : 10;
+    const planDefaults = User.getPlanDefaults(plan);
+    const maxAccounts = planDefaults.maxAccounts;
     const passwordHash = await bcrypt.hash(body.password, 12);
     const user = this.userRepo.create({
       email: body.email.toLowerCase().trim(),
@@ -64,6 +65,8 @@ export class AdminUsersController {
       role: body.role || 'tenant',
       plan,
       maxAccounts,
+      maxTasks: planDefaults.maxTasks,
+      maxScripts: planDefaults.maxScripts,
       subscriptionExpiry: body.subscriptionExpiry ? new Date(body.subscriptionExpiry) : null,
       status: 'active',
       emailVerified: true,
@@ -81,6 +84,7 @@ export class AdminUsersController {
     role?: 'admin' | 'tenant';
     fullName?: string;
     password?: string;
+    plan?: 'basic' | 'pro';
     subscriptionExpiry?: string | null;
   }) {
     this.assertAdmin(req);
@@ -89,9 +93,16 @@ export class AdminUsersController {
     if (body.role) update.role = body.role;
     if (body.fullName) update.fullName = body.fullName;
     if (body.password) update.passwordHash = await bcrypt.hash(body.password, 12);
+    if (body.plan) {
+      update.plan = body.plan;
+      const defaults = User.getPlanDefaults(body.plan);
+      update.maxAccounts = defaults.maxAccounts;
+      update.maxTasks = defaults.maxTasks;
+      update.maxScripts = defaults.maxScripts;
+    }
     if ('subscriptionExpiry' in body) update.subscriptionExpiry = body.subscriptionExpiry ? new Date(body.subscriptionExpiry) : null;
     await this.userRepo.update({ id }, update);
-    return this.userRepo.findOne({ where: { id }, select: ['id', 'email', 'username', 'fullName', 'role', 'status', 'createdAt'] });
+    return this.userRepo.findOne({ where: { id }, select: ['id', 'email', 'username', 'fullName', 'role', 'plan', 'maxAccounts', 'status', 'subscriptionExpiry', 'createdAt'] });
   }
 
   /** 删除用户 */

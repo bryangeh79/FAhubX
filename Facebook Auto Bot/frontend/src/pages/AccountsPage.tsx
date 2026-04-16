@@ -352,7 +352,19 @@ const AccountsPage: React.FC = () => {
       <Row gutter={16} style={{ marginBottom: 24 }}>
         <Col xs={12} sm={6}>
           <Card loading={statsLoading}>
-            <Statistic title="总账号数" value={stats?.totalAccounts ?? total} prefix={<UserOutlined />} valueStyle={{ color: '#1890ff' }} />
+            <Statistic
+              title={`配额（${((stats as any)?.plan || 'basic').toUpperCase()} 配套）`}
+              value={stats?.totalAccounts ?? total}
+              suffix={`/ ${(stats as any)?.maxAccounts ?? '?'}`}
+              prefix={<UserOutlined />}
+              valueStyle={{
+                color: (stats?.totalAccounts ?? 0) >= ((stats as any)?.maxAccounts ?? 10)
+                  ? '#f5222d'
+                  : (stats?.totalAccounts ?? 0) >= ((stats as any)?.maxAccounts ?? 10) * 0.8
+                    ? '#faad14'
+                    : '#1890ff',
+              }}
+            />
           </Card>
         </Col>
         <Col xs={12} sm={6}>

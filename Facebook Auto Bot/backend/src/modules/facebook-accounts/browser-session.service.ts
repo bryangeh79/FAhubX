@@ -5,6 +5,7 @@ import * as fs from 'fs';
 export interface BrowserSession {
   browser: any; // Puppeteer Browser
   accountId: string;
+  userId?: string; // 所属用户，用于按用户隔离并发
   profileDir: string;
   proxyServer: string | null;
   proxyCredentials: { username: string; password: string } | null;
@@ -16,9 +17,12 @@ export interface LaunchOptions {
   proxyServer?: string;
   proxyCredentials?: { username: string; password: string } | null;
   headless?: boolean;
+  userId?: string; // 传入用户ID用于并发隔离
+  maxUserSessions?: number; // 该用户的最大并发数（默认=maxAccounts）
 }
 
-const MAX_SESSIONS = parseInt(process.env.MAX_BROWSER_SESSIONS || '10', 10);
+// 全局硬性上限（防止单台服务器 OOM）
+const MAX_SESSIONS_GLOBAL = parseInt(process.env.MAX_BROWSER_SESSIONS || '30', 10);
 
 @Injectable()
 export class BrowserSessionService implements OnModuleDestroy {
@@ -53,9 +57,18 @@ export class BrowserSessionService implements OnModuleDestroy {
       throw new Error(`[${accountId}] Browser launch timed out waiting for concurrent launch`);
     }
 
-    // Enforce max sessions limit
-    if (this.sessions.size >= MAX_SESSIONS) {
-      throw new Error(`已达最大并发浏览器数量限制（${MAX_SESSIONS}个），请先关闭其他账号的会话`);
+    // Enforce global hard limit (server protection)
+    if (this.sessions.size >= MAX_SESSIONS_GLOBAL) {
+      throw new Error(`服务器已达全局最大并发浏览器限制（${MAX_SESSIONS_GLOBAL}个），请稍后再试`);
+    }
+
+    // Enforce per-user session limit
+    if (options.userId && options.maxUserSessions) {
+      const userSessionCount = Array.from(this.sessions.values())
+        .filter(s => s.userId === options.userId && s.status !== 'closed').length;
+      if (userSessionCount >= options.maxUserSessions) {
+        throw new Error(`您的并发浏览器已达上限（${userSessionCount}/${options.maxUserSessions}个），请等待其他任务完成`);
+      }
     }
 
     this.launching.add(accountId);
@@ -90,6 +103,7 @@ export class BrowserSessionService implements OnModuleDestroy {
       const session: BrowserSession = {
         browser,
         accountId,
+        userId: options.userId || undefined,
         profileDir,
         proxyServer: options.proxyServer || null,
         proxyCredentials: options.proxyCredentials || null,
@@ -107,7 +121,7 @@ export class BrowserSessionService implements OnModuleDestroy {
         if (s) s.status = 'closed';
       });
 
-      this.logger.log(`[${accountId}] Browser launched successfully (${this.sessions.size}/${MAX_SESSIONS} active)`);
+      this.logger.log(`[${accountId}] Browser launched successfully (${this.sessions.size}/${MAX_SESSIONS_GLOBAL} active)`);
       return session;
     } catch (err) {
       this.launching.delete(accountId);
