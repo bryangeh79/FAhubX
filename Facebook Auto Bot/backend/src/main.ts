@@ -52,7 +52,7 @@ async function bootstrap() {
   const configService = app.get(ConfigService);
 
   // ── 生产环境启动校验：禁止使用默认密钥 ────────────────────────────────────
-  if (process.env.NODE_ENV === 'production') {
+  if (process.env.NODE_ENV === 'production' && process.env.DEPLOY_MODE !== 'local') {
     const jwtSecret = configService.get('JWT_SECRET', '');
     if (!jwtSecret || jwtSecret.includes('change-in-production') || jwtSecret.length < 32) {
       console.error('❌ FATAL: JWT_SECRET 未配置或使用默认值，生产环境禁止启动！请在 .env 中设置强密钥。');

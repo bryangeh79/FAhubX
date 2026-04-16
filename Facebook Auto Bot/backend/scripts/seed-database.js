@@ -25,9 +25,12 @@ async function seedDatabase() {
     const adminPassword = process.env.ADMIN_PASSWORD || 'Admin123!';
     const adminPasswordHash = await bcrypt.hash(adminPassword, 10);
     
+    const adminEmail = process.env.ADMIN_EMAIL || 'admin@fbautobot.com';
+    const adminUsername = process.env.ADMIN_USERNAME || 'admin';
+
     const adminCheck = await client.query(
       'SELECT id FROM users WHERE email = $1',
-      ['admin@fbautobot.com']
+      [adminEmail]
     );
 
     if (adminCheck.rows.length === 0) {
@@ -35,8 +38,8 @@ async function seedDatabase() {
         INSERT INTO users (email, username, password_hash, full_name, email_verified, preferences)
         VALUES ($1, $2, $3, $4, true, $5)
       `, [
-        'admin@fbautobot.com',
-        'admin',
+        adminEmail,
+        adminUsername,
         adminPasswordHash,
         '系统管理员',
         JSON.stringify({
@@ -55,7 +58,7 @@ async function seedDatabase() {
         }),
       ]);
       console.log('✓ 管理员用户创建成功');
-      console.log(`  邮箱: admin@fbautobot.com`);
+      console.log(`  邮箱: ${adminEmail}`);
       console.log(`  密码: ${adminPassword}`);
     } else {
       console.log('✓ 管理员用户已存在');
@@ -242,8 +245,8 @@ async function seedDatabase() {
     console.log('\n✅ 数据库种子数据初始化完成！');
     console.log('\n登录信息:');
     console.log('管理员:');
-    console.log('  邮箱: admin@fbautobot.com');
-    console.log('  密码: Admin123!');
+    console.log(`  邮箱: ${adminEmail || 'admin@fbautobot.com'}`);
+    console.log(`  密码: ${adminPassword || 'Admin123!'}`);
     console.log('\n测试用户:');
     console.log('  邮箱: test@fbautobot.com');
     console.log('  密码: Test123!');

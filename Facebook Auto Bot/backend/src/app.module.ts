@@ -1,11 +1,13 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { ServeStaticModule } from '@nestjs/serve-static';
 import { RedisModule } from '@nestjs-modules/ioredis';
 import { BullModule } from '@nestjs/bull';
 import { ScheduleModule } from '@nestjs/schedule';
 import { ThrottlerModule } from '@nestjs/throttler';
 import { EventEmitterModule } from '@nestjs/event-emitter';
+import { join } from 'path';
 
 import configuration from './config/configuration';
 import { DatabaseConfig } from './config/database.config';
@@ -32,6 +34,14 @@ import { LicenseModule } from './modules/license/license.module';
 
 @Module({
   imports: [
+    // 静态文件服务（本地模式：NestJS 直接托管前端）
+    ...(process.env.SERVE_STATIC === 'true'
+      ? [ServeStaticModule.forRoot({
+          rootPath: join(__dirname, '..', '..', 'frontend', 'dist'),
+          exclude: ['/api(.*)'],
+        })]
+      : []),
+
     // 配置模块
     ConfigModule.forRoot({
       isGlobal: true,
