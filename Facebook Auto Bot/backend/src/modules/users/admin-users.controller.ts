@@ -1,8 +1,9 @@
-import { Controller, Get, Post, Patch, Delete, Body, Param, UseGuards, Request, Query } from '@nestjs/common';
+import { Controller, Get, Post, Patch, Delete, Body, Param, UseGuards, Request, Query, Logger } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
+import { ConfigService } from '@nestjs/config';
 import { User } from './entities/user.entity';
 import * as bcrypt from 'bcryptjs';
 
@@ -11,10 +12,12 @@ import * as bcrypt from 'bcryptjs';
 @UseGuards(JwtAuthGuard)
 @Controller('admin/users')
 export class AdminUsersController {
+  private readonly logger = new Logger(AdminUsersController.name);
 
   constructor(
     @InjectRepository(User)
     private readonly userRepo: Repository<User>,
+    private readonly configService: ConfigService,
   ) {}
 
   private assertAdmin(req: any) {
@@ -73,7 +76,33 @@ export class AdminUsersController {
     } as any);
     const saved = await this.userRepo.save(user);
     const { passwordHash: _, ...result } = saved as any;
-    return result;
+
+    // ── 自动在 License Server 创建对应的 License Key ───────────────────
+    let licenseKey: string | null = null;
+    try {
+      const licenseServerUrl = this.configService.get('LICENSE_SERVER_URL', 'https://license.starbright-solutions.com');
+      const adminApiKey = this.configService.get('LICENSE_ADMIN_KEY', '');
+      if (adminApiKey) {
+        const { default: axios } = await import('axios');
+        const licenseRes = await axios.post(`${licenseServerUrl}/admin/licenses`, {
+          tenantName: body.fullName || body.username,
+          plan,
+          expiresAt: body.subscriptionExpiry || null,
+          notes: `Auto-created for user ${(saved as any).id} (${body.email})`,
+        }, {
+          headers: { Authorization: `Bearer ${adminApiKey}` },
+          timeout: 10000,
+        });
+        licenseKey = licenseRes.data?.license?.licenseKey || null;
+        this.logger.log(`🔑 License Key 已自动生成: ${licenseKey} (tenant: ${body.email})`);
+      } else {
+        this.logger.warn('⚠️ LICENSE_ADMIN_KEY 未配置，跳过 License Key 自动生成');
+      }
+    } catch (err: any) {
+      this.logger.error(`⚠️ License Key 生成失败: ${err.message}（不影响租户创建）`);
+    }
+
+    return { ...result, licenseKey };
   }
 
   /** 修改用户状态 / 角色 */

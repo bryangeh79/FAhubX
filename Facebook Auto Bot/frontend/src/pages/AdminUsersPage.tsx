@@ -7,6 +7,7 @@ import {
   PlusOutlined, DeleteOutlined, EditOutlined, UserOutlined,
   TeamOutlined, CheckCircleOutlined, StopOutlined, CrownOutlined,
   ReloadOutlined, LockOutlined, CalendarOutlined, WarningOutlined,
+  KeyOutlined, CopyOutlined,
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import AppLayout from '../components/AppLayout';
@@ -112,11 +113,62 @@ const AdminUsersPage: React.FC = () => {
       if (editUser) {
         await api.patch(`/admin/users/${editUser.id}`, values);
         message.success('用户已更新');
+        setModalOpen(false);
       } else {
-        await api.post('/admin/users', values);
-        message.success('租户账号已创建');
+        const res = await api.post('/admin/users', values);
+        const data = res.data?.data || res.data;
+        const generatedKey = data?.licenseKey;
+
+        setModalOpen(false);
+
+        if (generatedKey) {
+          // 弹窗显示生成的 License Key
+          Modal.success({
+            title: '🎉 租户账号已创建',
+            width: 500,
+            content: (
+              <div style={{ marginTop: 16 }}>
+                <Alert
+                  type="success"
+                  message="License Key 已自动生成"
+                  description="请将以下 License Key 发送给租户，用于本地部署版激活系统。"
+                  showIcon
+                  style={{ marginBottom: 16 }}
+                />
+                <div style={{
+                  background: '#f6f8fa', border: '2px dashed #1677ff',
+                  borderRadius: 8, padding: '16px 20px', textAlign: 'center',
+                }}>
+                  <div style={{ fontSize: 11, color: '#888', marginBottom: 4 }}>License Key</div>
+                  <div style={{
+                    fontSize: 22, fontFamily: 'monospace', fontWeight: 700,
+                    color: '#1677ff', letterSpacing: 2, userSelect: 'all',
+                  }}>
+                    {generatedKey}
+                  </div>
+                </div>
+                <Button
+                  type="link"
+                  icon={<CopyOutlined />}
+                  style={{ marginTop: 8 }}
+                  onClick={() => {
+                    navigator.clipboard.writeText(generatedKey);
+                    message.success('已复制到剪贴板');
+                  }}
+                >
+                  复制 License Key
+                </Button>
+                <div style={{ marginTop: 12, fontSize: 12, color: '#888' }}>
+                  租户信息：{data?.email} · 配套：{(data?.plan || 'basic').toUpperCase()} · {data?.maxAccounts || 10} 个账号
+                </div>
+              </div>
+            ),
+            okText: '我已记录',
+          });
+        } else {
+          message.success('租户账号已创建（VPS 模式无需 License Key）');
+        }
       }
-      setModalOpen(false);
       fetchUsers();
     } catch (e: any) {
       message.error(e?.response?.data?.message || '操作失败');
