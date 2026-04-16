@@ -1,10 +1,11 @@
-import React, { Suspense, lazy } from 'react';
+import React, { Suspense, lazy, useState, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { ConfigProvider, Spin } from 'antd';
 import zhCN from 'antd/locale/zh_CN';
 
 import { AuthProvider } from './store/authStore';
 import ProtectedRoute from './components/ProtectedRoute';
+import api from './services/api';
 
 const LoginPage = lazy(() => import('./pages/LoginPage'));
 const DashboardPage = lazy(() => import('./pages/DashboardPage'));
@@ -14,6 +15,7 @@ const VPNPage = lazy(() => import('./pages/VPNPage'));
 const LoginStatusPage = lazy(() => import('./pages/LoginStatusPage'));
 const AntiDetectionPage = lazy(() => import('./pages/AntiDetectionPage'));
 const AdminUsersPage = lazy(() => import('./pages/AdminUsersPage'));
+const ActivationPage = lazy(() => import('./pages/ActivationPage'));
 
 const Loading = () => (
   <div style={{ display:'flex', justifyContent:'center', alignItems:'center', minHeight:'100vh' }}>
@@ -22,6 +24,35 @@ const Loading = () => (
 );
 
 const App: React.FC = () => {
+  const [licenseChecked, setLicenseChecked] = useState(false);
+  const [needsActivation, setNeedsActivation] = useState(false);
+
+  // Check license status on app load (only matters for local deployment)
+  useEffect(() => {
+    api.get('/license/status').then(res => {
+      const data = res.data?.data || res.data;
+      if (data.isLocal && !data.activated) {
+        setNeedsActivation(true);
+      }
+      setLicenseChecked(true);
+    }).catch(() => {
+      // If license endpoint not available (cloud mode), just continue
+      setLicenseChecked(true);
+    });
+  }, []);
+
+  if (!licenseChecked) return <Loading />;
+
+  if (needsActivation) {
+    return (
+      <ConfigProvider locale={zhCN}>
+        <Suspense fallback={<Loading />}>
+          <ActivationPage onActivated={() => setNeedsActivation(false)} />
+        </Suspense>
+      </ConfigProvider>
+    );
+  }
+
   return (
     <ConfigProvider locale={zhCN}>
       <AuthProvider>

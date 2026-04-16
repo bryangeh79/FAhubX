@@ -17,6 +17,7 @@ import { FacebookAccountsModule } from './modules/facebook-accounts/facebook-acc
 import { VpnModule } from './modules/vpn/vpn.module';
 import { ChatScriptsModule } from './modules/chat-scripts/chat-scripts.module';
 import { SimpleTasksModule } from './modules/simple-tasks/simple-tasks.module';
+import { LicenseModule } from './modules/license/license.module';
 // import { VPNClientModule } from './modules/vpn-client/vpn-client.module';
 // import { TaskSchedulerModule } from './modules/task-scheduler/task-scheduler.module';
 // import { TaskQueueModule } from './modules/task-queue/task-queue.module';
@@ -109,6 +110,9 @@ import { SimpleTasksModule } from './modules/simple-tasks/simple-tasks.module';
     VpnModule,
     ChatScriptsModule,
     SimpleTasksModule,
+
+    // License 模块（local 和 cloud 模式都加载，但 service 内部自动跳过 cloud 逻辑）
+    LicenseModule,
     // VPNClientModule,        // TODO: fix missing service files
     // TaskSchedulerModule,
     // TaskQueueModule,

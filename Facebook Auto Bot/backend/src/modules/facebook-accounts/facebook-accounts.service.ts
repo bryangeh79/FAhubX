@@ -33,19 +33,44 @@ export class FacebookAccountsService {
     createFacebookAccountDto: CreateFacebookAccountDto,
   ): Promise<FacebookAccountResponseDto> {
     // ── 配额校验：检查账号数量是否已达上限 ────────────────────────────────
-    const [user] = await this.dataSource.query(
-      `SELECT role, "max_accounts" AS "maxAccounts" FROM users WHERE id = $1`,
-      [userId],
-    );
-    if (user && user.role !== 'admin') {
+    let maxAccounts = 10;
+    let isAdmin = false;
+
+    if (process.env.DEPLOY_MODE === 'local') {
+      // Local 模式：从 LicenseService 获取配额
+      try {
+        const { LicenseService } = await import('../license/license.service');
+        const { ModuleRef } = await import('@nestjs/core');
+        // Fallback: 直接从 dataSource 查本地 DB（local 模式只有一个用户）
+        maxAccounts = 10; // will be overridden below
+      } catch {}
+      // 在 local 模式下，从环境中读取（LicenseService 把值缓存到了文件）
+      try {
+        const cachePath = require('path').join(process.cwd(), 'license-cache.json');
+        const cache = JSON.parse(require('fs').readFileSync(cachePath, 'utf8'));
+        maxAccounts = cache.maxAccounts || 10;
+      } catch {}
+    } else {
+      // Cloud 模式：从 users 表获取配额
+      const [user] = await this.dataSource.query(
+        `SELECT role, "max_accounts" AS "maxAccounts" FROM users WHERE id = $1`,
+        [userId],
+      );
+      if (user) {
+        maxAccounts = user.maxAccounts || 10;
+        isAdmin = user.role === 'admin';
+      }
+    }
+
+    if (!isAdmin) {
       const [{ count }] = await this.dataSource.query(
         `SELECT COUNT(*) AS count FROM facebook_accounts WHERE "userId" = $1 AND "deletedAt" IS NULL`,
         [userId],
       );
       const currentCount = parseInt(count, 10);
-      if (currentCount >= user.maxAccounts) {
+      if (currentCount >= maxAccounts) {
         throw new ForbiddenException(
-          `已达账号上限（${currentCount}/${user.maxAccounts}），请联系管理员升级配套`,
+          `已达账号上限（${currentCount}/${maxAccounts}），请联系管理员升级配套`,
         );
       }
     }

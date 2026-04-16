@@ -91,8 +91,21 @@ export class TaskAutoRunnerService implements OnModuleInit {
         }
       }
 
-      // ── Subscription expiry guard ────────────────────────────────────────
-      if (task.userId) {
+      // ── Subscription / License expiry guard ──────────────────────────────
+      if (process.env.DEPLOY_MODE === 'local') {
+        // Local 模式：检查 License 缓存
+        try {
+          const cachePath = require('path').join(process.cwd(), 'license-cache.json');
+          const cache = JSON.parse(require('fs').readFileSync(cachePath, 'utf8'));
+          if (!cache.valid) {
+            this.logger.warn(`⏭ 跳过任务: ${task.name} — 许可证无效`);
+            await this.saveTaskResult(task.id, false, cache.error || '许可证无效，任务无法执行');
+            this.running.delete(task.id);
+            continue;
+          }
+        } catch {}
+      } else if (task.userId) {
+        // Cloud 模式：检查用户订阅
         const [owner] = await this.dataSource.query(
           `SELECT role, "subscription_expiry" AS "subscriptionExpiry" FROM users WHERE id = $1`,
           [task.userId],
