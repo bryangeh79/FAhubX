@@ -69,6 +69,20 @@ async function bootstrap() {
     }
   }
 
+  // ── Local & Production 通用校验：ENCRYPTION_KEY 必须配置且非默认值 ─────────
+  if (process.env.NODE_ENV === 'production') {
+    const encKey = configService.get('ENCRYPTION_KEY', '') || configService.get('encryption.key', '');
+    if (!encKey || encKey === 'your-32-character-encryption-key-here' || encKey.length < 32) {
+      console.error('❌ FATAL: ENCRYPTION_KEY 未配置、使用默认值或长度不足 32。请在 .env 设置强密钥。');
+      process.exit(1);
+    }
+    const jwtSecret = configService.get('JWT_SECRET', '');
+    if (!jwtSecret || jwtSecret.length < 32) {
+      console.error('❌ FATAL: JWT_SECRET 未配置或长度不足 32。请在 .env 设置强密钥。');
+      process.exit(1);
+    }
+  }
+
   // 安全中间件 — 显式解析 boolean（避免 helmet 接收字符串"false"）
   const cspEnabled = configService.get('CONTENT_SECURITY_POLICY', true);
   const hstsEnabled = configService.get('HSTS_ENABLED', true);

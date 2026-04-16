@@ -15,8 +15,8 @@ const VPNPage = lazy(() => import('./pages/VPNPage'));
 const LoginStatusPage = lazy(() => import('./pages/LoginStatusPage'));
 const AntiDetectionPage = lazy(() => import('./pages/AntiDetectionPage'));
 const AdminUsersPage = lazy(() => import('./pages/AdminUsersPage'));
+const AdminLicensesPage = lazy(() => import('./pages/AdminLicensesPage'));
 const ActivationPage = lazy(() => import('./pages/ActivationPage'));
-const SetupAccountPage = lazy(() => import('./pages/SetupAccountPage'));
 
 const Loading = () => (
   <div style={{ display:'flex', justifyContent:'center', alignItems:'center', minHeight:'100vh' }}>
@@ -27,25 +27,13 @@ const Loading = () => (
 const App: React.FC = () => {
   const [licenseChecked, setLicenseChecked] = useState(false);
   const [needsActivation, setNeedsActivation] = useState(false);
-  const [needsSetup, setNeedsSetup] = useState(false);
 
-  // Check license status and user existence on app load
+  // Check license status on app load (Local mode only)
   useEffect(() => {
-    api.get('/license/status').then(async (res) => {
+    api.get('/license/status').then((res) => {
       const data = res.data?.data || res.data;
       if (data.isLocal && !data.activated) {
         setNeedsActivation(true);
-      } else if (data.isLocal && data.activated) {
-        // License activated, check if user account exists
-        try {
-          const userRes = await api.get('/auth/has-users');
-          const userData = userRes.data?.data || userRes.data;
-          if (!userData.hasUsers) {
-            setNeedsSetup(true);
-          }
-        } catch {
-          // If endpoint fails, continue to login
-        }
       }
       setLicenseChecked(true);
     }).catch(() => {
@@ -56,40 +44,15 @@ const App: React.FC = () => {
 
   if (!licenseChecked) return <Loading />;
 
-  // Step 1: License activation (Local mode, not yet activated)
+  // License activation (Local mode, not yet activated)
+  // 激活成功后 backend 会自动从 License Server 同步用户到本地 users 表，
+  // 租户可直接用 Admin 给的邮箱密码登录 — 无需本地注册
   if (needsActivation) {
     return (
       <ConfigProvider locale={zhCN}>
         <Suspense fallback={<Loading />}>
-          <ActivationPage onActivated={async () => {
-            // After activation, check if users exist
-            try {
-              const userRes = await api.get('/auth/has-users');
-              const userData = userRes.data?.data || userRes.data;
-              if (!userData.hasUsers) {
-                setNeedsActivation(false);
-                setNeedsSetup(true);
-                return;
-              }
-            } catch {
-              // Continue to login if check fails
-            }
-            setNeedsActivation(false);
-          }} />
+          <ActivationPage onActivated={() => setNeedsActivation(false)} />
         </Suspense>
-      </ConfigProvider>
-    );
-  }
-
-  // Step 2: Account setup (Local mode, no users yet)
-  if (needsSetup) {
-    return (
-      <ConfigProvider locale={zhCN}>
-        <AuthProvider>
-          <Suspense fallback={<Loading />}>
-            <SetupAccountPage onAccountCreated={() => setNeedsSetup(false)} />
-          </Suspense>
-        </AuthProvider>
       </ConfigProvider>
     );
   }
@@ -154,6 +117,14 @@ const App: React.FC = () => {
               element={
                 <ProtectedRoute>
                   <AdminUsersPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/admin/licenses"
+              element={
+                <ProtectedRoute>
+                  <AdminLicensesPage />
                 </ProtectedRoute>
               }
             />

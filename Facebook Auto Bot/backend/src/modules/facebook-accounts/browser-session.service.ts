@@ -197,7 +197,11 @@ export class BrowserSessionService implements OnModuleDestroy {
   }
 
   private getProfileDir(accountId: string): string {
-    return path.resolve(process.cwd(), 'browser-profiles', accountId);
+    // 优先使用环境变量配置的绝对路径（本地部署时指向 C:\FAhubX\data\browsers）
+    // fallback 到 process.cwd() 保持开发环境兼容
+    const baseDir = process.env.BROWSER_DATA_DIR
+      || path.resolve(process.cwd(), 'browser-profiles');
+    return path.resolve(baseDir, accountId);
   }
 
   private buildArgs(profileDir: string, proxyServer?: string): string[] {

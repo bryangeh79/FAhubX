@@ -129,6 +129,13 @@ const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
       onClick: () => navigate('/admin/users'),
       style: { color: '#722ed1' },
     },
+    {
+      key: 'admin-licenses',
+      icon: React.createElement(SafetyOutlined),
+      label: 'License 管理',
+      onClick: () => navigate('/admin/licenses'),
+      style: { color: '#722ed1' },
+    },
   ];
 
   const navItems = isAdmin ? [...commonNavItems, ...adminOnlyItems] : commonNavItems;

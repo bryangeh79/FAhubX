@@ -86,7 +86,13 @@ export class AdminUsersController {
         const { default: axios } = await import('axios');
         const licenseRes = await axios.post(`${licenseServerUrl}/admin/licenses`, {
           tenantName: body.fullName || body.username,
+          // v2: 传送完整租户信息，让本地激活时自动创建用户
+          tenantEmail: body.email.toLowerCase().trim(),
+          tenantUsername: body.username.toLowerCase().trim(),
+          passwordHash,   // bcrypt 哈希，不是明文
           plan,
+          maxScripts: planDefaults.maxScripts,
+          subscriptionExpiry: body.subscriptionExpiry || null,
           expiresAt: body.subscriptionExpiry || null,
           notes: `Auto-created for user ${(saved as any).id} (${body.email})`,
         }, {
@@ -131,6 +137,44 @@ export class AdminUsersController {
     }
     if ('subscriptionExpiry' in body) update.subscriptionExpiry = body.subscriptionExpiry ? new Date(body.subscriptionExpiry) : null;
     await this.userRepo.update({ id }, update);
+
+    // 同步到 License Server（密码/套餐/订阅到期变更时）
+    try {
+      const licenseServerUrl = this.configService.get('LICENSE_SERVER_URL', 'https://license.starbright-solutions.com');
+      const adminApiKey = this.configService.get('LICENSE_ADMIN_KEY', '');
+      if (adminApiKey && (body.password || body.plan || 'subscriptionExpiry' in body)) {
+        const userAfter = await this.userRepo.findOne({ where: { id } });
+        if (userAfter) {
+          const { default: axios } = await import('axios');
+          // 查找该用户的 License（通过 tenant_email）
+          const listRes = await axios.get(`${licenseServerUrl}/admin/licenses`, {
+            headers: { Authorization: `Bearer ${adminApiKey}` },
+            timeout: 10000,
+          });
+          const licenses = listRes.data?.licenses || [];
+          const myLicense = licenses.find((l: any) => l.tenant_email === userAfter.email);
+          if (myLicense) {
+            const patch: any = {};
+            if (body.password) patch.passwordHash = update.passwordHash;
+            if (body.plan) patch.plan = body.plan;
+            if ('subscriptionExpiry' in body) {
+              patch.subscriptionExpiry = body.subscriptionExpiry || null;
+              patch.expiresAt = body.subscriptionExpiry || null;
+            }
+            if (Object.keys(patch).length > 0) {
+              await axios.patch(`${licenseServerUrl}/admin/licenses/${myLicense.id}`, patch, {
+                headers: { Authorization: `Bearer ${adminApiKey}` },
+                timeout: 10000,
+              });
+              this.logger.log(`🔑 License ${myLicense.license_key} synced (tenant: ${userAfter.email})`);
+            }
+          }
+        }
+      }
+    } catch (err: any) {
+      this.logger.error(`⚠️ License Server 同步失败: ${err.message}（不影响本地更新）`);
+    }
+
     return this.userRepo.findOne({ where: { id }, select: ['id', 'email', 'username', 'fullName', 'role', 'plan', 'maxAccounts', 'status', 'subscriptionExpiry', 'createdAt'] });
   }
 

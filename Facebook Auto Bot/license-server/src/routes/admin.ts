@@ -24,16 +24,28 @@ export async function handleCreateLicense(request: Request, env: Env): Promise<R
     plan?: string;
     expiresAt?: string;
     notes?: string;
+    // v2: Tenant account sync fields
+    tenantEmail?: string;
+    tenantUsername?: string;
+    passwordHash?: string;   // bcrypt hash, format: $2a$/$2b$/$2y$
+    maxScripts?: number;
+    subscriptionExpiry?: string;
   };
 
   if (!body.tenantName) {
     return Response.json({ error: 'tenantName is required' }, { status: 400 });
   }
 
+  // Validate passwordHash format if provided (must be bcrypt)
+  if (body.passwordHash && !/^\$2[aby]\$\d{2}\$/.test(body.passwordHash)) {
+    return Response.json({ error: 'Invalid passwordHash format (must be bcrypt)' }, { status: 400 });
+  }
+
   const plan = body.plan || 'basic';
-  const planDefaults: Record<string, { maxAccounts: number; maxTasks: number }> = {
-    basic: { maxAccounts: 10, maxTasks: 50 },
-    pro:   { maxAccounts: 30, maxTasks: 200 },
+  const planDefaults: Record<string, { maxAccounts: number; maxTasks: number; maxScripts: number }> = {
+    basic: { maxAccounts: 10,   maxTasks: 50,   maxScripts: 10 },
+    pro:   { maxAccounts: 30,   maxTasks: 200,  maxScripts: 50 },
+    admin: { maxAccounts: 9999, maxTasks: 9999, maxScripts: 9999 },
   };
   const defaults = planDefaults[plan] || planDefaults.basic;
 
@@ -41,13 +53,20 @@ export async function handleCreateLicense(request: Request, env: Env): Promise<R
   const licenseKey = generateLicenseKey();
 
   await env.DB.prepare(
-    `INSERT INTO licenses (id, license_key, tenant_name, plan, max_accounts, max_tasks, expires_at, notes)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
+    `INSERT INTO licenses (
+      id, license_key, tenant_name, plan, max_accounts, max_tasks, max_scripts,
+      expires_at, subscription_expiry, notes,
+      tenant_email, tenant_username, password_hash
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
   ).bind(
     id, licenseKey, body.tenantName, plan,
-    defaults.maxAccounts, defaults.maxTasks,
+    defaults.maxAccounts, defaults.maxTasks, body.maxScripts ?? defaults.maxScripts,
     body.expiresAt || null,
+    body.subscriptionExpiry || null,
     body.notes || null,
+    body.tenantEmail || null,
+    body.tenantUsername || null,
+    body.passwordHash || null,
   ).run();
 
   return Response.json({
@@ -56,10 +75,14 @@ export async function handleCreateLicense(request: Request, env: Env): Promise<R
       id,
       licenseKey,
       tenantName: body.tenantName,
+      tenantEmail: body.tenantEmail || null,
+      tenantUsername: body.tenantUsername || null,
       plan,
       maxAccounts: defaults.maxAccounts,
       maxTasks: defaults.maxTasks,
+      maxScripts: body.maxScripts ?? defaults.maxScripts,
       expiresAt: body.expiresAt || null,
+      subscriptionExpiry: body.subscriptionExpiry || null,
     },
   }, { status: 201 });
 }
@@ -72,11 +95,20 @@ export async function handleUpdateLicense(request: Request, env: Env, id: string
     active?: boolean;
     plan?: string;
     expiresAt?: string | null;
+    subscriptionExpiry?: string | null;
     tenantName?: string;
+    tenantEmail?: string;
+    tenantUsername?: string;
+    passwordHash?: string;
     notes?: string;
     maxAccounts?: number;
     maxTasks?: number;
+    maxScripts?: number;
   };
+
+  if (body.passwordHash && !/^\$2[aby]\$\d{2}\$/.test(body.passwordHash)) {
+    return Response.json({ error: 'Invalid passwordHash format (must be bcrypt)' }, { status: 400 });
+  }
 
   // Build dynamic update
   const sets: string[] = [];
@@ -84,21 +116,28 @@ export async function handleUpdateLicense(request: Request, env: Env, id: string
 
   if (body.active !== undefined) { sets.push('active = ?'); values.push(body.active ? 1 : 0); }
   if (body.tenantName) { sets.push('tenant_name = ?'); values.push(body.tenantName); }
+  if (body.tenantEmail !== undefined) { sets.push('tenant_email = ?'); values.push(body.tenantEmail); }
+  if (body.tenantUsername !== undefined) { sets.push('tenant_username = ?'); values.push(body.tenantUsername); }
+  if (body.passwordHash !== undefined) { sets.push('password_hash = ?'); values.push(body.passwordHash); }
   if (body.notes !== undefined) { sets.push('notes = ?'); values.push(body.notes); }
   if ('expiresAt' in body) { sets.push('expires_at = ?'); values.push(body.expiresAt); }
+  if ('subscriptionExpiry' in body) { sets.push('subscription_expiry = ?'); values.push(body.subscriptionExpiry); }
 
   if (body.plan) {
     sets.push('plan = ?'); values.push(body.plan);
-    const planDefaults: Record<string, { maxAccounts: number; maxTasks: number }> = {
-      basic: { maxAccounts: 10, maxTasks: 50 },
-      pro:   { maxAccounts: 30, maxTasks: 200 },
+    const planDefaults: Record<string, { maxAccounts: number; maxTasks: number; maxScripts: number }> = {
+      basic: { maxAccounts: 10,   maxTasks: 50,   maxScripts: 10 },
+      pro:   { maxAccounts: 30,   maxTasks: 200,  maxScripts: 50 },
+      admin: { maxAccounts: 9999, maxTasks: 9999, maxScripts: 9999 },
     };
     const d = planDefaults[body.plan] || planDefaults.basic;
     if (!body.maxAccounts) { sets.push('max_accounts = ?'); values.push(d.maxAccounts); }
-    if (!body.maxTasks) { sets.push('max_tasks = ?'); values.push(d.maxTasks); }
+    if (!body.maxTasks)    { sets.push('max_tasks = ?');    values.push(d.maxTasks); }
+    if (!body.maxScripts)  { sets.push('max_scripts = ?');  values.push(d.maxScripts); }
   }
   if (body.maxAccounts) { sets.push('max_accounts = ?'); values.push(body.maxAccounts); }
-  if (body.maxTasks) { sets.push('max_tasks = ?'); values.push(body.maxTasks); }
+  if (body.maxTasks)    { sets.push('max_tasks = ?');    values.push(body.maxTasks); }
+  if (body.maxScripts)  { sets.push('max_scripts = ?');  values.push(body.maxScripts); }
 
   if (sets.length === 0) {
     return Response.json({ error: 'No fields to update' }, { status: 400 });

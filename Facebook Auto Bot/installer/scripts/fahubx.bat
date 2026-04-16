@@ -29,7 +29,7 @@ timeout /t 1 /nobreak >nul
 curl -s -o nul -w "" "http://localhost:%APP_PORT%/api/v1/license/status" >nul 2>&1
 if errorlevel 1 (
     set /a RETRIES+=1
-    if %RETRIES% gtr 20 (
+    if %RETRIES% gtr 60 (
         echo.
         echo WARNING: Backend may not be fully ready yet.
         echo Opening browser anyway...

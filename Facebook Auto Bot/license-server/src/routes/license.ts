@@ -53,8 +53,14 @@ export async function handleActivate(request: Request, env: Env): Promise<Respon
       plan: license.plan,
       maxAccounts: license.max_accounts,
       maxTasks: license.max_tasks,
+      maxScripts: license.max_scripts ?? 10,
       expiresAt: license.expires_at,
+      subscriptionExpiry: license.subscription_expiry ?? null,
       tenantName: license.tenant_name,
+      // v2: Tenant account sync info (for auto-creating local user)
+      tenantEmail: license.tenant_email ?? null,
+      tenantUsername: license.tenant_username ?? null,
+      passwordHash: license.password_hash ?? null,
     },
   });
 }

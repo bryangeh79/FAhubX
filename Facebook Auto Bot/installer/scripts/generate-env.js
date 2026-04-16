@@ -101,6 +101,15 @@ COMPRESSION_ENABLED=true
 SERVE_STATIC=true
 FRONTEND_DIST_PATH=../frontend/dist
 
+# --- 本地数据目录（绝对路径） ---
+BROWSER_DATA_DIR=${installDir.replace(/\\/g, '/')}/data/browsers
+SCREENSHOT_DIR=${installDir.replace(/\\/g, '/')}/data/screenshots
+DOWNLOADS_DIR=${installDir.replace(/\\/g, '/')}/data/downloads
+
+# --- Chromium 路径（已打包进安装包，无需租户下载） ---
+PUPPETEER_CACHE_DIR=${installDir.replace(/\\/g, '/')}/backend/puppeteer-cache
+PUPPETEER_SKIP_DOWNLOAD=true
+
 # --- Security ---
 CONTENT_SECURITY_POLICY=false
 HSTS_ENABLED=false

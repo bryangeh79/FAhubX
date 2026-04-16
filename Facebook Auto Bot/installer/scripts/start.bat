@@ -102,7 +102,7 @@ timeout /t 1 /nobreak >nul
 "%REDIS_DIR%\redis-cli.exe" -p %REDIS_PORT% ping >nul 2>&1
 if errorlevel 1 (
     set /a RETRIES+=1
-    if !RETRIES! gtr 10 (
+    if !RETRIES! gtr 30 (
         echo ERROR: Redis did not start in time
         pause
         exit /b 1

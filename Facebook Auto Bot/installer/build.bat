@@ -17,7 +17,7 @@ set STAGING_DIR=%INSTALLER_DIR%\staging
 set OUTPUT_DIR=%INSTALLER_DIR%\output
 
 :: Dependency URLs
-set NODE_VERSION=18.20.4
+set NODE_VERSION=20.18.0
 set NODE_URL=https://nodejs.org/dist/v%NODE_VERSION%/node-v%NODE_VERSION%-win-x64.zip
 set NODE_ZIP=node-v%NODE_VERSION%-win-x64.zip
 set NODE_DIR=node-v%NODE_VERSION%-win-x64

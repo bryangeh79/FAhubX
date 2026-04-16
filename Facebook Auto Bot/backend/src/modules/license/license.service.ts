@@ -76,7 +76,7 @@ export class LicenseService implements OnModuleInit {
   }
 
   /** Activate a license key (called from controller on first setup) */
-  async activate(licenseKey: string): Promise<{ success: boolean; error?: string; license?: any }> {
+  async activate(licenseKey: string): Promise<{ success: boolean; error?: string; license?: any; userCreated?: boolean }> {
     try {
       const { default: axios } = await import('axios');
       const res = await axios.post(`${this.serverUrl}/activate`, {
@@ -85,20 +85,44 @@ export class LicenseService implements OnModuleInit {
       }, { timeout: 15000 });
 
       if (res.data.success) {
+        const lic = res.data.license;
         this.state = {
           valid: true,
           licenseKey,
           machineId: this.machineId,
-          plan: res.data.license.plan,
-          maxAccounts: res.data.license.maxAccounts,
-          maxTasks: res.data.license.maxTasks,
-          expiresAt: res.data.license.expiresAt,
+          plan: lic.plan,
+          maxAccounts: lic.maxAccounts,
+          maxTasks: lic.maxTasks,
+          expiresAt: lic.expiresAt,
           lastVerified: new Date().toISOString(),
           error: null,
         };
         this.saveCache();
-        this.logger.log(`✅ License activated: ${licenseKey} (${res.data.license.plan}, ${res.data.license.maxAccounts} accounts)`);
-        return { success: true, license: res.data.license };
+        this.logger.log(`✅ License activated: ${licenseKey} (${lic.plan}, ${lic.maxAccounts} accounts)`);
+
+        // ── v2: Auto-create local user from License Server tenant info ──
+        let userCreated = false;
+        if (lic.tenantEmail && lic.tenantUsername && lic.passwordHash) {
+          try {
+            userCreated = await this.autoCreateLocalUser({
+              email: lic.tenantEmail,
+              username: lic.tenantUsername,
+              passwordHash: lic.passwordHash,
+              fullName: lic.tenantName || lic.tenantUsername,
+              plan: lic.plan,
+              maxAccounts: lic.maxAccounts,
+              maxTasks: lic.maxTasks,
+              maxScripts: lic.maxScripts ?? 10,
+              subscriptionExpiry: lic.subscriptionExpiry ?? null,
+            });
+          } catch (e: any) {
+            this.logger.error(`⚠️ Auto-create local user failed: ${e.message}`);
+          }
+        } else {
+          this.logger.warn('⚠️ License Server did not return tenant info (legacy license key). Manual user creation needed.');
+        }
+
+        return { success: true, license: lic, userCreated };
       }
 
       return { success: false, error: res.data.error || 'Activation failed' };
@@ -107,6 +131,76 @@ export class LicenseService implements OnModuleInit {
       this.logger.error(`❌ Activation failed: ${msg}`);
       return { success: false, error: msg };
     }
+  }
+
+  /**
+   * 根据 License Server 返回的租户信息，在本地 users 表自动创建/更新用户。
+   * 关键：直接使用 License Server 返回的 passwordHash（已 bcrypt），不重新哈希。
+   */
+  private async autoCreateLocalUser(info: {
+    email: string;
+    username: string;
+    passwordHash: string;
+    fullName: string;
+    plan: string;
+    maxAccounts: number;
+    maxTasks: number;
+    maxScripts: number;
+    subscriptionExpiry: string | null;
+  }): Promise<boolean> {
+    // 验证 passwordHash 是 bcrypt 格式
+    if (!/^\$2[aby]\$\d{2}\$/.test(info.passwordHash)) {
+      this.logger.error(`⚠️ Invalid passwordHash format received from License Server`);
+      return false;
+    }
+
+    // 检查是否已存在同 email/username 的用户
+    const [existing] = await this.dataSource.query(
+      `SELECT id FROM users WHERE email = $1 OR username = $2 LIMIT 1`,
+      [info.email.toLowerCase(), info.username.toLowerCase()],
+    );
+
+    if (existing) {
+      // 幂等：更新现有用户（同步 plan/quota/passwordHash 等，但保留 id 和 createdAt）
+      await this.dataSource.query(
+        `UPDATE users SET
+          "passwordHash" = $1,
+          "fullName" = $2,
+          plan = $3,
+          max_accounts = $4,
+          max_tasks = $5,
+          max_scripts = $6,
+          subscription_expiry = $7,
+          status = 'active',
+          "updatedAt" = NOW()
+        WHERE id = $8`,
+        [
+          info.passwordHash, info.fullName, info.plan,
+          info.maxAccounts, info.maxTasks, info.maxScripts,
+          info.subscriptionExpiry ? new Date(info.subscriptionExpiry) : null,
+          existing.id,
+        ],
+      );
+      this.logger.log(`🔄 Local user synced from License Server: ${info.email}`);
+      return true;
+    }
+
+    // 创建新用户
+    await this.dataSource.query(
+      `INSERT INTO users (
+        email, username, "passwordHash", "fullName", role, plan,
+        max_accounts, max_tasks, max_scripts, subscription_expiry,
+        status, "emailVerified"
+      ) VALUES ($1, $2, $3, $4, 'tenant', $5, $6, $7, $8, $9, 'active', true)`,
+      [
+        info.email.toLowerCase(), info.username.toLowerCase(),
+        info.passwordHash, info.fullName, info.plan,
+        info.maxAccounts, info.maxTasks, info.maxScripts,
+        info.subscriptionExpiry ? new Date(info.subscriptionExpiry) : null,
+      ],
+    );
+    this.logger.log(`✅ Local user auto-created from License Server: ${info.email}`);
+    return true;
   }
 
   /** Send heartbeat to license server */

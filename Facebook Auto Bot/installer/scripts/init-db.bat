@@ -14,8 +14,13 @@ set NODE=%FAHUBX_HOME%\node\node.exe
 set BACKEND_DIR=%FAHUBX_HOME%\backend
 set LOGS_DIR=%FAHUBX_HOME%\logs
 
-:: Ensure logs directory exists
+:: Ensure logs + data subdirectories exist
 if not exist "%LOGS_DIR%" mkdir "%LOGS_DIR%"
+if not exist "%FAHUBX_HOME%\data" mkdir "%FAHUBX_HOME%\data"
+if not exist "%FAHUBX_HOME%\data\browsers" mkdir "%FAHUBX_HOME%\data\browsers"
+if not exist "%FAHUBX_HOME%\data\screenshots" mkdir "%FAHUBX_HOME%\data\screenshots"
+if not exist "%FAHUBX_HOME%\data\downloads" mkdir "%FAHUBX_HOME%\data\downloads"
+if not exist "%FAHUBX_HOME%\data\puppeteer" mkdir "%FAHUBX_HOME%\data\puppeteer"
 
 :: Read port from .env
 set PG_PORT=5433

@@ -232,8 +232,9 @@ begin
 
     if ResultCode <> 0 then
     begin
-      MsgBox('Warning: Configuration generation returned code ' + IntToStr(ResultCode) + '. ' +
-        'You may need to manually configure backend\.env', mbInformation, MB_OK);
+      MsgBox('FATAL: Failed to generate configuration file (code ' + IntToStr(ResultCode) + ').' + #13#10 +
+        'Installation will abort. Check logs directory for details.', mbCriticalError, MB_OK);
+      Abort();
     end;
 
     // Step 2: Initialize database
@@ -242,8 +243,10 @@ begin
 
     if ResultCode <> 0 then
     begin
-      MsgBox('Warning: Database initialization returned code ' + IntToStr(ResultCode) + '. ' +
-        'Check logs\pgsql-init.log for details.', mbInformation, MB_OK);
+      MsgBox('FATAL: Database initialization failed (code ' + IntToStr(ResultCode) + ').' + #13#10 +
+        'Check logs\pgsql-init.log and logs\pgsql-initdb.log for details.' + #13#10 +
+        'Installation will abort.', mbCriticalError, MB_OK);
+      Abort();
     end;
   end;
 end;

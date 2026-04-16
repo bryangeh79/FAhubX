@@ -1,5 +1,6 @@
 -- Migration 003: Create tasks and task_execution_logs tables
--- Required by SimpleTasksModule / task-scheduler / TaskAutoRunnerService
+-- 对应 modules/task-scheduler/entities/{task,task-execution-log}.entity.ts
+-- 列名全部 camelCase（entity 未显式 name:）
 
 -- Enum types
 DO $$ BEGIN
@@ -14,23 +15,23 @@ DO $$ BEGIN
   CREATE TYPE log_status_enum AS ENUM ('started', 'progress', 'completed', 'failed', 'retry', 'cancelled', 'warning', 'info');
 EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 
--- tasks table (used by SimpleTasksModule + TaskAutoRunnerService)
+-- tasks 表
 CREATE TABLE IF NOT EXISTS tasks (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   name VARCHAR(255) NOT NULL,
   description TEXT,
   type task_type_enum NOT NULL DEFAULT 'immediate',
   "scheduleConfig" JSONB,
-  priority INTEGER NOT NULL DEFAULT 3,
+  priority INT NOT NULL DEFAULT 3,
   status task_status_enum NOT NULL DEFAULT 'pending',
   "userId" UUID,
   "taskAction" VARCHAR(50),
   "accountId" UUID,
   account_id UUID REFERENCES facebook_accounts(id) ON DELETE SET NULL,
   "executionData" JSONB NOT NULL DEFAULT '{}',
-  "retryCount" INTEGER NOT NULL DEFAULT 0,
-  "maxRetries" INTEGER NOT NULL DEFAULT 3,
-  "timeoutMinutes" INTEGER NOT NULL DEFAULT 30,
+  "retryCount" INT NOT NULL DEFAULT 0,
+  "maxRetries" INT NOT NULL DEFAULT 3,
+  "timeoutMinutes" INT NOT NULL DEFAULT 30,
   "scheduledAt" TIMESTAMP,
   "startedAt" TIMESTAMP,
   "completedAt" TIMESTAMP,
@@ -44,7 +45,7 @@ CREATE INDEX IF NOT EXISTS idx_tasks_user_id ON tasks("userId");
 CREATE INDEX IF NOT EXISTS idx_tasks_scheduled_at ON tasks("scheduledAt") WHERE status = 'pending';
 CREATE INDEX IF NOT EXISTS idx_tasks_created_at ON tasks("createdAt" DESC);
 
--- task_execution_logs table
+-- task_execution_logs 表
 CREATE TABLE IF NOT EXISTS task_execution_logs (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   "taskId" UUID NOT NULL,
@@ -54,7 +55,7 @@ CREATE TABLE IF NOT EXISTS task_execution_logs (
   status log_status_enum NOT NULL,
   message TEXT,
   details JSONB,
-  progress INTEGER,
+  progress INT,
   "createdAt" TIMESTAMP NOT NULL DEFAULT NOW()
 );
 
