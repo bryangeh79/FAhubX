@@ -1,3 +1,7 @@
+// 必须在所有 import 之前加载 .env（让条件 import 能读到 env vars）
+import * as dotenv from 'dotenv';
+dotenv.config();
+
 import { NestFactory } from '@nestjs/core';
 import { ValidationPipe, VersioningType } from '@nestjs/common';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
@@ -65,11 +69,13 @@ async function bootstrap() {
     }
   }
 
-  // 安全中间件
-  app.use(helmet({
-    contentSecurityPolicy: configService.get('CONTENT_SECURITY_POLICY', true),
-    hsts: configService.get('HSTS_ENABLED', true),
-  }));
+  // 安全中间件 — 显式解析 boolean（避免 helmet 接收字符串"false"）
+  const cspEnabled = configService.get('CONTENT_SECURITY_POLICY', true);
+  const hstsEnabled = configService.get('HSTS_ENABLED', true);
+  const helmetOptions: any = {};
+  if (cspEnabled === false || cspEnabled === 'false') helmetOptions.contentSecurityPolicy = false;
+  if (hstsEnabled === false || hstsEnabled === 'false') helmetOptions.hsts = false;
+  app.use(helmet(helmetOptions));
 
   // 压缩中间件
   if (configService.get('COMPRESSION_ENABLED', true)) {
