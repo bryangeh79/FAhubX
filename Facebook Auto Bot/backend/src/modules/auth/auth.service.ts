@@ -28,6 +28,14 @@ export class AuthService {
   ) {}
 
   /**
+   * 检查是否已有注册用户
+   */
+  async hasUsers(): Promise<boolean> {
+    const count = await this.usersService.count();
+    return count > 0;
+  }
+
+  /**
    * 用户注册
    */
   async register(registerDto: RegisterDto): Promise<TokenResponseDto> {

@@ -75,7 +75,7 @@ Name: "{group}\{cm:UninstallProgram,{#MyAppName}}"; Filename: "{uninstallexe}"
 Name: "{autodesktop}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; WorkingDir: "{app}"; Tasks: desktopicon; Comment: "Start FAhubX"
 
 [Tasks]
-Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"; Flags: checked
+Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"
 
 [Run]
 Filename: "{app}\{#MyAppExeName}"; Description: "Launch FAhubX"; Flags: nowait postinstall skipifsilent shellexec
@@ -92,18 +92,13 @@ Type: files; Name: "{app}\backend\.env"
 [Code]
 var
   DeployModePage: TInputOptionWizardPage;
-  AdminCredentialsPage: TWizardPage;
   PortConfigPage: TWizardPage;
-  AdminEmailEdit: TNewEdit;
-  AdminPasswordEdit: TPasswordEdit;
-  AdminPasswordConfirmEdit: TPasswordEdit;
   AppPortEdit: TNewEdit;
   PgPortEdit: TNewEdit;
   RedisPortEdit: TNewEdit;
 
 procedure InitializeWizard();
 var
-  AdminEmailLabel, AdminPasswordLabel, AdminPasswordConfirmLabel: TNewStaticText;
   AppPortLabel, PgPortLabel, RedisPortLabel, PortInfoLabel: TNewStaticText;
 begin
   // === Page 1: Deploy Mode ===
@@ -115,51 +110,8 @@ begin
   DeployModePage.Add('Cloud Mode - Deploy on VPS server');
   DeployModePage.SelectedValueIndex := 0;
 
-  // === Page 2: Admin Credentials ===
-  AdminCredentialsPage := CreateCustomPage(DeployModePage.ID,
-    'Administrator Account', 'Set up the admin login credentials');
-
-  AdminEmailLabel := TNewStaticText.Create(AdminCredentialsPage);
-  AdminEmailLabel.Parent := AdminCredentialsPage.Surface;
-  AdminEmailLabel.Caption := 'Admin Email:';
-  AdminEmailLabel.Top := 10;
-  AdminEmailLabel.Left := 0;
-
-  AdminEmailEdit := TNewEdit.Create(AdminCredentialsPage);
-  AdminEmailEdit.Parent := AdminCredentialsPage.Surface;
-  AdminEmailEdit.Top := 30;
-  AdminEmailEdit.Left := 0;
-  AdminEmailEdit.Width := 350;
-  AdminEmailEdit.Text := 'admin@fbautobot.com';
-
-  AdminPasswordLabel := TNewStaticText.Create(AdminCredentialsPage);
-  AdminPasswordLabel.Parent := AdminCredentialsPage.Surface;
-  AdminPasswordLabel.Caption := 'Admin Password (min 8 characters):';
-  AdminPasswordLabel.Top := 70;
-  AdminPasswordLabel.Left := 0;
-
-  AdminPasswordEdit := TPasswordEdit.Create(AdminCredentialsPage);
-  AdminPasswordEdit.Parent := AdminCredentialsPage.Surface;
-  AdminPasswordEdit.Top := 90;
-  AdminPasswordEdit.Left := 0;
-  AdminPasswordEdit.Width := 350;
-  AdminPasswordEdit.Text := 'Admin123!';
-
-  AdminPasswordConfirmLabel := TNewStaticText.Create(AdminCredentialsPage);
-  AdminPasswordConfirmLabel.Parent := AdminCredentialsPage.Surface;
-  AdminPasswordConfirmLabel.Caption := 'Confirm Password:';
-  AdminPasswordConfirmLabel.Top := 130;
-  AdminPasswordConfirmLabel.Left := 0;
-
-  AdminPasswordConfirmEdit := TPasswordEdit.Create(AdminCredentialsPage);
-  AdminPasswordConfirmEdit.Parent := AdminCredentialsPage.Surface;
-  AdminPasswordConfirmEdit.Top := 150;
-  AdminPasswordConfirmEdit.Left := 0;
-  AdminPasswordConfirmEdit.Width := 350;
-  AdminPasswordConfirmEdit.Text := 'Admin123!';
-
-  // === Page 3: Port Configuration ===
-  PortConfigPage := CreateCustomPage(AdminCredentialsPage.ID,
+  // === Page 2: Port Configuration ===
+  PortConfigPage := CreateCustomPage(DeployModePage.ID,
     'Port Configuration', 'Configure service ports');
 
   PortInfoLabel := TNewStaticText.Create(PortConfigPage);
@@ -213,31 +165,6 @@ end;
 function NextButtonClick(CurPageID: Integer): Boolean;
 begin
   Result := True;
-
-  // Validate admin credentials page
-  if CurPageID = AdminCredentialsPage.ID then
-  begin
-    if Length(AdminEmailEdit.Text) < 5 then
-    begin
-      MsgBox('Please enter a valid email address.', mbError, MB_OK);
-      Result := False;
-      Exit;
-    end;
-
-    if Length(AdminPasswordEdit.Text) < 8 then
-    begin
-      MsgBox('Password must be at least 8 characters.', mbError, MB_OK);
-      Result := False;
-      Exit;
-    end;
-
-    if AdminPasswordEdit.Text <> AdminPasswordConfirmEdit.Text then
-    begin
-      MsgBox('Passwords do not match.', mbError, MB_OK);
-      Result := False;
-      Exit;
-    end;
-  end;
 
   // Validate port configuration page
   if CurPageID = PortConfigPage.ID then
@@ -296,8 +223,6 @@ begin
     WizardForm.StatusLabel.Caption := 'Generating configuration...';
     GenEnvParams := '"' + GenEnvScript + '"' +
       ' --mode ' + GetDeployMode() +
-      ' --admin-email ' + AdminEmailEdit.Text +
-      ' --admin-password ' + AdminPasswordEdit.Text +
       ' --app-port ' + AppPortEdit.Text +
       ' --pg-port ' + PgPortEdit.Text +
       ' --redis-port ' + RedisPortEdit.Text +

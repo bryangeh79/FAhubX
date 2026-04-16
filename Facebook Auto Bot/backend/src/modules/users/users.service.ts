@@ -170,6 +170,13 @@ export class UsersService {
   }
 
   /**
+   * 统计用户总数
+   */
+  async count(): Promise<number> {
+    return this.usersRepository.count();
+  }
+
+  /**
    * 根据邮箱查找用户
    */
   async findByEmail(email: string): Promise<User | null> {

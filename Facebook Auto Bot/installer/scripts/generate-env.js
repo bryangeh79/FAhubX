@@ -4,9 +4,8 @@
  * Generates the backend .env file from installer wizard parameters.
  * Auto-generates cryptographically strong secrets for JWT, encryption, etc.
  *
- * Usage: node generate-env.js --mode <cloud|local> --admin-email <email>
- *        --admin-password <pass> --pg-port <port> --redis-port <port>
- *        --install-dir <path>
+ * Usage: node generate-env.js --mode <cloud|local> --app-port <port>
+ *        --pg-port <port> --redis-port <port> --install-dir <path>
  */
 
 const fs = require('fs');
@@ -41,8 +40,6 @@ function main() {
   const params = parseArgs();
 
   const deployMode = params['mode'] || 'local';
-  const adminEmail = params['admin-email'] || 'admin@fbautobot.com';
-  const adminPassword = params['admin-password'] || 'Admin123!';
   const appPort = params['app-port'] || '9600';
   const pgPort = params['pg-port'] || '5433';
   const redisPort = params['redis-port'] || '6380';
@@ -94,10 +91,6 @@ JWT_REFRESH_EXPIRES_IN=30d
 ENCRYPTION_KEY=${encryptionKey}
 SESSION_SECRET=${sessionSecret}
 
-# --- Admin Account ---
-ADMIN_EMAIL=${adminEmail}
-ADMIN_PASSWORD=${adminPassword}
-
 # --- CORS ---
 CORS_ORIGIN=http://localhost:${appPort}
 CORS_CREDENTIALS=true
@@ -133,7 +126,6 @@ TASK_TIMEOUT=1800000
 
   console.log(`[OK] .env generated: ${envPath}`);
   console.log(`  Deploy Mode: ${deployMode}`);
-  console.log(`  Admin Email: ${adminEmail}`);
   console.log(`  App Port: ${appPort}`);
   console.log(`  PostgreSQL Port: ${pgPort}`);
   console.log(`  Redis Port: ${redisPort}`);

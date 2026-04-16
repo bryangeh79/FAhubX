@@ -34,6 +34,17 @@ import { ResetPasswordDto } from './dto/reset-password.dto';
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
+  @Get('has-users')
+  @ApiOperation({ summary: '检查是否已有注册用户' })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: '返回是否已有用户',
+  })
+  async hasUsers(): Promise<{ hasUsers: boolean }> {
+    const hasUsers = await this.authService.hasUsers();
+    return { hasUsers };
+  }
+
   @Post('register')
   @ApiOperation({ summary: '用户注册' })
   @ApiResponse({

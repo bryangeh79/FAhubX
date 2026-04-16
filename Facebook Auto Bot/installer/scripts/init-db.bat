@@ -141,23 +141,8 @@ if errorlevel 1 (
 )
 echo   Migrations complete.
 
-:: === Step 7: Seed admin user ===
-echo [5/6] Creating admin user...
-
-:: Load ADMIN_EMAIL and ADMIN_PASSWORD from .env
-for /f "usebackq tokens=1,2 delims==" %%a in ("%BACKEND_DIR%\.env") do (
-    if "%%a"=="ADMIN_EMAIL" set ADMIN_EMAIL=%%b
-    if "%%a"=="ADMIN_PASSWORD" set ADMIN_PASSWORD=%%b
-)
-
-"%NODE%" scripts\seed-database.js
-if errorlevel 1 (
-    echo WARNING: Seed script had errors (non-fatal, admin may already exist)
-)
-echo   Admin user ready.
-
-:: === Step 8: Stop PostgreSQL ===
-echo [6/6] Stopping PostgreSQL...
+:: === Step 7: Stop PostgreSQL ===
+echo [5/5] Stopping PostgreSQL...
 cd /d "%FAHUBX_HOME%"
 "%PG_BIN%\pg_ctl.exe" stop -D "%PG_DATA%" -m fast -w >nul 2>&1
 echo   PostgreSQL stopped.
