@@ -1,7 +1,6 @@
 -- 插入50个对话剧本
-INSERT INTO conversation_scripts (id, name, description, category, relationship, time_of_day, estimated_duration, difficulty, tags, flow, version, is_active, usage_count, success_rate, average_rating, total_ratings, created_at, updated_at) VALUES
+INSERT INTO conversation_scripts (name, description, category, relationship, time_of_day, estimated_duration, difficulty, tags, flow, version, is_active, usage_count, success_rate, average_rating, total_ratings, created_at, updated_at) VALUES
   (
-    'script_001',
     '早安问候 1',
     '简单的早安问候对话',
     'casual',
@@ -21,7 +20,6 @@ INSERT INTO conversation_scripts (id, name, description, category, relationship,
     '2026-04-12T10:15:31.398Z'
   ),
   (
-    'script_002',
     '周末计划讨论 1',
     '讨论周末计划的对话',
     'casual',
@@ -41,7 +39,6 @@ INSERT INTO conversation_scripts (id, name, description, category, relationship,
     '2026-04-12T10:15:31.398Z'
   ),
   (
-    'script_003',
     '工作项目讨论 1',
     '同事之间讨论工作项目的对话',
     'business',
@@ -61,7 +58,6 @@ INSERT INTO conversation_scripts (id, name, description, category, relationship,
     '2026-04-12T10:15:31.398Z'
   ),
   (
-    'script_004',
     '兴趣爱好分享 1',
     '分享兴趣爱好的对话',
     'hobby',
@@ -81,7 +77,6 @@ INSERT INTO conversation_scripts (id, name, description, category, relationship,
     '2026-04-12T10:15:31.398Z'
   ),
   (
-    'script_005',
     '健身话题讨论 1',
     '讨论健身和健康的对话',
     'hobby',
@@ -101,7 +96,6 @@ INSERT INTO conversation_scripts (id, name, description, category, relationship,
     '2026-04-12T10:15:31.398Z'
   ),
   (
-    'script_006',
     '美食推荐 1',
     '推荐美食和餐厅的对话',
     'casual',
@@ -121,7 +115,6 @@ INSERT INTO conversation_scripts (id, name, description, category, relationship,
     '2026-04-12T10:15:31.398Z'
   ),
   (
-    'script_007',
     '旅行计划 1',
     '讨论旅行计划的对话',
     'hobby',
@@ -141,7 +134,6 @@ INSERT INTO conversation_scripts (id, name, description, category, relationship,
     '2026-04-12T10:15:31.398Z'
   ),
   (
-    'script_008',
     '电影讨论 1',
     '讨论电影和影评的对话',
     'hobby',
@@ -161,7 +153,6 @@ INSERT INTO conversation_scripts (id, name, description, category, relationship,
     '2026-04-12T10:15:31.398Z'
   ),
   (
-    'script_009',
     '技术问题讨论 1',
     '讨论技术问题和解决方案的对话',
     'business',
@@ -181,7 +172,6 @@ INSERT INTO conversation_scripts (id, name, description, category, relationship,
     '2026-04-12T10:15:31.398Z'
   ),
   (
-    'script_010',
     '天气话题 1',
     '讨论天气和季节变化的对话',
     'casual',
@@ -201,7 +191,6 @@ INSERT INTO conversation_scripts (id, name, description, category, relationship,
     '2026-04-12T10:15:31.398Z'
   ),
   (
-    'script_011',
     '早安问候 2',
     '简单的早安问候对话',
     'casual',
@@ -221,7 +210,6 @@ INSERT INTO conversation_scripts (id, name, description, category, relationship,
     '2026-04-12T10:15:31.398Z'
   ),
   (
-    'script_012',
     '周末计划讨论 2',
     '讨论周末计划的对话',
     'casual',
@@ -241,7 +229,6 @@ INSERT INTO conversation_scripts (id, name, description, category, relationship,
     '2026-04-12T10:15:31.398Z'
   ),
   (
-    'script_013',
     '工作项目讨论 2',
     '同事之间讨论工作项目的对话',
     'business',
@@ -261,7 +248,6 @@ INSERT INTO conversation_scripts (id, name, description, category, relationship,
     '2026-04-12T10:15:31.398Z'
   ),
   (
-    'script_014',
     '兴趣爱好分享 2',
     '分享兴趣爱好的对话',
     'hobby',
@@ -281,7 +267,6 @@ INSERT INTO conversation_scripts (id, name, description, category, relationship,
     '2026-04-12T10:15:31.398Z'
   ),
   (
-    'script_015',
     '健身话题讨论 2',
     '讨论健身和健康的对话',
     'hobby',
@@ -301,7 +286,6 @@ INSERT INTO conversation_scripts (id, name, description, category, relationship,
     '2026-04-12T10:15:31.398Z'
   ),
   (
-    'script_016',
     '美食推荐 2',
     '推荐美食和餐厅的对话',
     'casual',
@@ -321,7 +305,6 @@ INSERT INTO conversation_scripts (id, name, description, category, relationship,
     '2026-04-12T10:15:31.398Z'
   ),
   (
-    'script_017',
     '旅行计划 2',
     '讨论旅行计划的对话',
     'hobby',
@@ -341,7 +324,6 @@ INSERT INTO conversation_scripts (id, name, description, category, relationship,
     '2026-04-12T10:15:31.398Z'
   ),
   (
-    'script_018',
     '电影讨论 2',
     '讨论电影和影评的对话',
     'hobby',
@@ -361,7 +343,6 @@ INSERT INTO conversation_scripts (id, name, description, category, relationship,
     '2026-04-12T10:15:31.398Z'
   ),
   (
-    'script_019',
     '技术问题讨论 2',
     '讨论技术问题和解决方案的对话',
     'business',
@@ -381,7 +362,6 @@ INSERT INTO conversation_scripts (id, name, description, category, relationship,
     '2026-04-12T10:15:31.398Z'
   ),
   (
-    'script_020',
     '天气话题 2',
     '讨论天气和季节变化的对话',
     'casual',
@@ -401,7 +381,6 @@ INSERT INTO conversation_scripts (id, name, description, category, relationship,
     '2026-04-12T10:15:31.398Z'
   ),
   (
-    'script_021',
     '早安问候 3',
     '简单的早安问候对话',
     'casual',
@@ -421,7 +400,6 @@ INSERT INTO conversation_scripts (id, name, description, category, relationship,
     '2026-04-12T10:15:31.398Z'
   ),
   (
-    'script_022',
     '周末计划讨论 3',
     '讨论周末计划的对话',
     'casual',
@@ -441,7 +419,6 @@ INSERT INTO conversation_scripts (id, name, description, category, relationship,
     '2026-04-12T10:15:31.398Z'
   ),
   (
-    'script_023',
     '工作项目讨论 3',
     '同事之间讨论工作项目的对话',
     'business',
@@ -461,7 +438,6 @@ INSERT INTO conversation_scripts (id, name, description, category, relationship,
     '2026-04-12T10:15:31.398Z'
   ),
   (
-    'script_024',
     '兴趣爱好分享 3',
     '分享兴趣爱好的对话',
     'hobby',
@@ -481,7 +457,6 @@ INSERT INTO conversation_scripts (id, name, description, category, relationship,
     '2026-04-12T10:15:31.398Z'
   ),
   (
-    'script_025',
     '健身话题讨论 3',
     '讨论健身和健康的对话',
     'hobby',
@@ -501,7 +476,6 @@ INSERT INTO conversation_scripts (id, name, description, category, relationship,
     '2026-04-12T10:15:31.398Z'
   ),
   (
-    'script_026',
     '美食推荐 3',
     '推荐美食和餐厅的对话',
     'casual',
@@ -521,7 +495,6 @@ INSERT INTO conversation_scripts (id, name, description, category, relationship,
     '2026-04-12T10:15:31.398Z'
   ),
   (
-    'script_027',
     '旅行计划 3',
     '讨论旅行计划的对话',
     'hobby',
@@ -541,7 +514,6 @@ INSERT INTO conversation_scripts (id, name, description, category, relationship,
     '2026-04-12T10:15:31.398Z'
   ),
   (
-    'script_028',
     '电影讨论 3',
     '讨论电影和影评的对话',
     'hobby',
@@ -561,7 +533,6 @@ INSERT INTO conversation_scripts (id, name, description, category, relationship,
     '2026-04-12T10:15:31.398Z'
   ),
   (
-    'script_029',
     '技术问题讨论 3',
     '讨论技术问题和解决方案的对话',
     'business',
@@ -581,7 +552,6 @@ INSERT INTO conversation_scripts (id, name, description, category, relationship,
     '2026-04-12T10:15:31.398Z'
   ),
   (
-    'script_030',
     '天气话题 3',
     '讨论天气和季节变化的对话',
     'casual',
@@ -601,7 +571,6 @@ INSERT INTO conversation_scripts (id, name, description, category, relationship,
     '2026-04-12T10:15:31.398Z'
   ),
   (
-    'script_031',
     '早安问候 4',
     '简单的早安问候对话',
     'casual',
@@ -621,7 +590,6 @@ INSERT INTO conversation_scripts (id, name, description, category, relationship,
     '2026-04-12T10:15:31.398Z'
   ),
   (
-    'script_032',
     '周末计划讨论 4',
     '讨论周末计划的对话',
     'casual',
@@ -641,7 +609,6 @@ INSERT INTO conversation_scripts (id, name, description, category, relationship,
     '2026-04-12T10:15:31.398Z'
   ),
   (
-    'script_033',
     '工作项目讨论 4',
     '同事之间讨论工作项目的对话',
     'business',
@@ -661,7 +628,6 @@ INSERT INTO conversation_scripts (id, name, description, category, relationship,
     '2026-04-12T10:15:31.398Z'
   ),
   (
-    'script_034',
     '兴趣爱好分享 4',
     '分享兴趣爱好的对话',
     'hobby',
@@ -681,7 +647,6 @@ INSERT INTO conversation_scripts (id, name, description, category, relationship,
     '2026-04-12T10:15:31.398Z'
   ),
   (
-    'script_035',
     '健身话题讨论 4',
     '讨论健身和健康的对话',
     'hobby',
@@ -701,7 +666,6 @@ INSERT INTO conversation_scripts (id, name, description, category, relationship,
     '2026-04-12T10:15:31.398Z'
   ),
   (
-    'script_036',
     '美食推荐 4',
     '推荐美食和餐厅的对话',
     'casual',
@@ -721,7 +685,6 @@ INSERT INTO conversation_scripts (id, name, description, category, relationship,
     '2026-04-12T10:15:31.398Z'
   ),
   (
-    'script_037',
     '旅行计划 4',
     '讨论旅行计划的对话',
     'hobby',
@@ -741,7 +704,6 @@ INSERT INTO conversation_scripts (id, name, description, category, relationship,
     '2026-04-12T10:15:31.398Z'
   ),
   (
-    'script_038',
     '电影讨论 4',
     '讨论电影和影评的对话',
     'hobby',
@@ -761,7 +723,6 @@ INSERT INTO conversation_scripts (id, name, description, category, relationship,
     '2026-04-12T10:15:31.398Z'
   ),
   (
-    'script_039',
     '技术问题讨论 4',
     '讨论技术问题和解决方案的对话',
     'business',
@@ -781,7 +742,6 @@ INSERT INTO conversation_scripts (id, name, description, category, relationship,
     '2026-04-12T10:15:31.398Z'
   ),
   (
-    'script_040',
     '天气话题 4',
     '讨论天气和季节变化的对话',
     'casual',
@@ -801,7 +761,6 @@ INSERT INTO conversation_scripts (id, name, description, category, relationship,
     '2026-04-12T10:15:31.398Z'
   ),
   (
-    'script_041',
     '早安问候 5',
     '简单的早安问候对话',
     'casual',
@@ -821,7 +780,6 @@ INSERT INTO conversation_scripts (id, name, description, category, relationship,
     '2026-04-12T10:15:31.398Z'
   ),
   (
-    'script_042',
     '周末计划讨论 5',
     '讨论周末计划的对话',
     'casual',
@@ -841,7 +799,6 @@ INSERT INTO conversation_scripts (id, name, description, category, relationship,
     '2026-04-12T10:15:31.398Z'
   ),
   (
-    'script_043',
     '工作项目讨论 5',
     '同事之间讨论工作项目的对话',
     'business',
@@ -861,7 +818,6 @@ INSERT INTO conversation_scripts (id, name, description, category, relationship,
     '2026-04-12T10:15:31.398Z'
   ),
   (
-    'script_044',
     '兴趣爱好分享 5',
     '分享兴趣爱好的对话',
     'hobby',
@@ -881,7 +837,6 @@ INSERT INTO conversation_scripts (id, name, description, category, relationship,
     '2026-04-12T10:15:31.398Z'
   ),
   (
-    'script_045',
     '健身话题讨论 5',
     '讨论健身和健康的对话',
     'hobby',
@@ -901,7 +856,6 @@ INSERT INTO conversation_scripts (id, name, description, category, relationship,
     '2026-04-12T10:15:31.398Z'
   ),
   (
-    'script_046',
     '美食推荐 5',
     '推荐美食和餐厅的对话',
     'casual',
@@ -921,7 +875,6 @@ INSERT INTO conversation_scripts (id, name, description, category, relationship,
     '2026-04-12T10:15:31.398Z'
   ),
   (
-    'script_047',
     '旅行计划 5',
     '讨论旅行计划的对话',
     'hobby',
@@ -941,7 +894,6 @@ INSERT INTO conversation_scripts (id, name, description, category, relationship,
     '2026-04-12T10:15:31.398Z'
   ),
   (
-    'script_048',
     '电影讨论 5',
     '讨论电影和影评的对话',
     'hobby',
@@ -961,7 +913,6 @@ INSERT INTO conversation_scripts (id, name, description, category, relationship,
     '2026-04-12T10:15:31.398Z'
   ),
   (
-    'script_049',
     '技术问题讨论 5',
     '讨论技术问题和解决方案的对话',
     'business',
@@ -981,7 +932,6 @@ INSERT INTO conversation_scripts (id, name, description, category, relationship,
     '2026-04-12T10:15:31.398Z'
   ),
   (
-    'script_050',
     '天气话题 5',
     '讨论天气和季节变化的对话',
     'casual',

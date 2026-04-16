@@ -4,8 +4,7 @@
 :: Starts all services and opens the browser
 :: ============================================================
 
-set FAHUBX_HOME=%~dp0
-if "%FAHUBX_HOME:~-1%"=="\" set FAHUBX_HOME=%FAHUBX_HOME:~0,-1%
+for %%i in ("%~dp0.") do set FAHUBX_HOME=%%~fi
 
 :: Load app port from .env
 set APP_PORT=9600

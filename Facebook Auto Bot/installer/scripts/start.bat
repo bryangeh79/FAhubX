@@ -7,9 +7,7 @@ chcp 65001 >nul 2>&1
 :: Starts PostgreSQL, Redis, and NestJS backend in order
 :: ============================================================
 
-set FAHUBX_HOME=%~dp0
-:: Remove trailing backslash
-if "%FAHUBX_HOME:~-1%"=="\" set FAHUBX_HOME=%FAHUBX_HOME:~0,-1%
+for %%i in ("%~dp0.") do set FAHUBX_HOME=%%~fi
 
 set PG_BIN=%FAHUBX_HOME%\pgsql\bin
 set PG_DATA=%FAHUBX_HOME%\pgsql\data
