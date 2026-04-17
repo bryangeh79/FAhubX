@@ -8,6 +8,7 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { SubscriptionGuard } from '../../common/guards/subscription.guard';
 import { TaskStatus } from '../task-scheduler/entities/task.entity';
 import { BrowserSessionService } from '../facebook-accounts/browser-session.service';
+import { FacebookAccountsService } from '../facebook-accounts/facebook-accounts.service';
 import { AccountWarmingService } from '../task-executor/integrations/account-warming.service';
 import { FacebookChatService } from '../task-executor/integrations/facebook-chat.service';
 import { FacebookPostService } from '../task-executor/integrations/facebook-post.service';
@@ -26,6 +27,7 @@ export class SimpleTasksController {
   constructor(
     private readonly service: SimpleTasksService,
     private readonly browserSessionService: BrowserSessionService,
+    private readonly facebookAccountsService: FacebookAccountsService,
     private readonly warmingService: AccountWarmingService,
     private readonly chatService: FacebookChatService,
     private readonly postService: FacebookPostService,
@@ -345,14 +347,35 @@ export class SimpleTasksController {
           headless,
           actions: comboActions,
         });
-        const summary = Object.entries(result.results)
-          .map(([type, r]: [string, any]) => `${type}: ${r.success ? '✅' : '❌'}`)
-          .join('，');
+
+        const actionLabels: Record<string, { label: string; key: string; unit: string }> = {
+          auto_add_friends:       { label: '自动加好友',   key: 'added',     unit: '人' },
+          auto_accept_requests:   { label: '接受好友申请', key: 'accepted',  unit: '人' },
+          auto_follow:            { label: '自动关注',     key: 'followed',  unit: '人' },
+          auto_comment:           { label: '自动评论',     key: 'commented', unit: '条' },
+        };
+
+        let totalDone = 0;
+        for (const [type, r] of Object.entries(result.results)) {
+          const meta = actionLabels[type];
+          const res: any = r;
+          const count = meta ? (res[meta.key] ?? 0) : 0;
+          totalDone += count;
+          if (res.success) {
+            appendLog(taskId, 'success',
+              `  ✅ ${meta?.label || type}: 完成 ${count} ${meta?.unit || '个'}`);
+          } else {
+            appendLog(taskId, 'warn',
+              `  ⚠️ ${meta?.label || type}: ${count > 0 ? `完成 ${count} ${meta?.unit || '个'} 后 ` : ''}失败 - ${res.error || '未知错误'}`);
+          }
+        }
+
+        const summaryLine = `📊 本次共执行 ${totalDone} 次操作`;
         if (result.success) {
-          appendLog(taskId, 'success', `✅ 组合任务完成！${summary}`);
+          appendLog(taskId, 'success', `✅ 组合任务完成！${summaryLine}`);
           await this.service.updateStatus(userId, taskId, TaskStatus.COMPLETED);
         } else {
-          appendLog(taskId, 'warn', `⚠️ 组合任务部分完成：${summary}`);
+          appendLog(taskId, 'warn', `⚠️ 组合任务部分完成：${summaryLine}`);
           await this.service.updateStatus(userId, taskId, TaskStatus.COMPLETED);
         }
 
@@ -400,7 +423,10 @@ export class SimpleTasksController {
 
     if (acc?.cookies) {
       try {
-        const cookieList = JSON.parse(acc.cookies);
+        // JSONB 可能返回对象或字符串
+        const cookieList = typeof acc.cookies === 'string'
+          ? JSON.parse(acc.cookies)
+          : acc.cookies;
         if (Array.isArray(cookieList) && cookieList.length > 0) {
           appendLog(taskId, 'info', `🍪 注入 ${cookieList.length} 个已保存的 Cookie...`);
 
@@ -444,6 +470,18 @@ export class SimpleTasksController {
       return false;
     }
 
+    // 解密密码
+    let plainPassword: string;
+    try {
+      const [row] = await this.dataSource.query(
+        `SELECT "userId" FROM facebook_accounts WHERE id = $1`, [accountId],
+      );
+      plainPassword = await this.facebookAccountsService.getDecryptedPassword(row.userId, accountId);
+    } catch (e: any) {
+      appendLog(taskId, 'error', `❌ 密码解密失败（加密密钥已变动，请重新编辑账号输入密码）：${e.message}`);
+      return false;
+    }
+
     try {
       appendLog(taskId, 'info', `🔑 正在使用密码登录账号：${acc.email}`);
       await page.goto('https://www.facebook.com/login', { waitUntil: 'domcontentloaded', timeout: 20000 });
@@ -451,7 +489,7 @@ export class SimpleTasksController {
 
       await page.type('input[name="email"]', acc.email, { delay: 60 });
       await randomDelay(400, 800);
-      await page.type('input[name="pass"]', acc.facebookPassword, { delay: 60 });
+      await page.type('input[name="pass"]', plainPassword, { delay: 60 });
       await randomDelay(400, 800);
 
       // Press Enter (most reliable)
@@ -620,7 +658,7 @@ export class SimpleTasksController {
       return { success: false, actionsPerformed, error: err.message };
     } finally {
       if (page) await page.close().catch(() => {});
-      await this.browserSessionService.closeSession(accountId).catch(() => {});
+      this.browserSessionService.releaseSession(accountId);
     }
   }
 
@@ -660,7 +698,7 @@ export class SimpleTasksController {
 
         if (acc?.cookies) {
           try {
-            const cookieList = JSON.parse(acc.cookies);
+            const cookieList = typeof acc.cookies === 'string' ? JSON.parse(acc.cookies) : acc.cookies;
             await page.goto('https://www.facebook.com/', { waitUntil: 'domcontentloaded', timeout: 15000 });
             for (const cookie of cookieList) {
               await page.setCookie({

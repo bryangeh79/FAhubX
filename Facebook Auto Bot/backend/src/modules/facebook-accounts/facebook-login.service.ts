@@ -193,14 +193,18 @@ export class FacebookLoginService {
       }
 
       if (!loggedIn) {
-        await page.close().catch(() => {});
-        await this.browserSessionService.closeSession(accountId);
+        // 保持浏览器窗口打开 2 分钟让用户看到失败状况（CAPTCHA/封号/网络问题等）
+        this.logger.warn(`[${account.email}] 登录超时，浏览器将保持打开 2 分钟让您查看状况`);
+        setTimeout(async () => {
+          await page.close().catch(() => {});
+          await this.browserSessionService.closeSession(accountId).catch(() => {});
+        }, 120_000);
         await this.dataSource.query(
-          `UPDATE facebook_accounts SET status = 'error', "syncStatus" = 'failed', "syncError" = '登录超时（15分钟），请重试', "loginStatus" = false WHERE id = $1`,
+          `UPDATE facebook_accounts SET status = 'error', "syncStatus" = 'failed', "syncError" = '登录超时（15分钟），浏览器已保持打开 2 分钟供查看', "loginStatus" = false WHERE id = $1`,
           [accountId],
         );
         this.loginInProgress.delete(accountId);
-        return { success: false, error: '登录超时（15分钟），请重试' };
+        return { success: false, error: '登录超时 — 浏览器保持打开 2 分钟请查看窗口' };
       }
 
       // Success — save cookies and keep browser running
@@ -211,15 +215,18 @@ export class FacebookLoginService {
       this.loginInProgress.delete(accountId);
       return { success: true, cookies: cookiesJson };
     } catch (err: any) {
-      if (page) await page.close().catch(() => {});
-      await this.browserSessionService.closeSession(accountId);
+      // 保持浏览器窗口打开 2 分钟让用户看到异常状况
+      this.logger.error(`[${account.email}] Login failed: ${err.message} — 浏览器保持打开 2 分钟供查看`);
+      setTimeout(async () => {
+        if (page) await page.close().catch(() => {});
+        await this.browserSessionService.closeSession(accountId).catch(() => {});
+      }, 120_000);
       this.loginInProgress.delete(accountId);
-      this.logger.error(`[${account.email}] Login failed: ${err.message}`);
       await this.dataSource.query(
         `UPDATE facebook_accounts SET status = 'error', "syncStatus" = 'failed', "syncError" = $2, "loginStatus" = false WHERE id = $1`,
         [accountId, err.message || '登录异常'],
       );
-      return { success: false, error: err.message || '登录异常' };
+      return { success: false, error: (err.message || '登录异常') + ' — 浏览器保持打开 2 分钟请查看' };
     }
   }
 

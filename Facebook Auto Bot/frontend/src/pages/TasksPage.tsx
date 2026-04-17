@@ -394,7 +394,7 @@ const ExecutionLogModal: React.FC<{
   const [status, setStatus] = useState<string>('running');
   const [errorReason, setErrorReason] = useState<string | null>(null);
   const [stopping, setStopping] = useState(false);
-  const [startTime] = useState(() => Date.now());
+  const [startTime, setStartTime] = useState(() => Date.now());
   const [elapsed, setElapsed] = useState(0);
   const logEndRef = React.useRef<HTMLDivElement>(null);
 
@@ -417,6 +417,9 @@ const ExecutionLogModal: React.FC<{
     setLogs([]);
     setStatus('running');
     setErrorReason(null);
+    // 切换任务时重置起始时间（以该任务首条日志的时间戳为准，fetchLogs 里会校准）
+    setStartTime(Date.now());
+    setElapsed(0);
     setStopping(false);
 
     let pollInterval: ReturnType<typeof setInterval> | null = null;
@@ -434,7 +437,13 @@ const ExecutionLogModal: React.FC<{
         const res = await api.get(`/tasks/${taskId}/logs`);
         const data = res.data?.data || res.data;
         if (cancelled) return 'running';
-        setLogs(data?.logs || []);
+        const logList = data?.logs || [];
+        setLogs(logList);
+        // 用首条日志的时间戳校准 startTime，避免组件复用导致时间错乱
+        if (logList.length > 0 && logList[0].timestamp) {
+          const firstTs = new Date(logList[0].timestamp).getTime();
+          if (!Number.isNaN(firstTs)) setStartTime(firstTs);
+        }
         const s = data?.status || 'running';
         setStatus(s);
         if (data?.errorReason) setErrorReason(data.errorReason);

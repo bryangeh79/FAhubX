@@ -83,9 +83,15 @@ export class FacebookAccountsService {
 
     if (existingAccount) {
       if (existingAccount.deletedAt) {
-        throw new ConflictException('该账号已被删除，请联系管理员恢复');
+        // 自动恢复被软删除的账号并更新数据
+        await this.dataSource.query(
+          `DELETE FROM facebook_accounts WHERE id = $1`,
+          [existingAccount.id],
+        );
+        console.log(`[${createFacebookAccountDto.email}] 旧的软删除账号已清除，重新创建`);
+      } else {
+        throw new ConflictException('该Facebook账号已存在');
       }
-      throw new ConflictException('该Facebook账号已存在');
     }
 
     try {
@@ -110,6 +116,7 @@ export class FacebookAccountsService {
           : null,
         accountType: createFacebookAccountDto.accountType || 'user',
         messengerPin: createFacebookAccountDto.messengerPin || null,
+        vpnConfigId: createFacebookAccountDto.vpnConfigId || null,
         remarks: createFacebookAccountDto.remarks,
         verified: createFacebookAccountDto.verified || false,
         config: createFacebookAccountDto.config || {},

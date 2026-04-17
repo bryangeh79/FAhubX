@@ -29,8 +29,15 @@ export class VpnService {
 
   async create(userId: string, dto: any) {
     const rawType = (dto.type || dto.protocol || 'openvpn').toLowerCase();
-    const typeMap: Record<string, string> = { openvpn: 'openvpn', wireguard: 'wireguard', shadowsocks: 'proxy', other: 'proxy' };
-    const resolvedType = typeMap[rawType] || 'openvpn';
+    const typeMap: Record<string, string> = {
+      socks5: 'socks5',
+      http: 'http',
+      openvpn: 'openvpn',
+      wireguard: 'wireguard',
+      shadowsocks: 'socks5',  // shadowsocks 底层是 socks5
+      other: 'http',           // 其他默认当 HTTP proxy
+    };
+    const resolvedType = typeMap[rawType] || 'http';
     if (dto.isDefault) {
       await this.vpnRepo.update({ userId }, { isDefault: false });
     }

@@ -22,7 +22,7 @@ DefaultDirName=C:\{#MyAppName}
 DefaultGroupName={#MyAppName}
 OutputDir=output
 OutputBaseFilename=FAhubX-Setup-v{#MyAppVersion}
-; SetupIconFile=assets\fahubx.ico
+SetupIconFile=assets\fahubx.ico
 Compression=lzma2/ultra64
 SolidCompression=yes
 PrivilegesRequired=lowest
@@ -32,7 +32,7 @@ MinVersion=10.0
 WizardStyle=modern
 DisableProgramGroupPage=yes
 LicenseFile=
-; UninstallDisplayIcon={app}\assets\fahubx.ico
+UninstallDisplayIcon={app}\assets\fahubx.ico
 
 [Languages]
 Name: "chinesesimplified"; MessagesFile: "compiler:Languages\ChineseSimplified.isl"
@@ -64,15 +64,18 @@ Source: "scripts\redis.conf"; DestDir: "{app}\redis"; Flags: ignoreversion
 Source: "scripts\init-db.bat"; DestDir: "{app}\scripts"; Flags: ignoreversion
 Source: "scripts\generate-env.js"; DestDir: "{app}\scripts"; Flags: ignoreversion
 
+; Brand assets (icon)
+Source: "assets\fahubx.ico"; DestDir: "{app}\assets"; Flags: ignoreversion
+
 [Dirs]
 Name: "{app}\data"; Permissions: users-full
 Name: "{app}\logs"; Permissions: users-full
 
 [Icons]
-Name: "{group}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; WorkingDir: "{app}"; Comment: "Start FAhubX"
-Name: "{group}\Stop {#MyAppName}"; Filename: "{app}\stop.bat"; WorkingDir: "{app}"; Comment: "Stop FAhubX services"
+Name: "{group}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; WorkingDir: "{app}"; IconFilename: "{app}\assets\fahubx.ico"; Comment: "Start FAhubX"
+Name: "{group}\Stop {#MyAppName}"; Filename: "{app}\stop.bat"; WorkingDir: "{app}"; IconFilename: "{app}\assets\fahubx.ico"; Comment: "Stop FAhubX services"
 Name: "{group}\{cm:UninstallProgram,{#MyAppName}}"; Filename: "{uninstallexe}"
-Name: "{autodesktop}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; WorkingDir: "{app}"; Tasks: desktopicon; Comment: "Start FAhubX"
+Name: "{autodesktop}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; WorkingDir: "{app}"; IconFilename: "{app}\assets\fahubx.ico"; Tasks: desktopicon; Comment: "Start FAhubX"
 
 [Tasks]
 Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"

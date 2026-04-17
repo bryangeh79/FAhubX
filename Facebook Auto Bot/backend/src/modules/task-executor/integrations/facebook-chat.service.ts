@@ -116,15 +116,15 @@ export class FacebookChatService {
     } finally {
       if (pageA) await pageA.close().catch(() => {});
       if (pageB) await pageB.close().catch(() => {});
-      await this.browserSessionService.closeSession(accountAId).catch(() => {});
-      await this.browserSessionService.closeSession(accountBId).catch(() => {});
+      this.browserSessionService.releaseSession(accountAId);
+      this.browserSessionService.releaseSession(accountBId);
     }
   }
 
   /** 注入 Cookie 并验证登录 */
   private async injectCookiesAndLogin(page: any, acc: any): Promise<boolean> {
     await page.goto('https://www.facebook.com/', { waitUntil: 'domcontentloaded', timeout: 20000 });
-    const cookieList = JSON.parse(acc.cookies);
+    const cookieList = typeof acc.cookies === 'string' ? JSON.parse(acc.cookies) : acc.cookies;
     for (const cookie of cookieList) {
       try {
         await page.setCookie({
@@ -180,18 +180,16 @@ export class FacebookChatService {
       }
 
       const senderPage = senderLabel === 'A' ? pageA : pageB;
-      this.logger.log(`[dual_chat] Phase ${i + 1} "${phase.label}" → 账号${senderLabel} 发送 ${messages.length} 条消息`);
 
-      for (const msg of messages) {
-        this.logger.log(`[dual_chat] 账号${senderLabel} 发送: ${msg.substring(0, 60)}`);
-        await this.sendMessage(senderPage, msg);
-        sent++;
-        await randomDelay(4000, 10000); // 模拟真人打字间隔
-      }
+      // messages 数组是"同一阶段的多个变体"，随机选一条发送
+      const msg = messages[Math.floor(Math.random() * messages.length)];
+      this.logger.log(`[dual_chat] Phase ${i + 1} "${phase.label}" → 账号${senderLabel} 发送: ${msg.substring(0, 60)}`);
+      await this.sendMessage(senderPage, msg);
+      sent++;
 
-      // 阶段间停顿（模拟对方在阅读回复）
+      // 阶段间停顿（模拟对方在阅读和思考回复）
       if (i < phases.length - 1) {
-        await randomDelay(3000, 8000);
+        await randomDelay(4000, 10000);
       }
     }
 
@@ -955,8 +953,8 @@ export class FacebookChatService {
     } finally {
       if (pageA) await pageA.close().catch(() => {});
       if (pageB) await pageB.close().catch(() => {});
-      await this.browserSessionService.closeSession(accountAId).catch(() => {});
-      await this.browserSessionService.closeSession(accountBId).catch(() => {});
+      this.browserSessionService.releaseSession(accountAId);
+      this.browserSessionService.releaseSession(accountBId);
     }
   }
 }

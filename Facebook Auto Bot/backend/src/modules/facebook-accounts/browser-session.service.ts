@@ -23,14 +23,20 @@ export interface LaunchOptions {
 
 // 全局硬性上限（防止单台服务器 OOM）
 const MAX_SESSIONS_GLOBAL = parseInt(process.env.MAX_BROWSER_SESSIONS || '30', 10);
+// 空闲超时：任务结束后保留浏览器几分钟，期间有新任务可以复用；超时再关闭
+const IDLE_CLOSE_MS = parseInt(process.env.BROWSER_IDLE_CLOSE_MS || '180000', 10); // 3 分钟
 
 @Injectable()
 export class BrowserSessionService implements OnModuleDestroy {
   private readonly logger = new Logger(BrowserSessionService.name);
   private readonly sessions = new Map<string, BrowserSession>();
   private readonly launching = new Set<string>(); // guard concurrent launches
+  private readonly idleTimers = new Map<string, ReturnType<typeof setTimeout>>(); // 空闲关闭定时器
 
   async getOrLaunchSession(accountId: string, options: LaunchOptions = {}): Promise<BrowserSession> {
+    // 有新任务来了，取消空闲关闭计时
+    this.cancelIdleClose(accountId);
+
     // Return existing session if alive
     const existing = this.sessions.get(accountId);
     if (existing && existing.status !== 'closed') {
@@ -157,7 +163,35 @@ export class BrowserSessionService implements OnModuleDestroy {
     return page;
   }
 
+  /**
+   * 任务完成后调用此方法，而不是 closeSession。
+   * 浏览器保持打开 IDLE_CLOSE_MS（默认 3 分钟），如果期间有新任务复用 → 重置计时；
+   * 如果超时 → 自动关闭，释放资源。
+   */
+  releaseSession(accountId: string): void {
+    // 取消旧的计时器（如果有）
+    this.cancelIdleClose(accountId);
+    const session = this.sessions.get(accountId);
+    if (!session || session.status === 'closed') return;
+    this.logger.log(`[${accountId}] 任务完成，浏览器保持打开 ${Math.round(IDLE_CLOSE_MS / 1000)}s 等待复用...`);
+    const timer = setTimeout(async () => {
+      this.idleTimers.delete(accountId);
+      await this.closeSession(accountId);
+      this.logger.log(`[${accountId}] 空闲超时，浏览器已自动关闭`);
+    }, IDLE_CLOSE_MS);
+    this.idleTimers.set(accountId, timer);
+  }
+
+  private cancelIdleClose(accountId: string): void {
+    const t = this.idleTimers.get(accountId);
+    if (t) {
+      clearTimeout(t);
+      this.idleTimers.delete(accountId);
+    }
+  }
+
   async closeSession(accountId: string): Promise<void> {
+    this.cancelIdleClose(accountId);
     const session = this.sessions.get(accountId);
     if (session) {
       try {

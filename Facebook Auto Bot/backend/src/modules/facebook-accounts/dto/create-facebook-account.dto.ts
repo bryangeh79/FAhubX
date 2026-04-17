@@ -47,6 +47,9 @@ export class CreateFacebookAccountDto {
 
   @IsOptional() @IsString() messengerPin?: string;
 
+  // VPN 配置 ID（可选：指定专属 VPN；不填则用默认 VPN）
+  @IsOptional() @IsString() vpnConfigId?: string;
+
   // 以下字段保留兼容性（浏览器登录后可自动填充）
   @IsOptional() @IsString() facebookId?: string;
   @IsOptional() @IsString() accessToken?: string;

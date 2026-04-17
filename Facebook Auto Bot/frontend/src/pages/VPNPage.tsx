@@ -469,10 +469,16 @@ const VPNPage: React.FC = () => {
                 rules={[{ required: true, message: '请选择VPN类型' }]}
               >
                 <Select placeholder="选择VPN类型">
-                  <Select.Option value="OpenVPN">OpenVPN</Select.Option>
-                  <Select.Option value="WireGuard">WireGuard</Select.Option>
-                  <Select.Option value="Shadowsocks">Shadowsocks</Select.Option>
-                  <Select.Option value="Other">其他</Select.Option>
+                  <Select.OptGroup label="✅ 推荐（Chromium 原生支持）">
+                    <Select.Option value="SOCKS5">SOCKS5 代理（静态住宅 IP / 911 S5）</Select.Option>
+                    <Select.Option value="HTTP">HTTP 代理</Select.Option>
+                  </Select.OptGroup>
+                  <Select.OptGroup label="⚠️ 需额外配置（不推荐）">
+                    <Select.Option value="OpenVPN">OpenVPN（需系统级 VPN 客户端）</Select.Option>
+                    <Select.Option value="WireGuard">WireGuard（需系统级 VPN 客户端）</Select.Option>
+                    <Select.Option value="Shadowsocks">Shadowsocks</Select.Option>
+                    <Select.Option value="Other">其他（通用代理）</Select.Option>
+                  </Select.OptGroup>
                 </Select>
               </Form.Item>
             </Col>

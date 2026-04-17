@@ -86,7 +86,7 @@ export class AccountWarmingService {
       return { success: false, actionsPerformed, error: err.message };
     } finally {
       if (page) await page.close().catch(() => {});
-      await this.browserSessionService.closeSession(accountId).catch(() => {});
+      this.browserSessionService.releaseSession(accountId);
     }
   }
 

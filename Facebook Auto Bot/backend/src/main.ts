@@ -184,6 +184,21 @@ async function bootstrap() {
     );
   }
 
+  // SPA fallback: 所有不匹配 /api 的 GET 请求都返回前端 index.html
+  // 这样 React Router 能处理 /login, /admin/users 等客户端路由
+  if (process.env.SERVE_STATIC === 'true') {
+    const path = require('path');
+    const indexPath = path.join(__dirname, '..', '..', 'frontend', 'dist', 'index.html');
+    const expressApp = app.getHttpAdapter().getInstance();
+    expressApp.use((req: any, res: any, next: any) => {
+      if (req.method !== 'GET') return next();
+      if (req.path.startsWith('/api')) return next();
+      // 如果是静态文件（.js/.css/.png 等），让 ServeStatic 处理
+      if (req.path.includes('.')) return next();
+      res.sendFile(indexPath);
+    });
+  }
+
   // 启动应用
   const port = configService.get('PORT', 3000);
   const host = configService.get('HOST', '0.0.0.0');

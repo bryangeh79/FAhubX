@@ -1,6 +1,8 @@
 import axios from 'axios';
 
-const BASE_URL = ((import.meta as any).env?.VITE_API_URL || 'http://localhost:3000') + '/api/v1';
+// 使用同源相对路径：前端和后端部署在同一端口时自动工作（VPS Nginx 反向代理 / 本地 ServeStatic）
+// 如果前后端分离部署，构建时传 VITE_API_URL 指定绝对地址
+const BASE_URL = ((import.meta as any).env?.VITE_API_URL || '') + '/api/v1';
 
 const api = axios.create({
   baseURL: BASE_URL,

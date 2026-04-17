@@ -17,7 +17,7 @@ export class FacebookPostService {
   // ── 注入 Cookie 并验证登录（与 social/chat service 相同逻辑）────────────
   private async injectCookiesAndLogin(page: any, acc: any): Promise<boolean> {
     await page.goto('https://www.facebook.com/', { waitUntil: 'domcontentloaded', timeout: 20000 });
-    const cookieList = JSON.parse(acc.cookies);
+    const cookieList = typeof acc.cookies === 'string' ? JSON.parse(acc.cookies) : acc.cookies;
     for (const cookie of cookieList) {
       try {
         await page.setCookie({
@@ -220,7 +220,7 @@ export class FacebookPostService {
       return { success: false, error: err.message };
     } finally {
       if (page) await page.close().catch(() => {});
-      await this.browserSessionService.closeSession(accountId).catch(() => {});
+      this.browserSessionService.releaseSession(accountId);
     }
   }
 
@@ -295,7 +295,7 @@ export class FacebookPostService {
       return { success: false, error: err.message };
     } finally {
       if (page) await page.close().catch(() => {});
-      await this.browserSessionService.closeSession(accountId).catch(() => {});
+      this.browserSessionService.releaseSession(accountId);
     }
   }
 }

@@ -1,4 +1,4 @@
-import { Controller, Get, Put, Body, Param, UseGuards, Request } from '@nestjs/common';
+import { Controller, Get, Put, Post, Body, Param, UseGuards, Request } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
 import { ChatScriptsService } from './chat-scripts.service';
 import { UpdateChatScriptDto } from './dto/update-chat-script.dto';
@@ -31,5 +31,12 @@ export class ChatScriptsController {
     @Body() dto: UpdateChatScriptDto,
   ) {
     return this.service.update(req.user.id, id, dto);
+  }
+
+  @Post('reset-all')
+  @ApiOperation({ summary: '重置所有剧本为最新模板（15-20 轮对话版）' })
+  async resetAll(@Request() req) {
+    const count = await this.service.resetToDefault(req.user.id);
+    return { success: true, message: `已重置 ${count} 个剧本为最新模板`, count };
   }
 }
