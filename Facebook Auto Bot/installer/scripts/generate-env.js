@@ -140,8 +140,7 @@ TASK_RETRY_DELAY=300000
 TASK_TIMEOUT=1800000
 `;
 
-  // Write .env to backend directory
-  const envPath = path.join(installDir, 'backend', '.env');
+  // Write .env to backend directory (envPath 上面已声明)
   fs.mkdirSync(path.dirname(envPath), { recursive: true });
   fs.writeFileSync(envPath, envContent, 'utf-8');
 
