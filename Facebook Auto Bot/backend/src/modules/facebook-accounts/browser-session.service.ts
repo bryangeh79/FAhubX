@@ -1,6 +1,9 @@
 import { Injectable, Logger, OnModuleDestroy } from '@nestjs/common';
+import { InjectDataSource } from '@nestjs/typeorm';
+import { DataSource } from 'typeorm';
 import * as path from 'path';
 import * as fs from 'fs';
+import { resolveVpnProxy } from './vpn-proxy-resolver';
 
 export interface BrowserSession {
   browser: any; // Puppeteer Browser
@@ -32,6 +35,43 @@ export class BrowserSessionService implements OnModuleDestroy {
   private readonly sessions = new Map<string, BrowserSession>();
   private readonly launching = new Set<string>(); // guard concurrent launches
   private readonly idleTimers = new Map<string, ReturnType<typeof setTimeout>>(); // 空闲关闭定时器
+
+  constructor(@InjectDataSource() private readonly dataSource: DataSource) {}
+
+  /**
+   * 根据 accountId 自动查询该账号绑定的 VPN 配置并转成 proxy 参数。
+   * 如果调用方已经传入 proxyServer 就跳过查询（facebook-login.service 这种情况）。
+   */
+  private async resolveAccountProxy(accountId: string): Promise<{
+    proxyServer?: string;
+    proxyCredentials?: { username: string; password: string } | null;
+  }> {
+    try {
+      const rows = await this.dataSource.query(
+        `SELECT "vpnConfigId" FROM facebook_accounts WHERE id = $1 LIMIT 1`,
+        [accountId],
+      );
+      if (!rows.length || !rows[0].vpnConfigId) return {};
+
+      const vpnRows = await this.dataSource.query(
+        `SELECT * FROM vpn_configs WHERE id = $1 LIMIT 1`,
+        [rows[0].vpnConfigId],
+      );
+      if (!vpnRows.length) return {};
+
+      const proxyConfig = resolveVpnProxy(vpnRows[0]);
+      if (!proxyConfig) return {};
+
+      this.logger.log(`[${accountId}] Auto-resolved proxy: ${proxyConfig.proxyServer}`);
+      return {
+        proxyServer: proxyConfig.proxyServer,
+        proxyCredentials: proxyConfig.credentials,
+      };
+    } catch (err: any) {
+      this.logger.warn(`[${accountId}] Failed to auto-resolve VPN proxy: ${err.message}`);
+      return {};
+    }
+  }
 
   async getOrLaunchSession(accountId: string, options: LaunchOptions = {}): Promise<BrowserSession> {
     // 有新任务来了，取消空闲关闭计时
@@ -78,6 +118,13 @@ export class BrowserSessionService implements OnModuleDestroy {
     }
 
     this.launching.add(accountId);
+
+    // 如果调用方没显式传代理，自动从 DB 查账号绑定的 VPN
+    if (!options.proxyServer) {
+      const resolved = await this.resolveAccountProxy(accountId);
+      options.proxyServer = resolved.proxyServer;
+      options.proxyCredentials = resolved.proxyCredentials ?? null;
+    }
 
     const profileDir = this.getProfileDir(accountId);
     this.logger.log(`[${accountId}] Launching browser | profile: ${profileDir} | proxy: ${options.proxyServer || 'none'}`);

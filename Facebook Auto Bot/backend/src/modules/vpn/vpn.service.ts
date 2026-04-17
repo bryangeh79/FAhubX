@@ -41,15 +41,21 @@ export class VpnService {
     if (dto.isDefault) {
       await this.vpnRepo.update({ userId }, { isDefault: false });
     }
+    const server = dto.serverAddress || dto.server || '';
+    // 配置填完整（有 server）就直接标记 active — 静态住宅代理配置好了就能用，不等实际连接
+    const status = server ? 'active' : 'inactive';
+    const lastConnectedAt = server ? new Date() : null;
+    const ipAddress = dto.ipAddress || server || null;
     // Use raw query to handle the extra 'type' enum column not in entity
     const result = await this.dataSource.query(
-      `INSERT INTO vpn_configs ("userId", name, protocol, "type", server, port, username, password, country, city, "isDefault", status, config, parameters, "healthScore", "totalConnections", "totalDuration", "averageLatency", "successRate")
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,'inactive','{}','{}',100,0,'0','0','0') RETURNING *`,
+      `INSERT INTO vpn_configs ("userId", name, protocol, "type", server, port, username, password, country, city, "isDefault", status, "lastConnectedAt", "ipAddress", config, parameters, "healthScore", "totalConnections", "totalDuration", "averageLatency", "successRate")
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,'{}','{}',100,0,'0','0','0') RETURNING *`,
       [userId, dto.name, resolvedType, resolvedType,
-       dto.serverAddress || dto.server || '', dto.port || 1194,
+       server, dto.port || 1194,
        dto.username || '', dto.password || '',
        dto.country || '', dto.city || '',
-       dto.isDefault || false]
+       dto.isDefault || false,
+       status, lastConnectedAt, ipAddress]
     );
     return result[0];
   }
@@ -69,6 +75,12 @@ export class VpnService {
     if (dto.city !== undefined) config.city = dto.city;
     if (dto.isDefault !== undefined) config.isDefault = dto.isDefault;
     if (dto.ipAddress !== undefined) config.ipAddress = dto.ipAddress;
+    // 编辑后只要 server 非空就保持 active 并刷新 lastConnectedAt
+    if (config.server) {
+      config.status = 'active';
+      config.lastConnectedAt = new Date();
+      if (!config.ipAddress) config.ipAddress = config.server;
+    }
     return this.vpnRepo.save(config);
   }
 
