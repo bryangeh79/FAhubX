@@ -20,14 +20,14 @@ echo.
 :: Step 1: Install dependencies
 echo [1/5] Installing backend dependencies...
 cd /d "%BACKEND_DIR%"
-call npm ci
+call npm ci --legacy-peer-deps
 if errorlevel 1 (
     echo ERROR: npm ci failed
     exit /b 1
 )
 
 :: Install serve-static for local mode
-call npm install @nestjs/serve-static --save
+call npm install @nestjs/serve-static --save --legacy-peer-deps
 if errorlevel 1 (
     echo ERROR: Failed to install @nestjs/serve-static
     exit /b 1
@@ -79,6 +79,22 @@ echo [5/5] Pruning development dependencies...
 cd /d "%STAGING_DIR%"
 call npm prune --production >nul 2>&1
 echo   Pruned dev dependencies.
+
+:: Copy Puppeteer Chromium cache (bundles browser so installer works offline)
+:: Tries C:\FAhubX\backend\puppeteer-cache (production install) first,
+:: then backend\puppeteer-cache (dev env). Exits with error if neither found.
+if exist "C:\FAhubX\backend\puppeteer-cache" (
+    echo   Copying bundled Chromium from C:\FAhubX\backend\puppeteer-cache...
+    xcopy /E /I /Q /Y "C:\FAhubX\backend\puppeteer-cache" "%STAGING_DIR%\puppeteer-cache" >nul
+) else if exist "%BACKEND_DIR%\puppeteer-cache" (
+    echo   Copying bundled Chromium from %BACKEND_DIR%\puppeteer-cache...
+    xcopy /E /I /Q /Y "%BACKEND_DIR%\puppeteer-cache" "%STAGING_DIR%\puppeteer-cache" >nul
+) else (
+    echo ERROR: puppeteer-cache not found. Installer would ship without Chromium.
+    echo   Expected: C:\FAhubX\backend\puppeteer-cache or %BACKEND_DIR%\puppeteer-cache
+    echo   Run Puppeteer once to download Chromium, then rebuild.
+    exit /b 1
+)
 
 echo.
 echo   Backend build complete!
