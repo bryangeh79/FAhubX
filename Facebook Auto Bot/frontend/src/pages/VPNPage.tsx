@@ -28,13 +28,11 @@ import {
   DisconnectOutlined,
   ThunderboltOutlined,
   GlobalOutlined,
-  LinkOutlined,
   SyncOutlined,
   SettingOutlined,
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import AppLayout from '../components/AppLayout';
-import VPNAccountAssociation from '../components/VPNAccountAssociation';
 import { vpnService, VPNConfig } from '../services/vpn';
 
 const { Title, Text } = Typography;
@@ -422,9 +420,6 @@ const VPNPage: React.FC = () => {
               scroll={{ x: 1200 }}
             />
           </Card>
-        </TabPane>
-        <TabPane tab={<span><LinkOutlined /> 账号-VPN关联</span>} key="associations">
-          <VPNAccountAssociation />
         </TabPane>
         <TabPane tab={<span><SyncOutlined /> IP轮换策略</span>} key="rotation">
           <Card>
