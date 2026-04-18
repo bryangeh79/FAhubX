@@ -34,11 +34,13 @@ import {
 import dayjs from 'dayjs';
 import AppLayout from '../components/AppLayout';
 import { vpnService, VPNConfig } from '../services/vpn';
+import { useT } from '../i18n';
 
 const { Title, Text } = Typography;
 const { TabPane } = Tabs;
 
 const VPNPage: React.FC = () => {
+  const t = useT();
   const [vpns, setVpns] = useState<VPNConfig[]>([]);
   const [loading, setLoading] = useState(false);
   const [modalVisible, setModalVisible] = useState(false);
@@ -74,7 +76,7 @@ const VPNPage: React.FC = () => {
       const res = await vpnService.getVPNs();
       setVpns(res.data.vpns || []);
     } catch {
-      message.error('获取VPN列表失败');
+      message.error(t('vpn.fetchFailed'));
     } finally {
       setLoading(false);
     }
@@ -106,10 +108,10 @@ const VPNPage: React.FC = () => {
   const handleDeleteClick = async (id: string) => {
     try {
       await vpnService.deleteVPN(id);
-      message.success('删除成功');
+      message.success(t('vpn.deleteSuccess'));
       fetchVPNs();
     } catch {
-      message.error('删除失败');
+      message.error(t('vpn.deleteFailed'));
     }
   };
 
@@ -117,10 +119,10 @@ const VPNPage: React.FC = () => {
     setConnectingId(id);
     try {
       await vpnService.connectVPN(id);
-      message.success('连接成功');
+      message.success(t('vpn.connectSuccess'));
       fetchVPNs();
     } catch {
-      message.error('连接失败');
+      message.error(t('vpn.connectFailed'));
     } finally {
       setConnectingId(null);
     }
@@ -129,10 +131,10 @@ const VPNPage: React.FC = () => {
   const handleDisconnectClick = async (id: string) => {
     try {
       await vpnService.disconnectVPN(id);
-      message.success('断开成功');
+      message.success(t('vpn.disconnectSuccess'));
       fetchVPNs();
     } catch {
-      message.error('断开失败');
+      message.error(t('vpn.disconnectFailed'));
     }
   };
 
@@ -143,16 +145,16 @@ const VPNPage: React.FC = () => {
 
       if (editingVPN) {
         await vpnService.updateVPN(editingVPN.id, values);
-        message.success('更新成功');
+        message.success(t('vpn.updateSuccess'));
       } else {
         await vpnService.createVPN(values);
-        message.success('创建成功');
+        message.success(t('vpn.createSuccess'));
       }
 
       setModalVisible(false);
       fetchVPNs();
     } catch (error) {
-      console.error('保存失败:', error);
+      console.error('save failed:', error);
     } finally {
       setSubmitting(false);
     }
@@ -180,51 +182,47 @@ const VPNPage: React.FC = () => {
   const getStatusText = (status: string) => {
     switch (status) {
       case 'connected':
-      case 'active': return '已连接';
+      case 'active': return t('vpn.statusConnected');
       case 'connecting':
-      case 'testing': return '连接中';
-      case 'disconnecting': return '断开中';
+      case 'testing': return t('vpn.statusConnecting');
+      case 'disconnecting': return t('vpn.statusDisconnecting');
       case 'disconnected':
-      case 'inactive': return '未连接';
-      case 'error': return '错误';
-      default: return status || '未知';
+      case 'inactive': return t('vpn.statusDisconnected');
+      case 'error': return t('vpn.statusError');
+      default: return status || t('vpn.statusUnknown');
     }
   };
 
   const getTypeText = (type: string) => {
-    const t = (type || '').toLowerCase();
-    switch (t) {
+    const ty = (type || '').toLowerCase();
+    switch (ty) {
       case 'openvpn': return 'OpenVPN';
       case 'wireguard': return 'WireGuard';
       case 'shadowsocks':
       case 'proxy': return 'Shadowsocks/Proxy';
-      case 'OpenVPN': return 'OpenVPN';
-      case 'WireGuard': return 'WireGuard';
-      case 'Shadowsocks': return 'Shadowsocks';
-      case 'Other':
-      case 'other': return '其他';
-      default: return type || '未知';
+      case 'other': return t('vpn.colTypeOther');
+      default: return type || t('vpn.statusUnknown');
     }
   };
 
   const columns = [
     {
-      title: '名称',
+      title: t('vpn.colName'),
       dataIndex: 'name',
       key: 'name',
       width: 150,
     },
     {
-      title: '类型',
+      title: t('vpn.colType'),
       key: 'type',
       width: 100,
       render: (_: any, record: any) => {
-        const t = record.protocol || record.type || '';
-        return <Tag color="blue">{getTypeText(t)}</Tag>;
+        const ty = record.protocol || record.type || '';
+        return <Tag color="blue">{getTypeText(ty)}</Tag>;
       },
     },
     {
-      title: '状态',
+      title: t('vpn.colStatus'),
       dataIndex: 'status',
       key: 'status',
       width: 100,
@@ -233,7 +231,7 @@ const VPNPage: React.FC = () => {
       ),
     },
     {
-      title: '服务器',
+      title: t('vpn.colServer'),
       key: 'serverAddress',
       width: 150,
       render: (_: any, record: any) => {
@@ -251,20 +249,20 @@ const VPNPage: React.FC = () => {
       },
     },
     {
-      title: 'IP地址',
+      title: t('vpn.colIpAddress'),
       dataIndex: 'ipAddress',
       key: 'ipAddress',
       width: 120,
       render: (ip: string) => (ip ? <Tag color="geekblue">{ip}</Tag> : '-'),
     },
     {
-      title: '性能指标',
+      title: t('vpn.colMetrics'),
       key: 'performance',
       render: (_: any, record: VPNConfig) => (
         <Space direction="vertical" size={2} style={{ width: '100%' }}>
           {record.latency && (
             <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-              <Text type="secondary" style={{ fontSize: 12, width: 40 }}>延迟:</Text>
+              <Text type="secondary" style={{ fontSize: 12, width: 40 }}>{t('vpn.colLatency')}</Text>
               <Progress
                 percent={Math.min(100, (record.latency || 300) / 3)}
                 size="small"
@@ -277,7 +275,7 @@ const VPNPage: React.FC = () => {
           )}
           {record.bandwidth && (
             <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-              <Text type="secondary" style={{ fontSize: 12, width: 40 }}>带宽:</Text>
+              <Text type="secondary" style={{ fontSize: 12, width: 40 }}>{t('vpn.colBandwidth')}</Text>
               <Progress
                 percent={Math.min(100, (record.bandwidth || 100) / 10)}
                 size="small"
@@ -292,14 +290,14 @@ const VPNPage: React.FC = () => {
       ),
     },
     {
-      title: '最后连接',
+      title: t('vpn.colLastConnected'),
       dataIndex: 'lastConnectedAt',
       key: 'lastConnectedAt',
       width: 120,
       render: (time: string) => (time ? dayjs(time).format('MM-DD HH:mm') : '-'),
     },
     {
-      title: '操作',
+      title: t('common.operating'),
       key: 'actions',
       width: 200,
       render: (_: any, record: VPNConfig) => (
@@ -311,7 +309,7 @@ const VPNPage: React.FC = () => {
               onClick={() => handleDisconnectClick(record.id)}
               danger
             >
-              断开
+              {t('vpn.disconnectButton')}
             </Button>
           ) : (
             <Button
@@ -321,7 +319,7 @@ const VPNPage: React.FC = () => {
               loading={connectingId === record.id}
               type="primary"
             >
-              连接
+              {t('vpn.connectButton')}
             </Button>
           )}
           <Button
@@ -329,16 +327,16 @@ const VPNPage: React.FC = () => {
             icon={<SettingOutlined />}
             onClick={() => handleEditClick(record)}
           >
-            编辑
+            {t('vpn.editButton')}
           </Button>
           <Popconfirm
-            title="确定要删除这个VPN配置吗？"
+            title={t('vpn.deleteConfirm')}
             onConfirm={() => handleDeleteClick(record.id)}
-            okText="确定"
-            cancelText="取消"
+            okText={t('vpn.deleteOk')}
+            cancelText={t('vpn.deleteCancel')}
           >
             <Button icon={<DeleteOutlined />} danger>
-              删除
+              {t('vpn.deleteButton')}
             </Button>
           </Popconfirm>
         </Space>
@@ -352,13 +350,13 @@ const VPNPage: React.FC = () => {
         <Row justify="space-between" align="middle">
           <Col>
             <Title level={2} style={{ marginTop: 0, marginBottom: 4 }}>
-              VPN配置
+              {t('vpn.title')}
             </Title>
-            <Text type="secondary">管理VPN节点配置，为Facebook账号分配独立IP。</Text>
+            <Text type="secondary">{t('vpn.subtitle')}</Text>
           </Col>
           <Col>
             <Button type="primary" icon={<PlusOutlined />} onClick={handleAddClick} size="large">
-              添加VPN
+              {t('vpn.addVpn')}
             </Button>
           </Col>
         </Row>
@@ -368,7 +366,7 @@ const VPNPage: React.FC = () => {
         <Col xs={24} sm={6}>
           <Card size="small">
             <Statistic
-              title="配置总数"
+              title={t('vpn.statConfigTotal')}
               value={configuredCount}
               valueStyle={{ color: '#1890ff' }}
               prefix={<SafetyOutlined />}
@@ -378,7 +376,7 @@ const VPNPage: React.FC = () => {
         <Col xs={24} sm={6}>
           <Card size="small">
             <Statistic
-              title="活跃连接"
+              title={t('vpn.statActiveConnections')}
               value={activeCount}
               valueStyle={{ color: '#52c41a' }}
               prefix={<CheckCircleOutlined />}
@@ -388,7 +386,7 @@ const VPNPage: React.FC = () => {
         <Col xs={24} sm={6}>
           <Card size="small">
             <Statistic
-              title="可用IP池"
+              title={t('vpn.statAvailablePool')}
               value={ipPoolCount}
               valueStyle={{ color: '#722ed1' }}
               prefix={<GlobalOutlined />}
@@ -398,7 +396,7 @@ const VPNPage: React.FC = () => {
         <Col xs={24} sm={6}>
           <Card size="small">
             <Statistic
-              title="平均延迟"
+              title={t('vpn.statAvgLatency')}
               value={0}
               suffix="ms"
               valueStyle={{ color: '#faad14' }}
@@ -409,37 +407,37 @@ const VPNPage: React.FC = () => {
       </Row>
 
       <Tabs activeKey={activeTab} onChange={setActiveTab} style={{ marginBottom: 24 }}>
-        <TabPane tab={<span><WifiOutlined /> VPN列表</span>} key="vpns">
+        <TabPane tab={<span><WifiOutlined /> {t('vpn.tabList')}</span>} key="vpns">
           <Card>
             <Table
               columns={columns}
               dataSource={vpns}
               rowKey="id"
               loading={loading}
-              pagination={{ pageSize: 10, showTotal: (t) => `共 ${t} 条记录` }}
+              pagination={{ pageSize: 10, showTotal: (total) => t('common.total', { count: total }) }}
               scroll={{ x: 1200 }}
             />
           </Card>
         </TabPane>
-        <TabPane tab={<span><SyncOutlined /> IP轮换策略</span>} key="rotation">
+        <TabPane tab={<span><SyncOutlined /> {t('vpn.tabRotation')}</span>} key="rotation">
           <Card>
             <Alert
-              message="IP轮换策略管理"
-              description="配置IP轮换策略，控制VPN连接的切换频率和条件。"
+              message={t('vpn.rotationTitle')}
+              description={t('vpn.rotationDesc')}
               type="info"
               showIcon
               style={{ marginBottom: 16 }}
             />
             <div style={{ textAlign: 'center', padding: '40px 0' }}>
               <SyncOutlined style={{ fontSize: 48, color: '#d9d9d9', marginBottom: 16 }} />
-              <Text type="secondary">IP轮换策略功能开发中</Text>
+              <Text type="secondary">{t('vpn.rotationWip')}</Text>
             </div>
           </Card>
         </TabPane>
       </Tabs>
 
       <Modal
-        title={editingVPN ? '编辑VPN配置' : '添加VPN配置'}
+        title={editingVPN ? t('vpn.editModalTitle') : t('vpn.addModalTitle')}
         open={modalVisible}
         onOk={handleModalOk}
         onCancel={handleModalCancel}
@@ -450,29 +448,29 @@ const VPNPage: React.FC = () => {
         <Form form={form} layout="vertical">
           <Form.Item
             name="name"
-            label="配置名称"
-            rules={[{ required: true, message: '请输入配置名称' }]}
+            label={t('vpn.formName')}
+            rules={[{ required: true, message: t('vpn.formNameRequired') }]}
           >
-            <Input placeholder="例如：美国洛杉矶节点" />
+            <Input placeholder={t('vpn.formNamePlaceholder')} />
           </Form.Item>
 
           <Row gutter={16}>
             <Col span={12}>
               <Form.Item
                 name="type"
-                label="VPN类型"
-                rules={[{ required: true, message: '请选择VPN类型' }]}
+                label={t('vpn.formType')}
+                rules={[{ required: true, message: t('vpn.formTypeRequired') }]}
               >
-                <Select placeholder="选择VPN类型">
-                  <Select.OptGroup label="✅ 推荐（Chromium 原生支持）">
-                    <Select.Option value="SOCKS5">SOCKS5 代理（静态住宅 IP / 911 S5）</Select.Option>
-                    <Select.Option value="HTTP">HTTP 代理</Select.Option>
+                <Select placeholder={t('vpn.formTypePlaceholder')}>
+                  <Select.OptGroup label={t('vpn.formTypeRecommended')}>
+                    <Select.Option value="SOCKS5">{t('vpn.formTypeSocks5')}</Select.Option>
+                    <Select.Option value="HTTP">{t('vpn.formTypeHttp')}</Select.Option>
                   </Select.OptGroup>
-                  <Select.OptGroup label="⚠️ 需额外配置（不推荐）">
-                    <Select.Option value="OpenVPN">OpenVPN（需系统级 VPN 客户端）</Select.Option>
-                    <Select.Option value="WireGuard">WireGuard（需系统级 VPN 客户端）</Select.Option>
-                    <Select.Option value="Shadowsocks">Shadowsocks</Select.Option>
-                    <Select.Option value="Other">其他（通用代理）</Select.Option>
+                  <Select.OptGroup label={t('vpn.formTypeAdvanced')}>
+                    <Select.Option value="OpenVPN">{t('vpn.formTypeOpenvpn')}</Select.Option>
+                    <Select.Option value="WireGuard">{t('vpn.formTypeWireguard')}</Select.Option>
+                    <Select.Option value="Shadowsocks">{t('vpn.formTypeShadowsocks')}</Select.Option>
+                    <Select.Option value="Other">{t('vpn.formTypeOther')}</Select.Option>
                   </Select.OptGroup>
                 </Select>
               </Form.Item>
@@ -480,10 +478,10 @@ const VPNPage: React.FC = () => {
             <Col span={12}>
               <Form.Item
                 name="serverAddress"
-                label="服务器地址"
-                rules={[{ required: true, message: '请输入服务器地址' }]}
+                label={t('vpn.formServer')}
+                rules={[{ required: true, message: t('vpn.formServerRequired') }]}
               >
-                <Input placeholder="例如：vpn.example.com 或 192.168.1.100" />
+                <Input placeholder={t('vpn.formServerPlaceholder')} />
               </Form.Item>
             </Col>
           </Row>
@@ -492,18 +490,18 @@ const VPNPage: React.FC = () => {
             <Col span={12}>
               <Form.Item
                 name="port"
-                label="端口"
-                rules={[{ required: true, message: '请输入端口号' }]}
+                label={t('vpn.formPort')}
+                rules={[{ required: true, message: t('vpn.formPortRequired') }]}
               >
-                <Input placeholder="例如：1194" />
+                <Input placeholder={t('vpn.formPortPlaceholder')} />
               </Form.Item>
             </Col>
             <Col span={12}>
               <Form.Item
                 name="country"
-                label="国家/地区"
+                label={t('vpn.formCountry')}
               >
-                <Input placeholder="例如：美国" />
+                <Input placeholder={t('vpn.formCountryPlaceholder')} />
               </Form.Item>
             </Col>
           </Row>
@@ -512,27 +510,27 @@ const VPNPage: React.FC = () => {
             <Col span={12}>
               <Form.Item
                 name="city"
-                label="城市"
+                label={t('vpn.formCity')}
               >
-                <Input placeholder="例如：洛杉矶" />
+                <Input placeholder={t('vpn.formCityPlaceholder')} />
               </Form.Item>
             </Col>
             <Col span={12}>
               <Form.Item
                 name="username"
-                label="用户名"
+                label={t('vpn.formUsername')}
               >
-                <Input placeholder="VPN用户名（可选）" />
+                <Input placeholder={t('vpn.formUsernamePlaceholder')} />
               </Form.Item>
             </Col>
           </Row>
 
-          <Form.Item name="password" label="密码">
-            <Input.Password placeholder="VPN密码（可选）" />
+          <Form.Item name="password" label={t('vpn.formPassword')}>
+            <Input.Password placeholder={t('vpn.formPasswordPlaceholder')} />
           </Form.Item>
 
-          <Form.Item name="ipAddress" label="出口IP地址" extra="填写该VPN节点的出口公网IP（可选，用于记录和显示）">
-            <Input placeholder="例如：103.12.34.56" />
+          <Form.Item name="ipAddress" label={t('vpn.formIpAddress')} extra={t('vpn.formIpAddressExtra')}>
+            <Input placeholder={t('vpn.formIpAddressPlaceholder')} />
           </Form.Item>
         </Form>
       </Modal>

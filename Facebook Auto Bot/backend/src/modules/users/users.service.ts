@@ -241,6 +241,13 @@ export class UsersService {
   }
 
   /**
+   * 更新用户 UI 语言（轻量端点，前端 Header 语言切换用）
+   */
+  async updateLanguage(id: string, language: string): Promise<void> {
+    await this.usersRepository.update(id, { language });
+  }
+
+  /**
    * 更新用户偏好设置
    */
   async updatePreferences(id: string, preferencesDto: UpdatePreferencesDto): Promise<UserResponseDto> {

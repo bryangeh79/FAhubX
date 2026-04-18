@@ -3,6 +3,7 @@ import {
   Get,
   Post,
   Put,
+  Patch,
   Delete,
   Body,
   Param,
@@ -13,6 +14,7 @@ import {
   ParseIntPipe,
   HttpCode,
   HttpStatus,
+  BadRequestException,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -251,6 +253,25 @@ export class UsersController {
     @Body() preferencesDto: UpdatePreferencesDto,
   ): Promise<UserResponseDto> {
     return this.usersService.updatePreferences(user.id, preferencesDto);
+  }
+
+  /**
+   * 直接更新当前用户的 UI 语言偏好（前端 Header 切换语言时调用）
+   * 比 /me/preferences 更轻量，只改 language 字段
+   */
+  @Patch('me/language')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth('JWT-auth')
+  @ApiOperation({ summary: '更新当前用户的 UI 语言偏好' })
+  async updateLanguage(
+    @CurrentUser() user: User,
+    @Body() body: { language: string },
+  ): Promise<{ language: string }> {
+    if (!body?.language || !['zh', 'en', 'vi'].includes(body.language)) {
+      throw new BadRequestException('language 必须是 zh / en / vi 之一');
+    }
+    await this.usersService.updateLanguage(user.id, body.language);
+    return { language: body.language };
   }
 
   @Delete(':id')

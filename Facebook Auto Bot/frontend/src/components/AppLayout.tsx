@@ -22,9 +22,12 @@ import {
   MonitorOutlined,
   CrownOutlined,
   TeamOutlined,
+  FileTextOutlined,
 } from '@ant-design/icons';
 import { useAuth } from '../store/authStore';
 import { authService } from '../services/auth';
+import { useT } from '../i18n';
+import LanguageSwitcher from './LanguageSwitcher';
 
 const { Header, Content, Sider } = Layout;
 const { Text } = Typography;
@@ -38,12 +41,14 @@ const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
   const location = useLocation();
   const { user, logout } = useAuth();
   const [collapsed, setCollapsed] = useState(false);
+  const t = useT();
 
   const getSelectedKey = () => {
     const path = location.pathname;
     if (path === '/') return 'dashboard';
     if (path === '/accounts') return 'accounts';
     if (path === '/tasks') return 'tasks';
+    if (path === '/chat-scripts') return 'chat-scripts';
     if (path === '/vpn') return 'vpn';
     if (path === '/anti-detection') return 'anti-detection';
     if (path === '/login-status') return 'login-status';
@@ -58,7 +63,7 @@ const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
       // ignore errors on logout
     } finally {
       logout();
-      message.success('已退出登录');
+      message.success(t('header.logoutSuccess'));
       navigate('/login');
     }
   };
@@ -67,13 +72,13 @@ const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
     {
       key: 'settings',
       icon: React.createElement(SettingOutlined),
-      label: '系统设置',
+      label: t('header.settings'),
     },
     { type: 'divider' as const },
     {
       key: 'logout',
       icon: React.createElement(LogoutOutlined),
-      label: '退出登录',
+      label: t('header.logout'),
       onClick: handleLogout,
       danger: true,
     },
@@ -85,37 +90,43 @@ const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
     {
       key: 'dashboard',
       icon: React.createElement(DashboardOutlined),
-      label: '仪表板',
+      label: t('nav.dashboard'),
       onClick: () => navigate('/'),
     },
     {
       key: 'accounts',
       icon: React.createElement(UserOutlined),
-      label: '账号管理',
+      label: t('nav.accounts'),
       onClick: () => navigate('/accounts'),
     },
     {
       key: 'tasks',
       icon: React.createElement(MessageOutlined),
-      label: '任务调度',
+      label: t('nav.tasks'),
       onClick: () => navigate('/tasks'),
+    },
+    {
+      key: 'chat-scripts',
+      icon: React.createElement(FileTextOutlined),
+      label: t('nav.chatScripts'),
+      onClick: () => navigate('/chat-scripts'),
     },
     {
       key: 'vpn',
       icon: React.createElement(SafetyOutlined),
-      label: 'VPN配置',
+      label: t('nav.vpn'),
       onClick: () => navigate('/vpn'),
     },
     {
       key: 'anti-detection',
       icon: React.createElement(SafetyOutlined),
-      label: '反检测配置',
+      label: t('nav.antiDetection'),
       onClick: () => navigate('/anti-detection'),
     },
     {
       key: 'login-status',
       icon: React.createElement(MonitorOutlined),
-      label: '登录状态监控',
+      label: t('nav.loginStatus'),
       onClick: () => navigate('/login-status'),
     },
   ];
@@ -125,14 +136,14 @@ const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
     {
       key: 'admin-users',
       icon: React.createElement(TeamOutlined),
-      label: '用户管理',
+      label: t('nav.adminUsers'),
       onClick: () => navigate('/admin/users'),
       style: { color: '#722ed1' },
     },
     {
       key: 'admin-licenses',
       icon: React.createElement(SafetyOutlined),
-      label: 'License 管理',
+      label: t('nav.adminLicenses'),
       onClick: () => navigate('/admin/licenses'),
       style: { color: '#722ed1' },
     },
@@ -201,20 +212,23 @@ const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
             style={{ fontSize: '16px', width: 64, height: 64 }}
           />
 
-          <Dropdown menu={{ items: userMenuItems }} placement="bottomRight">
-            <div style={{ display: 'flex', alignItems: 'center', cursor: 'pointer', gap: 8 }}>
-              <Avatar
-                icon={isAdmin ? React.createElement(CrownOutlined) : React.createElement(UserOutlined)}
-                style={{ background: isAdmin ? '#722ed1' : '#1890ff' }}
-              />
-              <div>
-                <Text>{user?.email || user?.username || '管理员'}</Text>
-                {isAdmin && (
-                  <Text style={{ fontSize: 11, color: '#722ed1', marginLeft: 6 }}>管理员</Text>
-                )}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+            <LanguageSwitcher />
+            <Dropdown menu={{ items: userMenuItems }} placement="bottomRight">
+              <div style={{ display: 'flex', alignItems: 'center', cursor: 'pointer', gap: 8 }}>
+                <Avatar
+                  icon={isAdmin ? React.createElement(CrownOutlined) : React.createElement(UserOutlined)}
+                  style={{ background: isAdmin ? '#722ed1' : '#1890ff' }}
+                />
+                <div>
+                  <Text>{user?.email || user?.username || 'Admin'}</Text>
+                  {isAdmin && (
+                    <Text style={{ fontSize: 11, color: '#722ed1', marginLeft: 6 }}>{t('nav.adminUsers')}</Text>
+                  )}
+                </div>
               </div>
-            </div>
-          </Dropdown>
+            </Dropdown>
+          </div>
         </Header>
 
         <Content

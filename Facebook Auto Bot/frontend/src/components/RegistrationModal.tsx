@@ -8,6 +8,7 @@ import {
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import { accountsService } from '../services/accounts';
+import { useT } from '../i18n';
 
 const { Text, Paragraph } = Typography;
 const { Option } = Select;
@@ -32,6 +33,7 @@ type Phase = 'form' | 'waiting' | 'success' | 'failed';
 const POLL_INTERVAL_MS = 5000;
 
 const RegistrationModal: React.FC<Props> = ({ open, onClose, onSuccess, vpnOptions }) => {
+  const t = useT();
   const [form] = Form.useForm();
   const [phase, setPhase] = useState<Phase>('form');
   const [submitting, setSubmitting] = useState(false);
@@ -67,7 +69,7 @@ const RegistrationModal: React.FC<Props> = ({ open, onClose, onSuccess, vpnOptio
           onSuccess();
         } else if (status === 'registration_failed') {
           if (pollTimerRef.current) clearInterval(pollTimerRef.current);
-          setErrorMsg(error || '注册失败');
+          setErrorMsg(error || t('registration.failedTitle'));
           setPhase('failed');
         }
         // status='registering' → keep polling
@@ -101,7 +103,7 @@ const RegistrationModal: React.FC<Props> = ({ open, onClose, onSuccess, vpnOptio
       setPhase('waiting');
       startPolling(newId);
     } catch (err: any) {
-      const msg = err?.response?.data?.message || err?.message || '启动注册失败';
+      const msg = err?.response?.data?.message || err?.message || t('registration.startFailed');
       message.error(msg);
     } finally {
       setSubmitting(false);
@@ -112,18 +114,18 @@ const RegistrationModal: React.FC<Props> = ({ open, onClose, onSuccess, vpnOptio
     if (phase === 'waiting' && accountId) {
       // User wants to abort in-progress registration
       Modal.confirm({
-        title: '确认取消注册？',
-        content: '这将关闭浏览器并删除临时账号。已经在浏览器里完成的 FB 注册不会同步到系统。',
-        okText: '确认取消',
-        cancelText: '继续注册',
+        title: t('registration.cancelConfirm'),
+        content: t('registration.cancelConfirmDesc'),
+        okText: t('registration.cancelConfirmOk'),
+        cancelText: t('registration.cancelConfirmCancel'),
         onOk: async () => {
           try {
             await accountsService.cancelRegistration(accountId);
             if (pollTimerRef.current) clearInterval(pollTimerRef.current);
-            message.info('已取消注册');
+            message.info(t('registration.cancelSuccess'));
             onClose();
           } catch (e: any) {
-            message.error(e?.response?.data?.message || '取消失败');
+            message.error(e?.response?.data?.message || t('registration.cancelFailed'));
           }
         },
       });
@@ -143,7 +145,7 @@ const RegistrationModal: React.FC<Props> = ({ open, onClose, onSuccess, vpnOptio
       title={
         <Space>
           <PlayCircleOutlined style={{ color: '#1890ff' }} />
-          <span>注册新 Facebook 账号（VPN 代理下）</span>
+          <span>{t('registration.modalTitle')}</span>
         </Space>
       }
       open={open}
@@ -153,15 +155,15 @@ const RegistrationModal: React.FC<Props> = ({ open, onClose, onSuccess, vpnOptio
       footer={
         phase === 'form' ? (
           <Space>
-            <Button onClick={handleCancel}>取消</Button>
+            <Button onClick={handleCancel}>{t('common.cancel')}</Button>
             <Button type="primary" loading={submitting} onClick={handleSubmit} icon={<PlayCircleOutlined />}>
-              启动注册
+              {t('registration.startButton')}
             </Button>
           </Space>
         ) : phase === 'waiting' ? (
-          <Button danger onClick={handleCancel}>取消注册</Button>
+          <Button danger onClick={handleCancel}>{t('registration.cancelButton')}</Button>
         ) : (
-          <Button type="primary" onClick={onClose}>关闭</Button>
+          <Button type="primary" onClick={onClose}>{t('common.close')}</Button>
         )
       }
     >
@@ -171,13 +173,13 @@ const RegistrationModal: React.FC<Props> = ({ open, onClose, onSuccess, vpnOptio
         status={stepStatus}
         style={{ marginBottom: 24 }}
         items={[
-          { title: '填写资料', icon: <UserOutlined /> },
+          { title: t('registration.step1'), icon: <UserOutlined /> },
           {
-            title: '完成注册',
+            title: t('registration.step2'),
             icon: phase === 'waiting' ? <LoadingOutlined /> : <GlobalOutlined />,
           },
           {
-            title: phase === 'failed' ? '失败' : '成功',
+            title: phase === 'failed' ? t('registration.step3Failed') : t('registration.step3Success'),
             icon: phase === 'failed' ? <CloseCircleOutlined /> : <CheckCircleOutlined />,
           },
         ]}
@@ -189,47 +191,46 @@ const RegistrationModal: React.FC<Props> = ({ open, onClose, onSuccess, vpnOptio
             type="info"
             showIcon
             style={{ marginBottom: 16 }}
-            message="提示"
-            description="点「启动注册」后，系统会打开一个带 VPN 代理的浏览器窗口，自动跳转到 FB 注册页并预填以下资料。你需要手动完成 CAPTCHA、邮箱/手机号验证，然后提交。注册成功后系统会自动保存账号到列表。"
+            description={t('registration.infoBanner')}
           />
           <Form form={form} layout="vertical">
             <Row gutter={12}>
               <Col span={12}>
-                <Form.Item name="firstName" label="名（First Name）" rules={[{ required: true, message: '请输入名' }]}>
-                  <Input prefix={<UserOutlined />} placeholder="John" />
+                <Form.Item name="firstName" label={t('registration.firstName')} rules={[{ required: true, message: t('registration.firstNameRequired') }]}>
+                  <Input prefix={<UserOutlined />} placeholder={t('registration.firstNamePlaceholder')} />
                 </Form.Item>
               </Col>
               <Col span={12}>
-                <Form.Item name="lastName" label="姓（Last Name）" rules={[{ required: true, message: '请输入姓' }]}>
-                  <Input prefix={<UserOutlined />} placeholder="Doe" />
+                <Form.Item name="lastName" label={t('registration.lastName')} rules={[{ required: true, message: t('registration.lastNameRequired') }]}>
+                  <Input prefix={<UserOutlined />} placeholder={t('registration.lastNamePlaceholder')} />
                 </Form.Item>
               </Col>
             </Row>
             <Form.Item
               name="email"
-              label="邮箱或手机号"
-              rules={[{ required: true, message: '请输入邮箱或手机号' }]}
-              extra="FB 会向此邮箱/手机号发验证码，请用你能收到的"
+              label={t('registration.email')}
+              rules={[{ required: true, message: t('registration.emailRequired') }]}
+              extra={t('registration.emailExtra')}
             >
-              <Input prefix={<MailOutlined />} placeholder="你的邮箱或 +60xxxxxxxx" />
+              <Input prefix={<MailOutlined />} placeholder={t('registration.emailPlaceholder')} />
             </Form.Item>
             <Form.Item
               name="facebookPassword"
-              label="Facebook 密码"
+              label={t('registration.password')}
               rules={[
-                { required: true, message: '请输入密码' },
-                { min: 6, message: '密码至少 6 位' },
+                { required: true, message: t('registration.passwordRequired') },
+                { min: 6, message: t('registration.passwordMin') },
               ]}
             >
-              <Input.Password prefix={<LockOutlined />} placeholder="你为新账号设的密码" />
+              <Input.Password prefix={<LockOutlined />} placeholder={t('registration.passwordPlaceholder')} />
             </Form.Item>
             <Form.Item
               name="vpnConfigId"
-              label="VPN 配置（必选）"
-              rules={[{ required: true, message: '注册必须选择 VPN — 保证新账号首次登录 IP 就是目标地区' }]}
-              extra="建议选目标受众所在地区的住宅 IP，固定不变"
+              label={t('registration.vpn')}
+              rules={[{ required: true, message: t('registration.vpnRequired') }]}
+              extra={t('registration.vpnExtra')}
             >
-              <Select placeholder="选择 VPN/代理" showSearch optionFilterProp="children">
+              <Select placeholder={t('registration.vpnPlaceholder')} showSearch optionFilterProp="children">
                 {vpnOptions.map(v => (
                   <Option key={v.id} value={v.id}>
                     <Space>
@@ -243,38 +244,38 @@ const RegistrationModal: React.FC<Props> = ({ open, onClose, onSuccess, vpnOptio
             </Form.Item>
             <Row gutter={12}>
               <Col span={12}>
-                <Form.Item name="dateOfBirth" label="生日（可选）">
+                <Form.Item name="dateOfBirth" label={t('registration.dob')}>
                   <DatePicker style={{ width: '100%' }} placeholder="YYYY-MM-DD" />
                 </Form.Item>
               </Col>
               <Col span={12}>
-                <Form.Item name="gender" label="性别（可选）">
-                  <Select placeholder="选择" allowClear>
-                    <Option value="male">男</Option>
-                    <Option value="female">女</Option>
-                    <Option value="custom">自定义</Option>
+                <Form.Item name="gender" label={t('registration.gender')}>
+                  <Select placeholder={t('registration.genderPlaceholder')} allowClear>
+                    <Option value="male">{t('registration.gender_male')}</Option>
+                    <Option value="female">{t('registration.gender_female')}</Option>
+                    <Option value="custom">{t('registration.gender_custom')}</Option>
                   </Select>
                 </Form.Item>
               </Col>
             </Row>
             <Row gutter={12}>
               <Col span={12}>
-                <Form.Item name="accountType" label="账号类型" initialValue="user">
+                <Form.Item name="accountType" label={t('registration.accountType')} initialValue="user">
                   <Select>
-                    <Option value="user">个人账号</Option>
-                    <Option value="page">主页账号</Option>
-                    <Option value="business">商业账号</Option>
+                    <Option value="user">{t('accounts.accountType_user')}</Option>
+                    <Option value="page">{t('accounts.accountType_page')}</Option>
+                    <Option value="business">{t('accounts.accountType_business')}</Option>
                   </Select>
                 </Form.Item>
               </Col>
               <Col span={12}>
-                <Form.Item name="name" label="内部显示名（可选）" extra="不填默认用「名 + 姓」">
-                  <Input placeholder="例如：营销账号 1" />
+                <Form.Item name="name" label={t('registration.internalName')} extra={t('registration.internalNameExtra')}>
+                  <Input placeholder={t('registration.internalNamePlaceholder')} />
                 </Form.Item>
               </Col>
             </Row>
-            <Form.Item name="remarks" label="备注（可选）">
-              <Input.TextArea rows={2} placeholder="用途 / 账号绑定的邮箱密码等备忘" />
+            <Form.Item name="remarks" label={t('registration.remarks')}>
+              <Input.TextArea rows={2} placeholder={t('registration.remarksPlaceholder')} />
             </Form.Item>
           </Form>
         </>
@@ -286,19 +287,18 @@ const RegistrationModal: React.FC<Props> = ({ open, onClose, onSuccess, vpnOptio
             type="info"
             showIcon
             icon={<LoadingOutlined />}
-            message="浏览器已打开，请完成注册步骤"
+            message={t('registration.waitingTitle')}
             description={
               <div>
                 <Paragraph style={{ marginTop: 8, marginBottom: 4 }}>
-                  1. 在弹出的浏览器里检查预填字段，补齐缺的内容<br />
-                  2. 过 CAPTCHA 验证<br />
-                  3. 接收邮箱/手机短信验证码填入<br />
-                  4. 点 FB 的「注册」按钮提交
+                  1. {t('registration.waitingStep1')}<br />
+                  2. {t('registration.waitingStep2')}<br />
+                  3. {t('registration.waitingStep3')}<br />
+                  4. {t('registration.waitingStep4')}
                 </Paragraph>
                 <Paragraph type="secondary" style={{ marginBottom: 0, fontSize: 12 }}>
-                  系统每 5 秒检测一次注册是否完成（检测 c_user cookie）。完成后会自动保存账号到列表，
-                  浏览器会保留打开供你继续操作，你自己手动关就行。<br />
-                  ⏱ 最长等待 30 分钟，超时会标记为「注册失败」。
+                  {t('registration.waitingNote')}<br />
+                  {t('registration.waitingTimeout')}
                 </Paragraph>
               </div>
             }
@@ -310,11 +310,10 @@ const RegistrationModal: React.FC<Props> = ({ open, onClose, onSuccess, vpnOptio
         <div style={{ padding: '20px 0', textAlign: 'center' }}>
           <CheckCircleOutlined style={{ fontSize: 56, color: '#52c41a' }} />
           <Paragraph strong style={{ marginTop: 16, fontSize: 16 }}>
-            ✅ 账号注册成功！
+            {t('registration.successTitle')}
           </Paragraph>
           <Paragraph type="secondary">
-            已自动加入账号管理列表，可立即绑定任务使用。<br />
-            浏览器窗口仍保持打开，你可以继续操作或自己关闭。
+            {t('registration.successDesc')}
           </Paragraph>
         </div>
       )}
@@ -324,8 +323,8 @@ const RegistrationModal: React.FC<Props> = ({ open, onClose, onSuccess, vpnOptio
           <Alert
             type="error"
             showIcon
-            message="注册未能完成"
-            description={errorMsg || '可能原因：超时、浏览器被关闭、FB 拒绝注册等。浏览器仍开着，你可以看看情况再决定重试或放弃。'}
+            message={t('registration.failedTitle')}
+            description={errorMsg || t('registration.failedDesc')}
           />
         </div>
       )}

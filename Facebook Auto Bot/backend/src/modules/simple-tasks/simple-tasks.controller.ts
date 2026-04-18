@@ -74,6 +74,12 @@ export class SimpleTasksController {
     return { tasks, total, page, limit, totalPages: Math.ceil(total / limit) };
   }
 
+  @Get('stats')
+  @ApiOperation({ summary: 'Dashboard 用：任务统计（总数/执行中/成功/失败）' })
+  async getStats(@Request() req) {
+    return this.service.getTaskStats(req.user.id);
+  }
+
   @Get(':id')
   @ApiOperation({ summary: '获取任务详情' })
   async findOne(@Request() req, @Param('id') id: string) {

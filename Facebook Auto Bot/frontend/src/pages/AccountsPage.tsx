@@ -14,6 +14,7 @@ import AppLayout from '../components/AppLayout';
 import RegistrationModal from '../components/RegistrationModal';
 import { accountsService, FacebookAccount, AccountStats, CreateAccountData } from '../services/accounts';
 import api from '../services/api';
+import { useT } from '../i18n';
 
 const { Title, Text } = Typography;
 const { Option } = Select;
@@ -27,6 +28,7 @@ interface VPNOption {
 }
 
 const AccountsPage: React.FC = () => {
+  const t = useT();
   const [accounts, setAccounts] = useState<FacebookAccount[]>([]);
   const [stats, setStats] = useState<AccountStats | null>(null);
   const [loading, setLoading] = useState(false);
@@ -119,7 +121,7 @@ const AccountsPage: React.FC = () => {
       fetchAccounts();
       fetchStats();
     } catch {
-      message.error('删除失败');
+      message.error(t('accounts.deleteFailed'));
     }
   };
 
@@ -127,10 +129,10 @@ const AccountsPage: React.FC = () => {
     setSyncingId(id);
     try {
       await accountsService.syncAccount(id);
-      message.success('同步成功');
+      message.success(t('accounts.syncSuccess'));
       fetchAccounts();
     } catch {
-      message.error('同步失败');
+      message.error(t('accounts.syncFailed'));
     } finally {
       setSyncingId(null);
     }
@@ -138,27 +140,27 @@ const AccountsPage: React.FC = () => {
 
   const handleLogin = async (record: FacebookAccount) => {
     setLoggingInId(record.id);
-    message.loading({ content: `正在登录 ${record.name}，请稍候（约30秒）...`, key: 'login', duration: 60 });
+    message.loading({ content: `${t('accounts.login')} ${record.name}...`, key: 'login', duration: 60 });
     try {
       const res = await api.post(`/facebook-accounts/${record.id}/login`, {}, { timeout: 360000 });
       const result = res.data?.data || res.data;
       message.destroy('login');
       if (result?.success) {
-        message.success({ content: `${record.name} 登录成功！`, duration: 4 });
+        message.success({ content: `${record.name} ${t('accounts.loggedIn')}`, duration: 4 });
         fetchAccounts();
         fetchStats();
       } else {
         setLoginResultModal({
           visible: true,
           success: false,
-          message: result?.error || '登录失败',
+          message: result?.error || t('accounts.loginFailedDefault'),
           requiresManual: result?.requiresManual,
         });
         fetchAccounts();
       }
     } catch (err: any) {
       message.destroy('login');
-      const errMsg = err?.response?.data?.message || err?.message || '登录请求失败';
+      const errMsg = err?.response?.data?.message || err?.message || t('accounts.loginFailedDefault');
       setLoginResultModal({ visible: false, success: false, message: errMsg });
       message.error(errMsg);
     } finally {
@@ -169,11 +171,11 @@ const AccountsPage: React.FC = () => {
   const handleLogout = async (record: FacebookAccount) => {
     try {
       await api.post(`/facebook-accounts/${record.id}/logout`);
-      message.success('已登出');
+      message.success(t('accounts.logout'));
       fetchAccounts();
       fetchStats();
     } catch {
-      message.error('登出失败');
+      message.error(t('accounts.syncFailed'));
     }
   };
 
@@ -189,10 +191,10 @@ const AccountsPage: React.FC = () => {
           delete (values as any).facebookPassword;
         }
         await accountsService.updateAccount(editingAccount.id, values);
-        message.success('更新成功');
+        message.success(t('accounts.updateSuccess'));
       } else {
         await accountsService.createAccount(values as CreateAccountData);
-        message.success('创建成功');
+        message.success(t('accounts.createSuccess'));
       }
       setIsModalVisible(false);
       form.resetFields();
@@ -202,7 +204,7 @@ const AccountsPage: React.FC = () => {
       if (err?.response?.data?.message) {
         message.error(err.response.data.message);
       } else if (!err?.errorFields) {
-        message.error('操作失败，请重试');
+        message.error(t('accounts.operationFailed'));
       }
     } finally {
       setSubmitting(false);
@@ -213,18 +215,18 @@ const AccountsPage: React.FC = () => {
     const loginStatus = record.loginStatus;
     const status = record.status;
     if (loginStatus === true || status === 'active') {
-      return <Badge status="success" text={<Tag color="green"><CheckCircleOutlined /> 已登录</Tag>} />;
+      return <Badge status="success" text={<Tag color="green"><CheckCircleOutlined /> {t('accounts.loggedIn')}</Tag>} />;
     }
     if (status === 'error') {
-      return <Tooltip title={record.syncError || '登录失败'}><Tag color="red"><CloseCircleOutlined /> 错误</Tag></Tooltip>;
+      return <Tooltip title={record.syncError || t('accounts.loginFailedTitle')}><Tag color="red"><CloseCircleOutlined /> {t('accounts.statusError')}</Tag></Tooltip>;
     }
-    if (status === 'banned') return <Tag color="volcano"><WarningOutlined /> 封禁</Tag>;
-    return <Tag color="default">未登录</Tag>;
+    if (status === 'banned') return <Tag color="volcano"><WarningOutlined /> {t('accounts.statusBanned')}</Tag>;
+    return <Tag color="default">{t('accounts.notLoggedIn')}</Tag>;
   };
 
   const columns = [
     {
-      title: '账号名称',
+      title: t('accounts.colName'),
       dataIndex: 'name',
       key: 'name',
       render: (text: string, record: FacebookAccount) => (
@@ -233,82 +235,86 @@ const AccountsPage: React.FC = () => {
           <Text type="secondary" style={{ fontSize: 12 }}>{record.email}</Text>
           {(record as any).lastLoginAt && (
             <Text type="secondary" style={{ fontSize: 11 }}>
-              上次登录: {dayjs((record as any).lastLoginAt).format('MM-DD HH:mm')}
+              {t('accounts.lastLogin')}: {dayjs((record as any).lastLoginAt).format('MM-DD HH:mm')}
             </Text>
           )}
         </Space>
       ),
     },
     {
-      title: '账号类型',
+      title: t('accounts.colType'),
       dataIndex: 'accountType',
       key: 'accountType',
       render: (type: string) => {
-        const map: Record<string, string> = { user: '个人', page: '主页', business: '商业' };
+        const map: Record<string, string> = {
+          user: t('accounts.typeUser'),
+          page: t('accounts.typePage'),
+          business: t('accounts.typeBusiness'),
+        };
         return <Tag>{map[type] || type}</Tag>;
       },
     },
     {
-      title: '登录状态',
+      title: t('accounts.colStatus'),
       key: 'loginStatus',
       render: (_: any, record: any) => getStatusTag(record),
     },
     {
-      title: 'VPN / IP',
+      title: t('accounts.colVpn'),
       dataIndex: 'vpnConfigId',
       key: 'vpnConfigId',
       render: (vpnId: string) => {
         if (vpnId) {
           const vpn = vpnOptions.find(v => v.id === vpnId);
           return (
-            <Tooltip title="使用指定 VPN">
+            <Tooltip title={t('accounts.assignedVpnTooltip')}>
               <Tag color="purple" icon={<GlobalOutlined />}>
-                {vpn ? vpn.name : '专属VPN'}
+                {vpn ? vpn.name : t('accounts.assignedVpn')}
               </Tag>
             </Tooltip>
           );
         }
         return (
-          <Tooltip title={defaultVPN ? `默认VPN: ${defaultVPN.name}` : '未设置默认VPN'}>
+          <Tooltip title={defaultVPN ? t('accounts.defaultVpnTooltip', { name: defaultVPN.name }) : t('accounts.noDefaultVpnTooltip')}>
             <Tag color={defaultVPN ? 'cyan' : 'default'} icon={<GlobalOutlined />}>
-              {defaultVPN ? `默认: ${defaultVPN.name}` : '大环境IP'}
+              {defaultVPN ? t('accounts.defaultVpn', { name: defaultVPN.name }) : t('accounts.globalIp')}
             </Tag>
           </Tooltip>
         );
       },
     },
     {
-      title: '备注',
+      title: t('accounts.colRemarks'),
       dataIndex: 'remarks',
       key: 'remarks',
       render: (text: string) => text || '-',
     },
     {
-      title: '创建时间',
+      title: t('accounts.colCreatedAt'),
       dataIndex: 'createdAt',
       key: 'createdAt',
       render: (date: string) => dayjs(date).format('YYYY-MM-DD HH:mm'),
     },
     {
-      title: '操作',
+      title: t('accounts.colAction'),
       key: 'action',
       width: 200,
       render: (_: any, record: any) => (
         <Space size={4}>
           {/* Login / Logout button */}
           {record.loginStatus === true || record.status === 'active' ? (
-            <Tooltip title="登出">
+            <Tooltip title={t('accounts.logoutTooltip')}>
               <Button
                 size="small"
                 danger
                 icon={<LogoutOutlined />}
                 onClick={() => handleLogout(record)}
               >
-                登出
+                {t('accounts.logout')}
               </Button>
             </Tooltip>
           ) : (
-            <Tooltip title="自动登录 Facebook">
+            <Tooltip title={t('accounts.loginTooltip')}>
               <Button
                 size="small"
                 type="primary"
@@ -317,14 +323,14 @@ const AccountsPage: React.FC = () => {
                 onClick={() => handleLogin(record)}
                 disabled={loggingInId !== null && loggingInId !== record.id}
               >
-                登录
+                {t('accounts.login')}
               </Button>
             </Tooltip>
           )}
-          <Tooltip title="编辑">
+          <Tooltip title={t('accounts.editTooltip')}>
             <Button size="small" type="text" icon={<EditOutlined />} onClick={() => handleEdit(record)} />
           </Tooltip>
-          <Tooltip title="同步">
+          <Tooltip title={t('accounts.syncTooltip')}>
             <Button
               size="small"
               type="text"
@@ -334,12 +340,12 @@ const AccountsPage: React.FC = () => {
             />
           </Tooltip>
           <Popconfirm
-            title="确认删除这个账号吗？"
+            title={t('accounts.deleteConfirm')}
             onConfirm={() => handleDelete(record.id)}
-            okText="确认"
-            cancelText="取消"
+            okText={t('common.confirm')}
+            cancelText={t('common.cancel')}
           >
-            <Tooltip title="删除">
+            <Tooltip title={t('accounts.deleteTooltip')}>
               <Button size="small" type="text" danger icon={<DeleteOutlined />} />
             </Tooltip>
           </Popconfirm>
@@ -351,23 +357,23 @@ const AccountsPage: React.FC = () => {
   return (
     <AppLayout>
       <div style={{ marginBottom: 24, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <Title level={2} style={{ margin: 0 }}>账号管理</Title>
+        <Title level={2} style={{ margin: 0 }}>{t('accounts.title')}</Title>
         <Space>
           <Button
             type="default"
             icon={<GlobalOutlined />}
             onClick={() => {
               if (vpnOptions.length === 0) {
-                message.warning('请先在 VPN 配置页添加至少一个 VPN / 代理');
+                message.warning(t('accounts.registerAccountNoVpn'));
                 return;
               }
               setRegistrationModalVisible(true);
             }}
           >
-            注册新账号
+            {t('accounts.registerAccount')}
           </Button>
           <Button type="primary" icon={<PlusOutlined />} onClick={handleCreate}>
-            添加账号
+            {t('accounts.addAccount')}
           </Button>
         </Space>
       </div>
@@ -376,7 +382,7 @@ const AccountsPage: React.FC = () => {
         <Col xs={12} sm={6}>
           <Card loading={statsLoading}>
             <Statistic
-              title={`配额（${((stats as any)?.plan || 'basic').toUpperCase()} 配套）`}
+              title={t('accounts.quotaTitle', { plan: ((stats as any)?.plan || 'basic').toUpperCase() })}
               value={stats?.totalAccounts ?? total}
               suffix={`/ ${(stats as any)?.maxAccounts ?? '?'}`}
               prefix={<UserOutlined />}
@@ -392,17 +398,17 @@ const AccountsPage: React.FC = () => {
         </Col>
         <Col xs={12} sm={6}>
           <Card loading={statsLoading}>
-            <Statistic title="已登录" value={accounts.filter(a => (a as any).loginStatus === true || a.status === 'active').length} valueStyle={{ color: '#52c41a' }} prefix={<CheckCircleOutlined />} />
+            <Statistic title={t('accounts.loggedIn')} value={accounts.filter(a => (a as any).loginStatus === true || a.status === 'active').length} valueStyle={{ color: '#52c41a' }} prefix={<CheckCircleOutlined />} />
           </Card>
         </Col>
         <Col xs={12} sm={6}>
           <Card loading={statsLoading}>
-            <Statistic title="主页账号" value={stats?.pageAccounts ?? 0} />
+            <Statistic title={t('accounts.pageAccounts')} value={stats?.pageAccounts ?? 0} />
           </Card>
         </Col>
         <Col xs={12} sm={6}>
           <Card loading={statsLoading}>
-            <Statistic title="商业账号" value={stats?.businessAccounts ?? 0} />
+            <Statistic title={t('accounts.businessAccounts')} value={stats?.businessAccounts ?? 0} />
           </Card>
         </Col>
       </Row>
@@ -418,18 +424,18 @@ const AccountsPage: React.FC = () => {
             pageSize,
             total,
             onChange: setPage,
-            showTotal: (t) => `共 ${t} 条`,
+            showTotal: (total) => t('common.total', { count: total }),
           }}
         />
       </Card>
 
       {/* Login result modal */}
       <Modal
-        title={<Space><CloseCircleOutlined style={{ color: 'red' }} /> 登录失败</Space>}
+        title={<Space><CloseCircleOutlined style={{ color: 'red' }} /> {t('accounts.loginFailedTitle')}</Space>}
         open={loginResultModal.visible}
         onOk={() => setLoginResultModal(p => ({ ...p, visible: false }))}
         onCancel={() => setLoginResultModal(p => ({ ...p, visible: false }))}
-        okText="知道了"
+        okText={t('accounts.loginFailedKnowIt')}
         cancelButtonProps={{ style: { display: 'none' } }}
       >
         <Alert
@@ -437,8 +443,8 @@ const AccountsPage: React.FC = () => {
           message={loginResultModal.message}
           description={
             loginResultModal.requiresManual
-              ? '此账号需要手动完成验证（短信验证码 / 邮箱验证 / 二步验证）。请在浏览器中手动登录一次后再试，或导入已有的 Cookie。'
-              : '请检查账号密码是否正确，或账号是否被封禁。'
+              ? t('accounts.loginFailedManualDesc')
+              : t('accounts.loginFailedCheckDesc')
           }
           showIcon
         />
@@ -446,54 +452,56 @@ const AccountsPage: React.FC = () => {
 
       {/* Add / Edit modal */}
       <Modal
-        title={editingAccount ? '编辑账号' : '添加 Facebook 账号'}
+        title={editingAccount ? t('accounts.editModalTitle') : t('accounts.addModalTitle')}
         open={isModalVisible}
         onOk={handleSubmit}
         onCancel={() => { setIsModalVisible(false); form.resetFields(); }}
         confirmLoading={submitting}
-        okText={editingAccount ? '保存' : '添加'}
-        cancelText="取消"
+        okText={editingAccount ? t('accounts.saveButton') : t('accounts.addButton')}
+        cancelText={t('accounts.cancelButton')}
         width={520}
       >
         <Form form={form} layout="vertical" style={{ marginTop: 16 }}>
-          <Form.Item name="name" label="账号显示名称" rules={[{ required: true, message: '请输入账号名称' }]}>
-            <Input prefix={<UserOutlined />} placeholder="例如：主营销账号" />
+          <Form.Item name="name" label={t('accounts.accountDisplayName')} rules={[{ required: true, message: t('accounts.nameRequired') }]}>
+            <Input prefix={<UserOutlined />} placeholder={t('accounts.namePlaceholder')} />
           </Form.Item>
-          <Form.Item name="email" label="Facebook 邮箱 / 手机号" rules={[{ required: true, message: '请输入邮箱或手机号' }]}>
-            <Input prefix={<MailOutlined />} placeholder="登录 Facebook 使用的邮箱或手机号" autoComplete="off" />
+          <Form.Item name="email" label={t('accounts.email')} rules={[{ required: true, message: t('accounts.emailPlaceholder') }]}>
+            <Input prefix={<MailOutlined />} placeholder={t('accounts.emailPlaceholder')} autoComplete="off" />
           </Form.Item>
           {!editingAccount && (
-            <Form.Item name="facebookPassword" label="Facebook 密码" rules={[{ required: true, message: '请输入密码' }]}>
+            <Form.Item name="facebookPassword" label={t('accounts.password')} rules={[{ required: true, message: t('accounts.password') }]}>
               {/* autoComplete="new-password" 阻止浏览器密码管家把其他网站保存的密码填进来 */}
-              <Input.Password prefix={<LockOutlined />} placeholder="Facebook 登录密码" autoComplete="new-password" />
+              <Input.Password prefix={<LockOutlined />} placeholder={t('accounts.passwordPlaceholder')} autoComplete="new-password" />
             </Form.Item>
           )}
           {editingAccount && (
-            <Form.Item name="facebookPassword" label="新密码（留空则不更改）">
-              <Input.Password prefix={<LockOutlined />} placeholder="留空则保持原密码不变" autoComplete="new-password" />
+            <Form.Item name="facebookPassword" label={t('accounts.newPassword')}>
+              <Input.Password prefix={<LockOutlined />} placeholder={t('accounts.newPasswordPlaceholder')} autoComplete="new-password" />
             </Form.Item>
           )}
-          <Form.Item name="accountType" label="账号类型" initialValue="user">
+          <Form.Item name="accountType" label={t('accounts.accountType')} initialValue="user">
             <Select>
-              <Option value="user">个人账号</Option>
-              <Option value="page">主页账号</Option>
-              <Option value="business">商业账号</Option>
+              <Option value="user">{t('accounts.accountType_user')}</Option>
+              <Option value="page">{t('accounts.accountType_page')}</Option>
+              <Option value="business">{t('accounts.accountType_business')}</Option>
             </Select>
           </Form.Item>
 
           <Form.Item
             name="vpnConfigId"
-            label={<Space><GlobalOutlined /><span>VPN 配置</span></Space>}
+            label={<Space><GlobalOutlined /><span>{t('accounts.vpnConfigLabel')}</span></Space>}
             help={
               <span style={{ fontSize: 12, color: '#888' }}>
-                不选择则使用 <strong>默认大环境VPN</strong>
-                {defaultVPN ? <>（当前默认：<Tag color="cyan" style={{ marginLeft: 4 }}>{defaultVPN.name}</Tag>）</> : '（未设置默认VPN）'}
+                {t('accounts.vpnHelpText')}
+                {defaultVPN
+                  ? t('accounts.vpnHelpCurrentDefault', { name: defaultVPN.name })
+                  : t('accounts.vpnHelpNoDefault')}
               </span>
             }
           >
             <Select
               allowClear
-              placeholder={defaultVPN ? `默认: ${defaultVPN.name}（大环境IP）` : '使用大环境IP（无专属VPN）'}
+              placeholder={defaultVPN ? t('accounts.defaultVpn', { name: defaultVPN.name }) : t('accounts.vpnPlaceholder')}
             >
               {vpnOptions.map(vpn => (
                 <Option key={vpn.id} value={vpn.id}>
@@ -501,7 +509,7 @@ const AccountsPage: React.FC = () => {
                     <GlobalOutlined style={{ color: vpn.status === 'active' ? '#52c41a' : '#aaa' }} />
                     {vpn.name}
                     {vpn.country && <Tag style={{ marginLeft: 4 }}>{vpn.country}</Tag>}
-                    {vpn.isDefault && <Tag color="cyan">默认</Tag>}
+                    {vpn.isDefault && <Tag color="cyan">{t('accounts.vpnDefaultOption')}</Tag>}
                   </Space>
                 </Option>
               ))}
@@ -510,33 +518,28 @@ const AccountsPage: React.FC = () => {
 
           <Form.Item
             name="messengerPin"
-            label="Messenger PIN"
-            tooltip="如果 Messenger 设置了聊天室 PIN 锁，填在这里。系统执行聊天任务时会自动输入，避免任务中断。没有可留空。"
+            label={t('accounts.messengerPin')}
+            tooltip={t('accounts.messengerPinTooltip')}
           >
             <Input.Password
-              placeholder="4–6 位数字 PIN（没有可留空）"
+              placeholder={t('accounts.messengerPinPlaceholder')}
               maxLength={6}
             />
           </Form.Item>
 
-          <Form.Item name="remarks" label="备注">
-            <Input.TextArea rows={2} placeholder="可选备注信息" />
+          <Form.Item name="remarks" label={t('common.remarks')}>
+            <Input.TextArea rows={2} placeholder={t('accounts.remarksPlaceholder')} />
           </Form.Item>
 
           <Alert
             style={{ marginBottom: 8 }}
             type="info"
             showIcon
-            message={
-              <span style={{ fontSize: 12 }}>
-                <strong>不选VPN</strong> → 使用默认大环境IP（多账号共享）｜
-                <strong>选专属VPN</strong> → 该账号独用一个IP，更安全
-              </span>
-            }
+            message={<span style={{ fontSize: 12 }}>{t('accounts.vpnNote')}</span>}
           />
 
           <div style={{ background: '#f6ffed', border: '1px solid #b7eb8f', borderRadius: 6, padding: '8px 12px', fontSize: 12, color: '#389e0d' }}>
-            <SafetyOutlined /> 密码将使用 AES-256-GCM 加密存储，安全可靠
+            <SafetyOutlined /> {t('accounts.passwordSecurity')}
           </div>
         </Form>
       </Modal>

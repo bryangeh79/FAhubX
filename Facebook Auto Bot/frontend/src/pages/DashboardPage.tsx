@@ -1,82 +1,184 @@
 import React, { useEffect, useState } from 'react';
-import { Card, Row, Col, Statistic, Typography, Button, message } from 'antd';
+import { Card, Row, Col, Statistic, Typography, Button, message, Space } from 'antd';
 import {
   UserOutlined,
   GlobalOutlined,
-  MessageOutlined,
-  SafetyOutlined,
+  CheckCircleOutlined,
+  CloseCircleOutlined,
+  SyncOutlined,
+  PlayCircleOutlined,
+  WifiOutlined,
 } from '@ant-design/icons';
 import AppLayout from '../components/AppLayout';
 import { accountsService, AccountStats } from '../services/accounts';
+import { vpnService, VPNConfig } from '../services/vpn';
+import api from '../services/api';
 import { useNavigate } from 'react-router-dom';
+import { useT } from '../i18n';
 
-const { Title } = Typography;
+const { Title, Text } = Typography;
+
+interface TaskStats {
+  total: number;
+  running: number;
+  success: number;
+  failed: number;
+}
 
 const DashboardPage: React.FC = () => {
   const navigate = useNavigate();
-  const [stats, setStats] = useState<AccountStats | null>(null);
+  const t = useT();
+  const [accountStats, setAccountStats] = useState<AccountStats | null>(null);
+  const [taskStats, setTaskStats] = useState<TaskStats | null>(null);
+  const [vpns, setVpns] = useState<VPNConfig[]>([]);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    const fetchStats = async () => {
+    const fetchAll = async () => {
       setLoading(true);
       try {
-        const res = await accountsService.getStats();
-        setStats(res.data);
+        // Parallel fetch: account stats, task stats, VPN list
+        const [accountRes, taskRes, vpnRes] = await Promise.allSettled([
+          accountsService.getStats(),
+          api.get<any>('/tasks/stats'),
+          vpnService.getVPNs({ limit: 100 }),
+        ]);
+
+        if (accountRes.status === 'fulfilled') {
+          setAccountStats(accountRes.value.data);
+        }
+        if (taskRes.status === 'fulfilled') {
+          // 后端若有全局拦截器包 { data: ... }，读 .data.data；否则直接 .data
+          const raw: any = (taskRes.value as any).data;
+          setTaskStats(raw?.data ?? raw);
+        }
+        if (vpnRes.status === 'fulfilled') {
+          const d: any = vpnRes.value.data;
+          setVpns(d?.vpns || []);
+        }
       } catch {
-        message.error('获取统计数据失败');
+        message.error(t('dashboard.fetchStatsFailed'));
       } finally {
         setLoading(false);
       }
     };
-    fetchStats();
+    fetchAll();
   }, []);
+
+  // VPN 状态拆分：status='active' 算已连接
+  const vpnConnectedCount = vpns.filter(v => (v as any).status === 'active').length;
+  const vpnDisconnectedCount = vpns.length - vpnConnectedCount;
 
   return (
     <AppLayout>
       <Title level={2} style={{ marginTop: 0 }}>
-        仪表板
+        {t('dashboard.title')}
       </Title>
 
-      <Row gutter={16} style={{ marginBottom: 24 }}>
-        <Col xs={24} sm={12} lg={6}>
-          <Card loading={loading}>
+      {/* Row 1: 账号 + VPN 状态（Col 统一高度，Card height:100% 对齐） */}
+      <Row gutter={16} style={{ marginBottom: 16 }} align="stretch">
+        <Col xs={24} sm={12} lg={6} style={{ display: 'flex' }}>
+          <Card loading={loading} style={{ width: '100%' }}>
             <Statistic
-              title="总账号数"
-              value={stats?.totalAccounts ?? '-'}
+              title={t('dashboard.totalAccounts')}
+              value={accountStats?.totalAccounts ?? '-'}
               prefix={<UserOutlined />}
               valueStyle={{ color: '#1890ff' }}
             />
           </Card>
         </Col>
-        <Col xs={24} sm={12} lg={6}>
-          <Card loading={loading}>
+        <Col xs={24} sm={12} lg={6} style={{ display: 'flex' }}>
+          <Card loading={loading} style={{ width: '100%' }}>
             <Statistic
-              title="活跃账号"
-              value={stats?.activeAccounts ?? '-'}
+              title={t('dashboard.activeAccounts')}
+              value={accountStats?.activeAccounts ?? '-'}
               prefix={<GlobalOutlined />}
               valueStyle={{ color: '#52c41a' }}
             />
           </Card>
         </Col>
-        <Col xs={24} sm={12} lg={6}>
-          <Card>
+        <Col xs={24} sm={12} lg={12} style={{ display: 'flex' }}>
+          <Card
+            loading={loading}
+            hoverable
+            onClick={() => navigate('/vpn')}
+            style={{ cursor: 'pointer', width: '100%' }}
+          >
+            {/* 模仿 Statistic 结构：title 在顶 + 数字区在下，高度与邻居卡片对齐 */}
+            <div
+              className="ant-statistic"
+              style={{ display: 'flex', flexDirection: 'column', gap: 4 }}
+            >
+              <div className="ant-statistic-title" style={{ marginBottom: 4 }}>
+                <Space>
+                  <WifiOutlined />
+                  <span>{t('dashboard.vpnStatus')}</span>
+                </Space>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'baseline', gap: 24 }}>
+                <div>
+                  <span style={{ fontSize: 24, fontWeight: 400, color: '#52c41a' }}>
+                    <CheckCircleOutlined style={{ marginRight: 8, fontSize: 20 }} />
+                    {vpnConnectedCount}
+                  </span>
+                  <Text type="secondary" style={{ fontSize: 13, marginLeft: 6 }}>{t('dashboard.vpnConnected')}</Text>
+                </div>
+                <div>
+                  <span style={{ fontSize: 24, fontWeight: 400, color: (vpnDisconnectedCount > 0 ? '#f5222d' : '#bfbfbf') }}>
+                    <CloseCircleOutlined style={{ marginRight: 8, fontSize: 20 }} />
+                    {vpnDisconnectedCount}
+                  </span>
+                  <Text type="secondary" style={{ fontSize: 13, marginLeft: 6 }}>{t('dashboard.vpnDisconnected')}</Text>
+                </div>
+              </div>
+              {vpns.length === 0 && !loading && (
+                <Text type="secondary" style={{ fontSize: 12, marginTop: 4 }}>
+                  {t('dashboard.vpnEmpty')}
+                </Text>
+              )}
+            </div>
+          </Card>
+        </Col>
+      </Row>
+
+      {/* Row 2: 任务 4 数字 */}
+      <Row gutter={16} style={{ marginBottom: 24 }}>
+        <Col xs={12} sm={6}>
+          <Card loading={loading}>
             <Statistic
-              title="总任务数"
-              value={45}
-              prefix={<MessageOutlined />}
-              valueStyle={{ color: '#722ed1' }}
+              title={t('dashboard.totalTasks')}
+              value={taskStats?.total ?? '-'}
+              valueStyle={{ color: '#1890ff' }}
             />
           </Card>
         </Col>
-        <Col xs={24} sm={12} lg={6}>
-          <Card>
+        <Col xs={12} sm={6}>
+          <Card loading={loading}>
             <Statistic
-              title="系统健康度"
-              value={92}
-              suffix="分"
-              prefix={<SafetyOutlined />}
+              title={t('dashboard.runningTasks')}
+              value={taskStats?.running ?? '-'}
+              prefix={<SyncOutlined spin={!!taskStats?.running} />}
               valueStyle={{ color: '#fa8c16' }}
+            />
+          </Card>
+        </Col>
+        <Col xs={12} sm={6}>
+          <Card loading={loading}>
+            <Statistic
+              title={t('dashboard.successTasks')}
+              value={taskStats?.success ?? '-'}
+              prefix={<CheckCircleOutlined />}
+              valueStyle={{ color: '#52c41a' }}
+            />
+          </Card>
+        </Col>
+        <Col xs={12} sm={6}>
+          <Card loading={loading}>
+            <Statistic
+              title={t('dashboard.failedTasks')}
+              value={taskStats?.failed ?? '-'}
+              prefix={<CloseCircleOutlined />}
+              valueStyle={{ color: (taskStats?.failed ?? 0) > 0 ? '#f5222d' : '#8c8c8c' }}
             />
           </Card>
         </Col>
@@ -131,7 +233,7 @@ const DashboardPage: React.FC = () => {
               <li>在"VPN配置"页面设置VPN和IP管理</li>
             </ol>
             <div style={{ marginTop: 16 }}>
-              <Button type="primary" onClick={() => navigate('/accounts')} style={{ marginRight: 8 }}>
+              <Button type="primary" icon={<PlayCircleOutlined />} onClick={() => navigate('/accounts')} style={{ marginRight: 8 }}>
                 开始管理账号
               </Button>
               <Button onClick={() => navigate('/tasks')}>查看任务调度</Button>

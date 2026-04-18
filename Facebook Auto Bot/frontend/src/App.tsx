@@ -1,16 +1,17 @@
 import React, { Suspense, lazy, useState, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
-import { ConfigProvider, Spin } from 'antd';
-import zhCN from 'antd/locale/zh_CN';
+import { Spin } from 'antd';
 
 import { AuthProvider } from './store/authStore';
 import ProtectedRoute from './components/ProtectedRoute';
 import api from './services/api';
+import { I18nProvider } from './i18n';
 
 const LoginPage = lazy(() => import('./pages/LoginPage'));
 const DashboardPage = lazy(() => import('./pages/DashboardPage'));
 const AccountsPage = lazy(() => import('./pages/AccountsPage'));
 const TasksPage = lazy(() => import('./pages/TasksPage'));
+const ChatScriptsPage = lazy(() => import('./pages/ChatScriptsPage'));
 const VPNPage = lazy(() => import('./pages/VPNPage'));
 const LoginStatusPage = lazy(() => import('./pages/LoginStatusPage'));
 const AntiDetectionPage = lazy(() => import('./pages/AntiDetectionPage'));
@@ -49,16 +50,16 @@ const App: React.FC = () => {
   // 租户可直接用 Admin 给的邮箱密码登录 — 无需本地注册
   if (needsActivation) {
     return (
-      <ConfigProvider locale={zhCN}>
+      <I18nProvider>
         <Suspense fallback={<Loading />}>
           <ActivationPage onActivated={() => setNeedsActivation(false)} />
         </Suspense>
-      </ConfigProvider>
+      </I18nProvider>
     );
   }
 
   return (
-    <ConfigProvider locale={zhCN}>
+    <I18nProvider>
       <AuthProvider>
         <Router>
           <Suspense fallback={<Loading />}>
@@ -85,6 +86,14 @@ const App: React.FC = () => {
               element={
                 <ProtectedRoute>
                   <TasksPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/chat-scripts"
+              element={
+                <ProtectedRoute>
+                  <ChatScriptsPage />
                 </ProtectedRoute>
               }
             />
@@ -132,7 +141,7 @@ const App: React.FC = () => {
           </Suspense>
         </Router>
       </AuthProvider>
-    </ConfigProvider>
+    </I18nProvider>
   );
 };
 

@@ -1,8 +1,9 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, BadRequestException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { ChatScript } from './entities/chat-script.entity';
 import { UpdateChatScriptDto } from './dto/update-chat-script.dto';
+import { ImportScriptPackDto } from './dto/import-script-pack.dto';
 
 const CATEGORIES = ['推广', '问候', '活动', '售后', '邀请'] as const;
 type Category = typeof CATEGORIES[number];
@@ -15,20 +16,40 @@ export class ChatScriptsService {
   ) {}
 
   /**
-   * Get all 50 scripts for user, auto-seeding if missing.
+   * Get scripts for user. 默认语言 = 中文，自动 seed 到 50 个；
+   * 其他语言不 auto-seed，只返回已导入的（按需下载剧本包）。
    */
-  async findAllByUser(userId: string): Promise<ChatScript[]> {
+  async findAllByUser(userId: string, language: string = 'zh'): Promise<ChatScript[]> {
     const existing = await this.repo.find({
-      where: { userId },
+      where: { userId, language },
       order: { scriptNumber: 'ASC' },
     });
 
-    if (existing.length < 50) {
+    // 只对中文做 auto-seed，其他语言靠用户上传剧本包
+    if (language === 'zh' && existing.length < 50) {
       await this.seedScripts(userId, existing.map(s => s.scriptNumber));
-      return this.repo.find({ where: { userId }, order: { scriptNumber: 'ASC' } });
+      return this.repo.find({ where: { userId, language: 'zh' }, order: { scriptNumber: 'ASC' } });
     }
 
     return existing;
+  }
+
+  /**
+   * 按语言统计剧本数量（前端语言 tab 显示：中文(50) | English(2) | Tiếng Việt(0)）
+   */
+  async getLanguageStats(userId: string): Promise<{ zh: number; en: number; vi: number }> {
+    const rows: Array<{ language: string; count: string }> = await this.repo
+      .createQueryBuilder('s')
+      .select('s.language', 'language')
+      .addSelect('COUNT(*)', 'count')
+      .where('s.userId = :userId', { userId })
+      .groupBy('s.language')
+      .getRawMany();
+    const stats = { zh: 0, en: 0, vi: 0 } as Record<string, number>;
+    for (const r of rows) {
+      stats[r.language] = parseInt(r.count, 10);
+    }
+    return stats as { zh: number; en: number; vi: number };
   }
 
   async findOne(userId: string, id: string): Promise<ChatScript> {
@@ -48,12 +69,98 @@ export class ChatScriptsService {
   }
 
   /**
-   * 重置指定用户的所有剧本为最新模板（用于剧本更新发版）
+   * 重置指定用户的所有**中文**剧本为最新模板（用于剧本更新发版）
+   * 英文/越南语剧本包不受影响。
    */
   async resetToDefault(userId: string): Promise<number> {
-    await this.repo.delete({ userId });
+    await this.repo.delete({ userId, language: 'zh' });
     await this.seedScripts(userId, []);
     return 50;
+  }
+
+  /**
+   * 导入剧本包（英文/越南语剧本包 JSON 解析入库）
+   * 冲突（同 userId + language + scriptNumber 已存在）处理策略：
+   *   - overwrite: 覆盖旧剧本内容
+   *   - skip（默认）: 跳过已存在的
+   */
+  async importPack(userId: string, dto: ImportScriptPackDto): Promise<{
+    imported: number; skipped: number; overwritten: number; total: number;
+  }> {
+    if (!dto.scripts || dto.scripts.length === 0) {
+      throw new BadRequestException('剧本包为空');
+    }
+    if (dto.scripts.length > 50) {
+      throw new BadRequestException('剧本包最多 50 个剧本');
+    }
+
+    const conflictMode = dto.conflictMode || 'skip';
+    const language = dto.language;
+
+    // 预先查出该用户该语言已有的剧本 scriptNumber 集合
+    const existing = await this.repo.find({
+      where: { userId, language },
+      select: ['id', 'scriptNumber'],
+    });
+    const existingByNumber = new Map<number, string>();
+    existing.forEach(e => existingByNumber.set(e.scriptNumber, e.id));
+
+    let imported = 0, skipped = 0, overwritten = 0;
+
+    for (const item of dto.scripts) {
+      if (!item.scriptNumber || item.scriptNumber < 1 || item.scriptNumber > 50) {
+        throw new BadRequestException(`剧本编号必须在 1-50 之间，收到 ${item.scriptNumber}`);
+      }
+
+      const conflictId = existingByNumber.get(item.scriptNumber);
+
+      if (conflictId && conflictMode === 'skip') {
+        skipped++;
+        continue;
+      }
+
+      if (conflictId && conflictMode === 'overwrite') {
+        await this.repo.update(conflictId, {
+          title: item.title,
+          goal: item.goal ?? null,
+          systemPrompt: item.systemPrompt ?? null,
+          category: item.category || '推广',
+          phases: item.phases,
+        });
+        overwritten++;
+      } else {
+        await this.repo.save(this.repo.create({
+          userId,
+          language,
+          scriptNumber: item.scriptNumber,
+          title: item.title,
+          goal: item.goal ?? null,
+          systemPrompt: item.systemPrompt ?? null,
+          category: item.category || '推广',
+          phases: item.phases,
+        }));
+        imported++;
+      }
+    }
+
+    return {
+      imported,
+      skipped,
+      overwritten,
+      total: imported + overwritten + skipped,
+    };
+  }
+
+  /**
+   * 按语言删除该用户的剧本（误导入回滚用）
+   * 禁止删除 zh（防止误操作把默认剧本清空，要重置请用 resetToDefault）
+   */
+  async deleteByLanguage(userId: string, language: string): Promise<{ deleted: number }> {
+    if (language === 'zh') {
+      throw new BadRequestException('不允许直接删除中文剧本。如需重置，请使用「重置为默认模板」功能');
+    }
+    const result = await this.repo.delete({ userId, language });
+    return { deleted: result.affected || 0 };
   }
 
   private async seedScripts(userId: string, existingNumbers: number[]): Promise<void> {

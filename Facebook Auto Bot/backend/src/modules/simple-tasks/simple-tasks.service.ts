@@ -132,6 +132,29 @@ export class SimpleTasksService {
     return this.repo.findOne({ where: { id, userId } });
   }
 
+  /**
+   * Dashboard 的任务统计：总数 / 执行中 / 已成功 / 失败
+   * running 把 queued 也算进来（用户视角都是"在跑"）
+   * success = completed, failed = failed
+   */
+  async getTaskStats(userId: string): Promise<{ total: number; running: number; success: number; failed: number }> {
+    const rows: Array<{ status: string; count: number }> = await this.dataSource.query(
+      `SELECT status, COUNT(*)::int AS count
+       FROM tasks
+       WHERE "userId" = $1
+       GROUP BY status`,
+      [userId],
+    );
+    let total = 0, running = 0, success = 0, failed = 0;
+    for (const row of rows) {
+      total += row.count;
+      if (row.status === 'running' || row.status === 'queued') running += row.count;
+      else if (row.status === 'completed') success += row.count;
+      else if (row.status === 'failed') failed += row.count;
+    }
+    return { total, running, success, failed };
+  }
+
   async remove(userId: string, id: string): Promise<void> {
     await this.logRepo.delete({ taskId: id });
     await this.repo.delete({ id, userId });

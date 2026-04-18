@@ -32,6 +32,11 @@ export class ChatScript {
   @Column({ type: 'varchar', length: 20, default: '推广' })
   category: string;
 
+  // 语言标识：zh（中文，默认）/ en（英文）/ vi（越南语）
+  // 按需下载的剧本包导入时填对应语言；现有 zh 剧本不受影响
+  @Column({ type: 'varchar', length: 10, default: 'zh' })
+  language: string;
+
   @CreateDateColumn()
   createdAt: Date;
 
