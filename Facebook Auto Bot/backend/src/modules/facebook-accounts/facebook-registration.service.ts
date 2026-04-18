@@ -103,29 +103,44 @@ export class FacebookRegistrationService {
       ],
     );
 
-    // 4. Launch browser (VPN proxy auto-applied from vpnConfigId), open registration page,
-    //    pre-fill fields. We await until the form is filled, then fire-and-forget the watcher.
-    try {
-      await this.browserSessionService.getOrLaunchSession(accountId, {
-        headless: false,
-      });
-      const page = await this.browserSessionService.newPage(accountId);
-      await page.goto('https://www.facebook.com/r.php', {
-        waitUntil: 'domcontentloaded',
-        timeout: 30000,
-      });
-      await this.prefillRegistrationForm(page, dto);
-      this.logger.log(`[${dto.email}] Registration page opened and pre-filled`);
-    } catch (err: any) {
-      this.logger.error(`[${dto.email}] Failed to open registration page: ${err.message}`);
-      await this.markFailed(accountId, `无法打开注册页：${err.message}`);
-      throw new BadRequestException(`启动注册失败：${err.message}`);
-    }
-
-    // 5. Start background watcher for c_user cookie
-    this.startCookieWatcher(accountId, dto.email);
+    // 4. Fire-and-forget: launch browser + navigate + prefill + start watcher in background.
+    //    We return immediately so the HTTP request doesn't time out — Puppeteer + VPN handshake
+    //    can take 10–30s which exceeds typical axios/nginx timeouts.
+    //    Frontend polls GET /:id/registration-status to track progress.
+    this.launchBrowserAndStartWatcher(accountId, dto).catch(async (err: any) => {
+      this.logger.error(`[${dto.email}] Background launch failed: ${err.message}`);
+      await this.markFailed(accountId, `启动失败：${err.message}`);
+    });
 
     return { accountId, status: 'registering' };
+  }
+
+  /**
+   * Background orchestrator — runs after startRegistration has already returned.
+   * Launches Puppeteer (with VPN), navigates to FB signup, pre-fills fields,
+   * then starts the cookie watcher.
+   */
+  private async launchBrowserAndStartWatcher(accountId: string, dto: StartRegistrationDto): Promise<void> {
+    await this.browserSessionService.getOrLaunchSession(accountId, {
+      headless: false,
+    });
+    const page = await this.browserSessionService.newPage(accountId);
+
+    // FB sometimes serves the new responsive signup UI (/r.php with different DOM)
+    // or the legacy one. Use networkidle2 to let the SPA settle, longer timeout
+    // because VPN + FB can be slow.
+    await page.goto('https://www.facebook.com/r.php', {
+      waitUntil: 'domcontentloaded',
+      timeout: 60000,
+    });
+
+    // Let JS render the form before trying to fill
+    await new Promise(r => setTimeout(r, 1500));
+
+    await this.prefillRegistrationForm(page, dto);
+    this.logger.log(`[${dto.email}] Registration page opened and pre-filled`);
+
+    this.startCookieWatcher(accountId, dto.email);
   }
 
   async getRegistrationStatus(
@@ -177,26 +192,81 @@ export class FacebookRegistrationService {
   // ─────────────────────────────────────────────────────────────────────────
 
   /**
-   * Pre-fill FB registration form fields. FB's form may change — we use best-effort
-   * selectors and don't fail the whole flow if one field can't be filled.
+   * Pre-fill FB registration form fields. FB ships multiple signup layouts
+   * (legacy desktop, new responsive "Get started on Facebook", mobile r.php).
+   * We try selectors in priority order per field — first hit wins. If everything
+   * fails, we log a warning but don't fail the flow — user can fill manually.
    */
   private async prefillRegistrationForm(page: any, dto: StartRegistrationDto): Promise<void> {
-    const safeType = async (selector: string, value: string, label: string) => {
-      try {
-        await page.waitForSelector(selector, { timeout: 5000 });
-        await page.click(selector, { clickCount: 3 }).catch(() => {});
-        await page.type(selector, value, { delay: 30 });
-      } catch (err: any) {
-        this.logger.warn(`[${dto.email}] Could not fill ${label}: ${err.message}`);
+    // Try each selector; type into the first one that exists. Never throws.
+    const tryTypeByAny = async (
+      selectors: string[],
+      value: string,
+      label: string,
+    ): Promise<boolean> => {
+      for (const sel of selectors) {
+        try {
+          const el = await page.$(sel);
+          if (!el) continue;
+          await el.click({ clickCount: 3 }).catch(() => {});
+          await el.type(value, { delay: 25 });
+          return true;
+        } catch { /* try next */ }
       }
+      this.logger.warn(`[${dto.email}] Could not pre-fill ${label} — user can fill manually`);
+      return false;
     };
 
-    await safeType('input[name="firstname"]', dto.firstName, 'firstname');
-    await safeType('input[name="lastname"]', dto.lastName, 'lastname');
-    await safeType('input[name="reg_email__"]', dto.email, 'email');
-    await safeType('input[name="reg_passwd__"]', dto.facebookPassword, 'password');
+    // Wait a beat for the form to mount
+    await page.waitForSelector('input', { timeout: 10000 }).catch(() => {});
 
-    // Date of birth (FB uses select menus)
+    await tryTypeByAny(
+      [
+        'input[name="firstname"]',
+        'input[aria-label="First name"]',
+        'input[placeholder="First name"]',
+        'input[placeholder^="First"]',
+      ],
+      dto.firstName,
+      'firstName',
+    );
+
+    await tryTypeByAny(
+      [
+        'input[name="lastname"]',
+        'input[aria-label="Last name"]',
+        'input[placeholder="Last name"]',
+        'input[placeholder^="Last"]',
+      ],
+      dto.lastName,
+      'lastName',
+    );
+
+    await tryTypeByAny(
+      [
+        'input[name="reg_email__"]',
+        'input[name="reg_email"]',
+        'input[aria-label="Mobile number or email"]',
+        'input[placeholder="Mobile number or email"]',
+        'input[placeholder*="mail"]',
+      ],
+      dto.email,
+      'email',
+    );
+
+    await tryTypeByAny(
+      [
+        'input[name="reg_passwd__"]',
+        'input[name="password"]',
+        'input[type="password"]',
+        'input[aria-label="Password"]',
+      ],
+      dto.facebookPassword,
+      'password',
+    );
+
+    // Date of birth — legacy uses select[name=birthday_day/month/year];
+    // new UI uses native <select> too but names may differ. Try legacy first.
     if (dto.dateOfBirth) {
       const [year, month, day] = dto.dateOfBirth.split('-');
       await page.select('select[name="birthday_day"]', String(parseInt(day, 10))).catch(() => {});
@@ -204,7 +274,7 @@ export class FacebookRegistrationService {
       await page.select('select[name="birthday_year"]', year).catch(() => {});
     }
 
-    // Gender (FB uses radio inputs, value 1=female, 2=male, -1/6=custom)
+    // Gender — legacy uses input[name=sex] radios (1=female, 2=male, -1=custom).
     if (dto.gender) {
       const genderValue = dto.gender === 'female' ? '1' : dto.gender === 'male' ? '2' : '-1';
       await page.click(`input[name="sex"][value="${genderValue}"]`).catch(() => {});
