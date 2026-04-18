@@ -151,6 +151,9 @@ export class BrowserSessionService implements OnModuleDestroy {
         headless,
         args,
         defaultViewport: null,
+        // 默认 30 秒太短，长时间聊天任务会触发 "Runtime.callFunctionOn timed out"。
+        // 调到 3 分钟足够覆盖 FB 页面加载 + 各种交互。
+        protocolTimeout: 180_000,
       });
 
       const session: BrowserSession = {

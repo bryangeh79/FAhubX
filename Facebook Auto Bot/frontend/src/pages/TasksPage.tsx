@@ -787,12 +787,13 @@ const TasksPage: React.FC = () => {
         const singleAccountId = values.accountAId || values.accountId;
         const payload = buildPayload(values, singleAccountId, headlessMode);
         const res = await api.post('/tasks', payload);
-        const t = res.data?.data || res.data;
+        // ⚠️ 变量名不能用 t — 会覆盖 useT() 返回的翻译函数！
+        const createdTask = res.data?.data || res.data;
         const accA = accounts.find(a => a.id === singleAccountId);
         const accB = accounts.find(a => a.id === values.accountBId);
-        const accountName = accA ? `${accA.name}${accB ? ` ↔ ${accB.name}` : ''}` : '未知账号';
+        const accountName = accA ? `${accA.name}${accB ? ` ↔ ${accB.name}` : ''}` : '-';
         const newTask: Task = {
-          id: t.id || Date.now().toString(),
+          id: createdTask.id || Date.now().toString(),
           name: values.name,
           accountName,
           taskType: values.taskType,

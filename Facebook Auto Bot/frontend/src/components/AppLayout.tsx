@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import {
   Layout,
@@ -26,8 +26,12 @@ import {
 } from '@ant-design/icons';
 import { useAuth } from '../store/authStore';
 import { authService } from '../services/auth';
+import { accountsService } from '../services/accounts';
 import { useT } from '../i18n';
 import LanguageSwitcher from './LanguageSwitcher';
+
+// App version — bump this when releasing a new installer
+const APP_VERSION = '1.1.0';
 
 const { Header, Content, Sider } = Layout;
 const { Text } = Typography;
@@ -41,7 +45,19 @@ const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
   const location = useLocation();
   const { user, logout } = useAuth();
   const [collapsed, setCollapsed] = useState(false);
+  const [plan, setPlan] = useState<string>('basic'); // basic / pro / admin
   const t = useT();
+
+  // 拉一次用户 plan，用于左下角版本标识
+  useEffect(() => {
+    if (!user) return;
+    accountsService.getStats()
+      .then(res => {
+        const p = (res.data as any)?.plan;
+        if (p) setPlan(p);
+      })
+      .catch(() => {/* ignore — 默认 basic */});
+  }, [user]);
 
   const getSelectedKey = () => {
     const path = location.pathname;
@@ -158,7 +174,7 @@ const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
         collapsed={collapsed}
         onCollapse={setCollapsed}
         trigger={null}
-        style={{ background: '#001529' }}
+        style={{ background: '#001529', position: 'relative' }}
       >
         <div
           style={{
@@ -187,8 +203,36 @@ const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
           mode="inline"
           selectedKeys={[getSelectedKey()]}
           items={navItems}
-          style={{ borderRight: 0, marginTop: 8 }}
+          style={{ borderRight: 0, marginTop: 8, marginBottom: 72 /* 给底部版本标签留空间 */ }}
         />
+        {/* 左下角版本标识 — absolute 钉在 Sider 底部 */}
+        <div
+          style={{
+            position: 'absolute',
+            bottom: 0,
+            left: 0,
+            right: 0,
+            padding: collapsed ? '10px 4px' : '10px 16px',
+            borderTop: '1px solid rgba(255,255,255,0.08)',
+            textAlign: 'center',
+            color: 'rgba(255,255,255,0.45)',
+            fontSize: collapsed ? 10 : 12,
+            lineHeight: 1.5,
+            letterSpacing: 0.3,
+            background: '#001529',
+          }}
+        >
+          {collapsed ? (
+            <div>v{APP_VERSION}</div>
+          ) : (
+            <>
+              <div style={{ color: plan === 'admin' ? '#b37feb' : plan === 'pro' ? '#ffd666' : 'rgba(255,255,255,0.6)', fontWeight: 500 }}>
+                {plan === 'admin' ? 'Admin Edition' : plan === 'pro' ? 'Pro Version' : 'Basic Version'}
+              </div>
+              <div>v{APP_VERSION}</div>
+            </>
+          )}
+        </div>
       </Sider>
 
       <Layout>
