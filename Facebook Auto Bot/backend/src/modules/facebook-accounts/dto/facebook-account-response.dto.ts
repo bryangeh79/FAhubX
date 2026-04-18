@@ -85,4 +85,10 @@ export class FacebookAccountResponseDto {
 
   @ApiProperty({ description: '账号是否活跃', example: true })
   isActive: boolean;
+
+  @ApiProperty({ description: '绑定的 VPN 配置 ID（未绑定则为 null）', required: false })
+  vpnConfigId?: string | null;
+
+  @ApiProperty({ description: 'Messenger PIN', required: false })
+  messengerPin?: string | null;
 }

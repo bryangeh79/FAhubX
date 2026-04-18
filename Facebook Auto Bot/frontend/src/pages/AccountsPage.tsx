@@ -11,6 +11,7 @@ import {
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import AppLayout from '../components/AppLayout';
+import RegistrationModal from '../components/RegistrationModal';
 import { accountsService, FacebookAccount, AccountStats, CreateAccountData } from '../services/accounts';
 import api from '../services/api';
 
@@ -41,6 +42,7 @@ const AccountsPage: React.FC = () => {
   const [vpnOptions, setVpnOptions] = useState<VPNOption[]>([]);
   const [defaultVPN, setDefaultVPN] = useState<VPNOption | null>(null);
   const [loginResultModal, setLoginResultModal] = useState<{ visible: boolean; success: boolean; message: string; requiresManual?: boolean }>({ visible: false, success: false, message: '' });
+  const [registrationModalVisible, setRegistrationModalVisible] = useState(false);
   const [form] = Form.useForm();
 
   const fetchAccounts = useCallback(async () => {
@@ -180,6 +182,12 @@ const AccountsPage: React.FC = () => {
       const values = await form.validateFields();
       setSubmitting(true);
       if (editingAccount) {
+        // 双保险：如果用户没主动修改过密码字段，就把它从 payload 剥离。
+        // 防止浏览器密码管家自动填充其他网站的密码导致账号原密码被覆盖。
+        const touchedPassword = form.isFieldTouched('facebookPassword');
+        if (!touchedPassword) {
+          delete (values as any).facebookPassword;
+        }
         await accountsService.updateAccount(editingAccount.id, values);
         message.success('更新成功');
       } else {
@@ -344,9 +352,24 @@ const AccountsPage: React.FC = () => {
     <AppLayout>
       <div style={{ marginBottom: 24, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <Title level={2} style={{ margin: 0 }}>账号管理</Title>
-        <Button type="primary" icon={<PlusOutlined />} onClick={handleCreate}>
-          添加账号
-        </Button>
+        <Space>
+          <Button
+            type="default"
+            icon={<GlobalOutlined />}
+            onClick={() => {
+              if (vpnOptions.length === 0) {
+                message.warning('请先在 VPN 配置页添加至少一个 VPN / 代理');
+                return;
+              }
+              setRegistrationModalVisible(true);
+            }}
+          >
+            注册新账号
+          </Button>
+          <Button type="primary" icon={<PlusOutlined />} onClick={handleCreate}>
+            添加账号
+          </Button>
+        </Space>
       </div>
 
       <Row gutter={16} style={{ marginBottom: 24 }}>
@@ -437,16 +460,17 @@ const AccountsPage: React.FC = () => {
             <Input prefix={<UserOutlined />} placeholder="例如：主营销账号" />
           </Form.Item>
           <Form.Item name="email" label="Facebook 邮箱 / 手机号" rules={[{ required: true, message: '请输入邮箱或手机号' }]}>
-            <Input prefix={<MailOutlined />} placeholder="登录 Facebook 使用的邮箱或手机号" />
+            <Input prefix={<MailOutlined />} placeholder="登录 Facebook 使用的邮箱或手机号" autoComplete="off" />
           </Form.Item>
           {!editingAccount && (
             <Form.Item name="facebookPassword" label="Facebook 密码" rules={[{ required: true, message: '请输入密码' }]}>
-              <Input.Password prefix={<LockOutlined />} placeholder="Facebook 登录密码" />
+              {/* autoComplete="new-password" 阻止浏览器密码管家把其他网站保存的密码填进来 */}
+              <Input.Password prefix={<LockOutlined />} placeholder="Facebook 登录密码" autoComplete="new-password" />
             </Form.Item>
           )}
           {editingAccount && (
             <Form.Item name="facebookPassword" label="新密码（留空则不更改）">
-              <Input.Password prefix={<LockOutlined />} placeholder="如需更改密码请填写" />
+              <Input.Password prefix={<LockOutlined />} placeholder="留空则保持原密码不变" autoComplete="new-password" />
             </Form.Item>
           )}
           <Form.Item name="accountType" label="账号类型" initialValue="user">
@@ -516,6 +540,17 @@ const AccountsPage: React.FC = () => {
           </div>
         </Form>
       </Modal>
+
+      {/* Registration modal (VPN 代理下半自动注册新账号) */}
+      <RegistrationModal
+        open={registrationModalVisible}
+        onClose={() => setRegistrationModalVisible(false)}
+        onSuccess={() => {
+          fetchAccounts();
+          fetchStats();
+        }}
+        vpnOptions={vpnOptions}
+      />
     </AppLayout>
   );
 };

@@ -106,4 +106,41 @@ export const accountsService = {
   async clearAccountSessions(id: string): Promise<void> {
     await api.delete(`/facebook-accounts/${id}/sessions`);
   },
+
+  // ─── 半自动注册新账号 ──────────────────────────────────────────────
+  async startRegistration(data: {
+    firstName: string;
+    lastName: string;
+    email: string;
+    facebookPassword: string;
+    vpnConfigId: string;
+    name?: string;
+    dateOfBirth?: string;
+    gender?: 'male' | 'female' | 'custom';
+    accountType?: 'user' | 'page' | 'business';
+    remarks?: string;
+  }): Promise<{ accountId: string; status: string }> {
+    const response = await api.post<{ accountId: string; status: string }>(
+      '/facebook-accounts/start-registration',
+      data,
+    );
+    return response.data;
+  },
+
+  async getRegistrationStatus(accountId: string): Promise<{
+    status: 'registering' | 'idle' | 'registration_failed';
+    facebookId?: string;
+    error?: string;
+  }> {
+    const response = await api.get<{
+      status: 'registering' | 'idle' | 'registration_failed';
+      facebookId?: string;
+      error?: string;
+    }>(`/facebook-accounts/${accountId}/registration-status`);
+    return response.data;
+  },
+
+  async cancelRegistration(accountId: string): Promise<void> {
+    await api.post(`/facebook-accounts/${accountId}/cancel-registration`);
+  },
 };

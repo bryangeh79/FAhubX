@@ -548,6 +548,8 @@ export class FacebookAccountsService {
       updatedAt: account.updatedAt,
       isTokenExpiring,
       isActive: account.isActive(),
+      vpnConfigId: account.vpnConfigId || null,
+      messengerPin: account.messengerPin || null,
     };
   }
 

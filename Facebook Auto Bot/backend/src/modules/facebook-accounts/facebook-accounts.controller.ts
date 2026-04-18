@@ -22,9 +22,11 @@ import {
 
 import { FacebookAccountsService } from './facebook-accounts.service';
 import { FacebookLoginService } from './facebook-login.service';
+import { FacebookRegistrationService } from './facebook-registration.service';
 import { CreateFacebookAccountDto } from './dto/create-facebook-account.dto';
 import { UpdateFacebookAccountDto } from './dto/update-facebook-account.dto';
 import { FacebookAccountResponseDto } from './dto/facebook-account-response.dto';
+import { StartRegistrationDto } from './dto/start-registration.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { SubscriptionGuard } from '../../common/guards/subscription.guard';
 import { RefreshTokenDto } from './dto/refresh-token.dto';
@@ -38,7 +40,38 @@ export class FacebookAccountsController {
   constructor(
     private readonly facebookAccountsService: FacebookAccountsService,
     private readonly facebookLoginService: FacebookLoginService,
+    private readonly facebookRegistrationService: FacebookRegistrationService,
   ) {}
+
+  // ─── 半自动注册新账号 ──────────────────────────────────────────────
+  @Post('start-registration')
+  @UseGuards(SubscriptionGuard)
+  @ApiOperation({ summary: '开启半自动注册流程（打开 VPN 浏览器 + 预填字段）' })
+  async startRegistration(
+    @Request() req,
+    @Body() dto: StartRegistrationDto,
+  ) {
+    return this.facebookRegistrationService.startRegistration(req.user.id, dto);
+  }
+
+  @Get(':id/registration-status')
+  @ApiOperation({ summary: '查询账号注册进度（前端轮询用）' })
+  async getRegistrationStatus(
+    @Request() req,
+    @Param('id') id: string,
+  ) {
+    return this.facebookRegistrationService.getRegistrationStatus(req.user.id, id);
+  }
+
+  @Post(':id/cancel-registration')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiOperation({ summary: '取消正在进行的注册（关浏览器 + 删临时账号）' })
+  async cancelRegistration(
+    @Request() req,
+    @Param('id') id: string,
+  ): Promise<void> {
+    await this.facebookRegistrationService.cancelRegistration(req.user.id, id);
+  }
 
   @Post()
   @UseGuards(SubscriptionGuard)
