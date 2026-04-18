@@ -12,12 +12,14 @@ import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
 import AppLayout from '../components/AppLayout';
 import api from '../services/api';
+import { useT } from '../i18n';
 
 dayjs.extend(relativeTime);
 
 const { Title, Text } = Typography;
 
 const LoginStatusPage: React.FC = () => {
+  const t = useT();
   const [accounts, setAccounts] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [loggingInId, setLoggingInId] = useState<string | null>(null);
@@ -30,11 +32,12 @@ const LoginStatusPage: React.FC = () => {
       const list = res.data?.data?.accounts || [];
       setAccounts(list);
     } catch {
-      message.error('获取账号状态失败');
+      message.error(t('loginStatus.fetchFailed'));
     } finally {
       setLoading(false);
     }
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);  // 不把 t 加到依赖 — 每次 render 都是新函数会导致 useEffect 无限刷新
 
   useEffect(() => {
     fetchAccounts();
@@ -45,21 +48,21 @@ const LoginStatusPage: React.FC = () => {
 
   const handleLogin = async (record: any) => {
     setLoggingInId(record.id);
-    message.loading({ content: `正在登录 ${record.name}，请稍候...`, key: 'login', duration: 60 });
+    message.loading({ content: `${t('accounts.login')} ${record.name}...`, key: 'login', duration: 60 });
     try {
       const res = await api.post(`/facebook-accounts/${record.id}/login`, {}, { timeout: 360000 });
       const result = res.data?.data || res.data;
       message.destroy('login');
       if (result?.success) {
-        message.success(`${record.name} 登录成功！`);
+        message.success(`${record.name} ${t('accounts.loggedIn')}`);
         fetchAccounts();
       } else {
-        message.error(result?.error || '登录失败');
+        message.error(result?.error || t('accounts.loginFailedDefault'));
         fetchAccounts();
       }
     } catch (err: any) {
       message.destroy('login');
-      message.error(err?.response?.data?.message || '登录请求失败');
+      message.error(err?.response?.data?.message || t('accounts.loginFailedDefault'));
     } finally {
       setLoggingInId(null);
     }
@@ -68,10 +71,10 @@ const LoginStatusPage: React.FC = () => {
   const handleLogout = async (record: any) => {
     try {
       await api.post(`/facebook-accounts/${record.id}/logout`);
-      message.success('已登出');
+      message.success(t('accounts.logout'));
       fetchAccounts();
     } catch {
-      message.error('登出失败');
+      message.error(t('accounts.syncFailed'));
     }
   };
 
@@ -85,22 +88,22 @@ const LoginStatusPage: React.FC = () => {
 
   const getStatusBadge = (record: any) => {
     if (record.loginStatus === true || record.status === 'active') {
-      return <Badge status="success" text={<Tag color="green"><CheckCircleOutlined /> 已登录</Tag>} />;
+      return <Badge status="success" text={<Tag color="green"><CheckCircleOutlined /> {t('accounts.loggedIn')}</Tag>} />;
     }
     if (record.status === 'error') {
       return (
-        <Tooltip title={record.syncError || '登录失败'}>
-          <Tag color="red"><CloseCircleOutlined /> 登录失败</Tag>
+        <Tooltip title={record.syncError || t('accounts.loginFailedTitle')}>
+          <Tag color="red"><CloseCircleOutlined /> {t('accounts.loginFailedTitle')}</Tag>
         </Tooltip>
       );
     }
-    if (record.status === 'banned') return <Tag color="volcano"><WarningOutlined /> 已封禁</Tag>;
-    return <Tag color="default">未登录</Tag>;
+    if (record.status === 'banned') return <Tag color="volcano"><WarningOutlined /> {t('accounts.statusBanned')}</Tag>;
+    return <Tag color="default">{t('accounts.notLoggedIn')}</Tag>;
   };
 
   const columns = [
     {
-      title: '账号',
+      title: t('loginStatus.colAccount'),
       key: 'account',
       render: (_: any, record: any) => (
         <Space direction="vertical" size={0}>
@@ -110,12 +113,12 @@ const LoginStatusPage: React.FC = () => {
       ),
     },
     {
-      title: '登录状态',
+      title: t('loginStatus.colStatus'),
       key: 'loginStatus',
       render: (_: any, record: any) => getStatusBadge(record),
     },
     {
-      title: '会话到期',
+      title: t('loginStatus.colSessionExpiry'),
       key: 'sessionExpiresAt',
       render: (_: any, record: any) => {
         if (!record.sessionExpiresAt) return <Text type="secondary">-</Text>;
@@ -124,14 +127,14 @@ const LoginStatusPage: React.FC = () => {
         return (
           <Tooltip title={exp.format('YYYY-MM-DD HH:mm')}>
             <Tag color={expired ? 'red' : 'green'}>
-              {expired ? '已过期' : exp.fromNow()}
+              {expired ? t('loginStatus.statusExpired') : exp.fromNow()}
             </Tag>
           </Tooltip>
         );
       },
     },
     {
-      title: '上次登录',
+      title: t('loginStatus.colLastLogin'),
       key: 'lastLoginAt',
       render: (_: any, record: any) =>
         record.lastLoginAt ? (
@@ -139,7 +142,7 @@ const LoginStatusPage: React.FC = () => {
             <Text>{dayjs(record.lastLoginAt).fromNow()}</Text>
           </Tooltip>
         ) : (
-          <Text type="secondary">从未登录</Text>
+          <Text type="secondary">-</Text>
         ),
     },
     {
@@ -147,26 +150,19 @@ const LoginStatusPage: React.FC = () => {
       key: 'vpn',
       render: (_: any, record: any) => (
         <Tag icon={<GlobalOutlined />} color={record.vpnConfigId ? 'purple' : 'cyan'}>
-          {record.vpnConfigId ? '专属VPN' : '大环境IP'}
+          {record.vpnConfigId ? t('accounts.assignedVpn') : t('accounts.globalIp')}
         </Tag>
       ),
     },
     {
-      title: '错误信息',
-      dataIndex: 'syncError',
-      key: 'syncError',
-      ellipsis: true,
-      render: (err: string) => err ? <Text type="danger" style={{ fontSize: 12 }}>{err}</Text> : '-',
-    },
-    {
-      title: '操作',
+      title: t('loginStatus.colActions'),
       key: 'actions',
       width: 160,
       render: (_: any, record: any) => (
         <Space size={4}>
           {record.loginStatus === true || record.status === 'active' ? (
             <Button size="small" danger icon={<LogoutOutlined />} onClick={() => handleLogout(record)}>
-              登出
+              {t('accounts.logout')}
             </Button>
           ) : (
             <Button
@@ -177,11 +173,11 @@ const LoginStatusPage: React.FC = () => {
               onClick={() => handleLogin(record)}
               disabled={loggingInId !== null && loggingInId !== record.id}
             >
-              登录
+              {t('accounts.login')}
             </Button>
           )}
           <Button size="small" icon={<ReloadOutlined />} onClick={fetchAccounts}>
-            刷新
+            {t('loginStatus.refresh')}
           </Button>
         </Space>
       ),
@@ -192,50 +188,41 @@ const LoginStatusPage: React.FC = () => {
     <AppLayout>
       <div style={{ marginBottom: 24, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div>
-          <Title level={2} style={{ margin: 0 }}>登录状态监控</Title>
-          <Text type="secondary">实时监控所有 Facebook 账号的登录状态，每 30 秒自动刷新</Text>
+          <Title level={2} style={{ margin: 0 }}>{t('loginStatus.title')}</Title>
+          <Text type="secondary">{t('loginStatus.subtitle')}</Text>
         </div>
         <Button icon={<SyncOutlined />} onClick={fetchAccounts} loading={loading}>
-          立即刷新
+          {t('loginStatus.refresh')}
         </Button>
       </div>
 
       <Row gutter={16} style={{ marginBottom: 24 }}>
         <Col xs={12} sm={6}>
           <Card size="small">
-            <Statistic title="总账号" value={accounts.length} valueStyle={{ color: '#1890ff' }} />
+            <Statistic title={t('dashboard.totalAccounts')} value={accounts.length} valueStyle={{ color: '#1890ff' }} />
           </Card>
         </Col>
         <Col xs={12} sm={6}>
           <Card size="small">
-            <Statistic title="已登录" value={onlineCount} valueStyle={{ color: '#52c41a' }} prefix={<CheckCircleOutlined />} />
+            <Statistic title={t('accounts.loggedIn')} value={onlineCount} valueStyle={{ color: '#52c41a' }} prefix={<CheckCircleOutlined />} />
           </Card>
         </Col>
         <Col xs={12} sm={6}>
           <Card size="small">
-            <Statistic title="未登录" value={offlineCount} valueStyle={{ color: '#999' }} />
+            <Statistic title={t('accounts.notLoggedIn')} value={offlineCount} valueStyle={{ color: '#999' }} />
           </Card>
         </Col>
         <Col xs={12} sm={6}>
           <Card size="small">
-            <Statistic title="登录错误" value={errorCount} valueStyle={{ color: '#ff4d4f' }} prefix={<WarningOutlined />} />
+            <Statistic title={t('accounts.statusError')} value={errorCount} valueStyle={{ color: '#ff4d4f' }} prefix={<WarningOutlined />} />
           </Card>
         </Col>
       </Row>
 
-      {errorCount > 0 && (
-        <Alert
-          type="warning"
-          showIcon
-          message={`有 ${errorCount} 个账号登录失败，请检查账号密码或手动处理验证码。`}
-          style={{ marginBottom: 16 }}
-        />
-      )}
-
       <Card>
         <div style={{ marginBottom: 16 }}>
           <Input
-            placeholder="搜索账号名称或邮箱"
+            placeholder={t('common.search')}
             prefix={<SearchOutlined />}
             value={searchText}
             onChange={e => setSearchText(e.target.value)}
@@ -248,7 +235,7 @@ const LoginStatusPage: React.FC = () => {
           dataSource={filtered}
           rowKey="id"
           loading={loading}
-          pagination={{ pageSize: 20, showTotal: t => `共 ${t} 条` }}
+          pagination={{ pageSize: 20, showTotal: (total) => t('common.total', { count: total }) }}
           rowClassName={(record: any) => {
             if (record.loginStatus === true || record.status === 'active') return 'row-online';
             if (record.status === 'error') return 'row-error';

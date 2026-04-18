@@ -18,6 +18,8 @@ import { Checkbox } from 'antd';
 import dayjs from 'dayjs';
 import AppLayout from '../components/AppLayout';
 import api from '../services/api';
+import { useT, useI18n } from '../i18n';
+import { translateLogMessage } from '../i18n/logTranslator';
 
 const { Title, Text, Paragraph } = Typography;
 const { Option } = Select;
@@ -68,45 +70,45 @@ const initialTasks: Task[] = [
   { id: '5', name: '每周群发公告', accountName: 'Jane Smith', taskType: 'auto_post_image', status: 'pending', scheduledAt: '2026-04-15T22:00:00Z' },
 ];
 
+// 注：text 字段存 i18n key，render 时用 t(c.text) 翻译
 const TASK_TYPE_CONFIG: Record<TaskType, { color: string; text: string; icon: React.ReactNode }> = {
-  auto_chat:            { color: 'blue',     text: '自动聊天',    icon: <MessageOutlined /> },
-  auto_post_image:      { color: 'purple',   text: '自动发图',    icon: <PictureOutlined /> },
-  auto_post_video:      { color: 'magenta',  text: '自动发视频',  icon: <VideoCameraOutlined /> },
-  auto_call:            { color: 'green',    text: '自动拨号',    icon: <PhoneOutlined /> },
-  account_sync:         { color: 'orange',   text: '账号同步',    icon: <SwapOutlined /> },
-  auto_simulate:        { color: 'cyan',     text: '模拟真人',    icon: <EyeOutlined /> },
-  auto_add_friends:     { color: 'geekblue', text: '自动加好友',  icon: <UserAddOutlined /> },
-  auto_accept_requests: { color: 'green',    text: '接受好友申请', icon: <CheckCircleOutlined /> },
-  auto_comment:         { color: 'gold',     text: '自动留言',    icon: <CommentOutlined /> },
-  auto_follow:          { color: 'volcano',  text: '自动 Follow', icon: <HeartOutlined /> },
-  auto_combo:           { color: 'purple',   text: '组合任务',    icon: <AppstoreOutlined /> },
+  auto_chat:            { color: 'blue',     text: 'tasks.taskType_auto_chat',            icon: <MessageOutlined /> },
+  auto_post_image:      { color: 'purple',   text: 'tasks.taskType_auto_post_image',      icon: <PictureOutlined /> },
+  auto_post_video:      { color: 'magenta',  text: 'tasks.taskType_auto_post_video',      icon: <VideoCameraOutlined /> },
+  auto_call:            { color: 'green',    text: 'tasks.taskType_auto_call',            icon: <PhoneOutlined /> },
+  account_sync:         { color: 'orange',   text: 'tasks.taskType_account_sync',         icon: <SwapOutlined /> },
+  auto_simulate:        { color: 'cyan',     text: 'tasks.taskType_auto_simulate',        icon: <EyeOutlined /> },
+  auto_add_friends:     { color: 'geekblue', text: 'tasks.taskType_auto_add_friends',     icon: <UserAddOutlined /> },
+  auto_accept_requests: { color: 'green',    text: 'tasks.taskType_auto_accept_requests', icon: <CheckCircleOutlined /> },
+  auto_comment:         { color: 'gold',     text: 'tasks.taskType_auto_comment',         icon: <CommentOutlined /> },
+  auto_follow:          { color: 'volcano',  text: 'tasks.taskType_auto_follow',          icon: <HeartOutlined /> },
+  auto_combo:           { color: 'purple',   text: 'tasks.taskType_auto_combo',           icon: <AppstoreOutlined /> },
 };
 
 const STATUS_CONFIG: Record<TaskStatus, { color: string; icon: React.ReactNode; text: string }> = {
-  pending: { color: 'default', icon: <ClockCircleOutlined />, text: '等待中' },
-  running: { color: 'blue', icon: <LoadingOutlined />, text: '运行中' },
-  completed: { color: 'green', icon: <CheckCircleOutlined />, text: '已完成' },
-  failed: { color: 'red', icon: <CloseCircleOutlined />, text: '失败' },
+  pending:   { color: 'default', icon: <ClockCircleOutlined />, text: 'tasks.status_pending' },
+  running:   { color: 'blue',    icon: <LoadingOutlined />,     text: 'tasks.status_running' },
+  completed: { color: 'green',   icon: <CheckCircleOutlined />, text: 'tasks.status_completed' },
+  failed:    { color: 'red',     icon: <CloseCircleOutlined />, text: 'tasks.status_failed' },
 };
 
 // ─── AI Settings Modal ───────────────────────────────────────────────────────
 const AISettingsModal: React.FC<{ open: boolean; onClose: () => void }> = ({ open, onClose }) => {
+  const t = useT();
   const [form] = Form.useForm();
   const [testing, setTesting] = useState(false);
   const [testResult, setTestResult] = useState<{ ok: boolean; msg: string } | null>(null);
 
   const handleTest = async () => {
     const values = form.getFieldsValue();
-    if (!values.apiKey) { message.warning('请先输入 API Key'); return; }
+    if (!values.apiKey) { message.warning(t('tasks.aiApiKeyWarning')); return; }
     setTesting(true);
     setTestResult(null);
     try {
-      // Simulate API test
       await new Promise(r => setTimeout(r, 1500));
-      // In real implementation, call backend to test the API key
-      setTestResult({ ok: true, msg: `连接成功！模型 ${values.model || 'gpt-4o'} 可用` });
+      setTestResult({ ok: true, msg: t('tasks.aiTestSuccess', { model: values.model || 'gpt-4o' }) });
     } catch {
-      setTestResult({ ok: false, msg: '连接失败，请检查 API Key 是否正确' });
+      setTestResult({ ok: false, msg: t('tasks.aiTestFailed') });
     } finally {
       setTesting(false);
     }
@@ -114,9 +116,8 @@ const AISettingsModal: React.FC<{ open: boolean; onClose: () => void }> = ({ ope
 
   const handleSave = async () => {
     const values = await form.validateFields();
-    // Save to localStorage for now (in real app, save to backend user settings)
     localStorage.setItem('ai_settings', JSON.stringify(values));
-    message.success('AI 设置已保存');
+    message.success(t('tasks.aiSaved'));
     onClose();
   };
 
@@ -128,33 +129,33 @@ const AISettingsModal: React.FC<{ open: boolean; onClose: () => void }> = ({ ope
   }, [open, form]);
 
   return (
-    <Modal title={<Space><RobotOutlined style={{ color: '#722ed1' }} /> AI 辅助设置</Space>}
-      open={open} onOk={handleSave} onCancel={onClose} okText="保存" cancelText="取消" width={520}>
+    <Modal title={<Space><RobotOutlined style={{ color: '#722ed1' }} /> {t('tasks.aiAssistTitle')}</Space>}
+      open={open} onOk={handleSave} onCancel={onClose} okText={t('tasks.aiSave')} cancelText={t('tasks.aiCancel')} width={520}>
       <Form form={form} layout="vertical" style={{ marginTop: 16 }}>
-        <Form.Item name="provider" label="AI 服务商" initialValue="openai">
+        <Form.Item name="provider" label={t('tasks.aiProvider')} initialValue="openai">
           <Select>
             <Option value="openai">OpenAI</Option>
             <Option value="anthropic">Anthropic (Claude)</Option>
             <Option value="google">Google (Gemini)</Option>
           </Select>
         </Form.Item>
-        <Form.Item name="model" label="使用模型" initialValue="gpt-4o">
+        <Form.Item name="model" label={t('tasks.aiModel')} initialValue="gpt-4o">
           <Select showSearch>
             {AI_MODELS.map(m => <Option key={m.value} value={m.value}>{m.label}</Option>)}
           </Select>
         </Form.Item>
-        <Form.Item name="apiKey" label="API Key" rules={[{ required: true, message: '请输入 API Key' }]}>
+        <Form.Item name="apiKey" label={t('tasks.aiApiKey')} rules={[{ required: true, message: t('tasks.aiApiKeyRequired') }]}>
           <Input.Password prefix={<KeyOutlined />} placeholder="sk-..." />
         </Form.Item>
-        <Form.Item name="baseUrl" label="自定义 API 地址（可选）" extra="留空则使用默认地址">
+        <Form.Item name="baseUrl" label={t('tasks.aiBaseUrl')} extra={t('tasks.aiBaseUrlExtra')}>
           <Input placeholder="https://api.openai.com/v1" />
         </Form.Item>
-        <Form.Item name="temperature" label="创造性 (Temperature)" initialValue={0.7}>
+        <Form.Item name="temperature" label={t('tasks.aiTemperature')} initialValue={0.7}>
           <InputNumber min={0} max={2} step={0.1} style={{ width: '100%' }} />
         </Form.Item>
         <Space>
           <Button icon={<ThunderboltOutlined />} loading={testing} onClick={handleTest}>
-            测试连接
+            {t('tasks.aiTest')}
           </Button>
           {testResult && (
             <Tag color={testResult.ok ? 'green' : 'red'}>
@@ -173,6 +174,7 @@ const ScriptSelector: React.FC<{
   onChange?: (v: string) => void;
   scripts?: typeof CHAT_SCRIPTS;
 }> = ({ value, onChange, scripts: propScripts }) => {
+  const t = useT();
   const [search, setSearch] = useState('');
   const [category, setCategory] = useState('全部');
   const sourceScripts = propScripts || CHAT_SCRIPTS;
@@ -189,15 +191,15 @@ const ScriptSelector: React.FC<{
           <Input
             size="small"
             prefix={<SearchOutlined />}
-            placeholder="搜索剧本..."
+            placeholder={t('tasks.scriptSearch')}
             value={search}
             onChange={e => setSearch(e.target.value)}
             style={{ width: 160 }}
           />
           <Select size="small" value={category} onChange={setCategory} style={{ width: 80 }}>
-            {['全部', '推广', '问候', '活动', '售后', '邀请'].map(c => <Option key={c} value={c}>{c}</Option>)}
+            {['全部', '推广', '问候', '活动', '售后', '邀请'].map(c => <Option key={c} value={c}>{c === '全部' ? t('tasks.scriptCategoryAll') : c}</Option>)}
           </Select>
-          <Text type="secondary" style={{ fontSize: 12 }}>共 {filtered.length} 个剧本</Text>
+          <Text type="secondary" style={{ fontSize: 12 }}>{t('tasks.scriptCountSuffix', { count: filtered.length })}</Text>
         </Space>
       </div>
       <div style={{ height: 200, overflowY: 'auto' }}>
@@ -221,7 +223,7 @@ const ScriptSelector: React.FC<{
                 </Space>
                 <Space direction="vertical" size={0} style={{ textAlign: 'right', minWidth: 60 }}>
                   <Tag color="blue" style={{ fontSize: 10 }}>{script.category}</Tag>
-                  <Text type="secondary" style={{ fontSize: 11 }}>{script.rounds} 轮对话</Text>
+                  <Text type="secondary" style={{ fontSize: 11 }}>{t('chatScripts.roundsSuffix', { count: script.rounds })}</Text>
                 </Space>
               </Space>
             </List.Item>
@@ -390,6 +392,8 @@ const ExecutionLogModal: React.FC<{
   onClose: () => void;
   onStatusChange?: (id: string, status: TaskStatus) => void;
 }> = ({ taskId, taskName, onClose, onStatusChange }) => {
+  const t = useT();
+  const { locale } = useI18n();
   const [logs, setLogs] = useState<Array<{ time: string; level: string; message: string }>>([]);
   const [status, setStatus] = useState<string>('running');
   const [errorReason, setErrorReason] = useState<string | null>(null);
@@ -512,9 +516,9 @@ const ExecutionLogModal: React.FC<{
           {isDone
             ? <CheckCircleOutlined style={{ color: status === 'completed' ? '#52c41a' : '#f5222d' }} />
             : <LoadingOutlined style={{ color: '#1677ff' }} />}
-          执行日志：{taskName}
+          {t('tasks.executionLog')}: {taskName}
           <Tag color={status === 'completed' ? 'green' : status === 'failed' ? 'red' : status === 'cancelled' ? 'default' : 'processing'}>
-            {status === 'completed' ? '✅ 已完成' : status === 'failed' ? '❌ 失败' : status === 'cancelled' ? '⏹ 已停止' : '⚙️ 执行中...'}
+            {status === 'completed' ? `✅ ${t('tasks.status_completed')}` : status === 'failed' ? `❌ ${t('tasks.status_failed')}` : status === 'cancelled' ? `⏹ ${t('tasks.status_cancelled')}` : `⚙️ ${t('tasks.running')}...`}
           </Tag>
         </Space>
       }
@@ -524,10 +528,10 @@ const ExecutionLogModal: React.FC<{
         <Space>
           {!isDone && (
             <Button danger loading={stopping} onClick={handleStop} icon={<CloseCircleOutlined />}>
-              强制停止
+              {t('tasks.forceStop')}
             </Button>
           )}
-          <Button onClick={onClose}>关闭</Button>
+          <Button onClick={onClose}>{t('tasks.close')}</Button>
         </Space>
       }
       width={700}
@@ -536,8 +540,8 @@ const ExecutionLogModal: React.FC<{
       {totalSeconds > 0 && !isDone && (
         <div style={{ marginBottom: 12 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, color: '#888', marginBottom: 4 }}>
-            <span>⏱ 已用时 {Math.floor(elapsed / 60)}分{elapsed % 60}秒</span>
-            <span>预计总时长 {Math.floor(totalSeconds / 60)} 分钟</span>
+            <span>⏱ {t('tasks.elapsedTime', { m: Math.floor(elapsed / 60), s: elapsed % 60 })}</span>
+            <span>{t('tasks.estTotalTime', { m: Math.floor(totalSeconds / 60) })}</span>
           </div>
           <div style={{ background: '#1a1a2e', borderRadius: 4, height: 6, overflow: 'hidden' }}>
             <div style={{
@@ -558,15 +562,15 @@ const ExecutionLogModal: React.FC<{
           type="error"
           showIcon
           style={{ marginBottom: 12 }}
-          message="任务执行失败"
+          message={t('tasks.logFailureTitle')}
           description={
             <div>
-              <Text strong>失败原因：</Text>
+              <Text strong>{t('tasks.logFailureReason')}</Text>
               <Text code style={{ fontSize: 12, display: 'block', marginTop: 4, whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
                 {errorReason}
               </Text>
               <div style={{ marginTop: 8, fontSize: 12, color: '#888' }}>
-                💡 常见原因：账号 Session 过期需重新登录 / Facebook 弹出验证 / 网络超时
+                {t('tasks.logFailureHint')}
               </div>
             </div>
           }
@@ -588,13 +592,13 @@ const ExecutionLogModal: React.FC<{
             {isDone ? (
               <>
                 <CheckCircleOutlined style={{ fontSize: 24, marginBottom: 8, color: '#555' }} />
-                <div>此次执行未保留日志记录</div>
-                <div style={{ fontSize: 11, marginTop: 4, color: '#444' }}>下次执行后即可在此查看完整日志</div>
+                <div>{t('tasks.logEmptyDone')}</div>
+                <div style={{ fontSize: 11, marginTop: 4, color: '#444' }}>{t('tasks.logEmptyHint')}</div>
               </>
             ) : (
               <>
                 <LoadingOutlined style={{ fontSize: 24, marginBottom: 8 }} />
-                <div>等待执行日志...</div>
+                <div>{t('tasks.logWaiting')}</div>
               </>
             )}
           </div>
@@ -602,7 +606,7 @@ const ExecutionLogModal: React.FC<{
           logs.map((log, i) => (
             <div key={i} style={{ marginBottom: 4, color: LOG_LEVEL_COLOR[log.level] || '#e6edf3' }}>
               <span style={{ color: '#555', marginRight: 10 }}>[{log.time}]</span>
-              <span>{log.message}</span>
+              <span>{translateLogMessage(log.message, locale)}</span>
             </div>
           ))
         )}
@@ -610,7 +614,7 @@ const ExecutionLogModal: React.FC<{
       </div>
       {!isDone && (
         <div style={{ marginTop: 6, color: '#666', fontSize: 12 }}>
-          <LoadingOutlined style={{ marginRight: 4 }} /> 每 2 秒自动刷新 · 浏览器正在后台执行操作
+          <LoadingOutlined style={{ marginRight: 4 }} /> {t('tasks.autoRefreshNote')}
         </div>
       )}
     </Modal>
@@ -619,6 +623,7 @@ const ExecutionLogModal: React.FC<{
 
 // ─── Main Page ────────────────────────────────────────────────────────────────
 const TasksPage: React.FC = () => {
+  const t = useT();
   const [tasks, setTasks] = useState<Task[]>(initialTasks);
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [aiModalVisible, setAiModalVisible] = useState(false);
@@ -796,7 +801,7 @@ const TasksPage: React.FC = () => {
           repeatCycle: values.repeatCycle,
         };
         setTasks(prev => [newTask, ...prev]);
-        message.success('任务创建成功');
+        message.success(t('tasks.created'));
       } else {
         // ── Batch: multiple accounts, split into groups ────────────────────
         const batchId = crypto.randomUUID();
@@ -817,7 +822,7 @@ const TasksPage: React.FC = () => {
       form.resetFields();
       setBatchMode(false);
     } catch (err: any) {
-      message.error(err?.response?.data?.message || '创建失败，请重试');
+      message.error(err?.response?.data?.message || t('tasks.createFailed'));
     } finally {
       setSubmitting(false);
     }
@@ -827,8 +832,8 @@ const TasksPage: React.FC = () => {
     try {
       await api.delete(`/tasks/${id}`);
     } catch (_) { /* ignore if not found */ }
-    setTasks(prev => prev.filter(t => t.id !== id));
-    message.success('任务已删除');
+    setTasks(prev => prev.filter(task => task.id !== id));
+    message.success(t('tasks.deleted'));
   };
 
   const handleToggle = (task: Task) => {
@@ -861,7 +866,7 @@ const TasksPage: React.FC = () => {
 
   const columns = [
     {
-      title: '任务名称',
+      title: t('tasks.colName'),
       dataIndex: 'name',
       key: 'name',
       render: (text: string, record: Task) => (
@@ -876,26 +881,28 @@ const TasksPage: React.FC = () => {
       ),
     },
     {
-      title: '关联账号',
+      title: t('tasks.colAccount'),
       dataIndex: 'accountName',
       key: 'accountName',
       render: (name: string) => <Text style={{ fontSize: 12 }}>{name}</Text>,
     },
     {
-      title: '任务类型',
+      title: t('tasks.colType'),
       dataIndex: 'taskType',
       key: 'taskType',
       render: (type: TaskType) => {
-        const c = TASK_TYPE_CONFIG[type] || { color: 'default', text: type || '未知', icon: null };
-        return <Tag color={c.color} icon={c.icon}>{c.text}</Tag>;
+        const c = TASK_TYPE_CONFIG[type];
+        if (!c) return <Tag color="default">{type || t('tasks.statusUnknown')}</Tag>;
+        return <Tag color={c.color} icon={c.icon}>{t(c.text)}</Tag>;
       },
     },
     {
-      title: '状态',
+      title: t('tasks.colStatus'),
       key: 'status',
       render: (_: any, record: Task) => {
-        const c = STATUS_CONFIG[record.status] || { color: 'default', icon: null, text: record.status };
-        const tag = <Tag color={c.color} icon={c.icon}>{c.text}</Tag>;
+        const c = STATUS_CONFIG[record.status];
+        const tagText = c ? t(c.text) : (record.status || t('tasks.statusUnknown'));
+        const tag = <Tag color={c?.color || 'default'} icon={c?.icon}>{tagText}</Tag>;
         if (record.status === 'failed' && record.errorReason) {
           return (
             <Tooltip
@@ -915,13 +922,13 @@ const TasksPage: React.FC = () => {
       },
     },
     {
-      title: '计划时间',
+      title: t('tasks.colScheduled'),
       dataIndex: 'scheduledAt',
       key: 'scheduledAt',
       render: (date: string) => <Text type="secondary" style={{ fontSize: 12 }}>{dayjs(date).format('YYYY-MM-DD HH:mm')}</Text>,
     },
     {
-      title: '最后执行',
+      title: t('tasks.colLastExec'),
       dataIndex: 'lastExecutedAt',
       key: 'lastExecutedAt',
       render: (date?: string) => date
@@ -929,7 +936,7 @@ const TasksPage: React.FC = () => {
         : <Text type="secondary">-</Text>,
     },
     {
-      title: '操作',
+      title: t('tasks.colActions'),
       key: 'actions',
       render: (_: any, record: Task) => (
         <Space size="small">
@@ -946,9 +953,9 @@ const TasksPage: React.FC = () => {
                     查看窗口
                   </Button>
                 </Tooltip>
-                <Tooltip title="任务卡住了？强制重置">
+                <Tooltip title={t('tasks.resetTooltip')}>
                   <Popconfirm
-                    title="确定重置这个任务吗？（会中断当前执行）"
+                    title={t('tasks.resetConfirm')}
                     onConfirm={() => handleReset(record)}
                     okText="重置" cancelText="取消"
                   >
@@ -958,21 +965,21 @@ const TasksPage: React.FC = () => {
               </>
             ) : (
               <>
-                <Tooltip title="立即执行">
+                <Tooltip title={t('tasks.executeNow')}>
                   <Button type="primary" size="small" icon={<PlayCircleOutlined />}
                     onClick={() => handleExecute(record)}>
-                    ▶ 执行
+                    ▶ {t('tasks.executeAction')}
                   </Button>
                 </Tooltip>
-                <Tooltip title="查看上次执行日志">
+                <Tooltip title={t('tasks.viewLogs')}>
                   <Button size="small" icon={<SearchOutlined />}
                     onClick={() => setLogModalTask({ id: record.id, name: record.name })}>
-                    日志
+                    {t('tasks.logAction')}
                   </Button>
                 </Tooltip>
               </>
             )}
-            <Popconfirm title="确定删除这个任务吗？" onConfirm={() => handleDelete(record.id)} okText="确定" cancelText="取消">
+            <Popconfirm title={t('tasks.deleteConfirm')} onConfirm={() => handleDelete(record.id)} okText={t('tasks.deleteOk')} cancelText={t('tasks.deleteCancel')}>
               <Button type="text" danger icon={<DeleteOutlined />} />
             </Popconfirm>
           </Space>
@@ -986,15 +993,15 @@ const TasksPage: React.FC = () => {
       <div style={{ marginBottom: 24 }}>
         <Row justify="space-between" align="middle">
           <Col>
-            <Title level={2} style={{ marginTop: 0, marginBottom: 4 }}>任务调度</Title>
-            <Text type="secondary">管理和监控自动化任务的执行状态。</Text>
+            <Title level={2} style={{ marginTop: 0, marginBottom: 4 }}>{t('tasks.title')}</Title>
+            <Text type="secondary">{t('tasks.pageSubtitle')}</Text>
           </Col>
           <Col>
             <Space>
               <Tooltip title="AI 辅助设置">
-                <Button icon={<RobotOutlined />} onClick={() => setAiModalVisible(true)}>AI 设置</Button>
+                <Button icon={<RobotOutlined />} onClick={() => setAiModalVisible(true)}>{t('tasks.aiSettings')}</Button>
               </Tooltip>
-              <Button type="primary" icon={<PlusOutlined />} onClick={handleCreateClick} size="large">创建任务</Button>
+              <Button type="primary" icon={<PlusOutlined />} onClick={handleCreateClick} size="large">{t('tasks.createButton')}</Button>
             </Space>
           </Col>
         </Row>
@@ -1002,10 +1009,10 @@ const TasksPage: React.FC = () => {
 
       <Row gutter={16} style={{ marginBottom: 24 }}>
         {[
-          { title: '总任务数', value: totalTasks, color: '#1890ff', icon: <ClockCircleOutlined /> },
-          { title: '运行中', value: runningTasks, color: '#1677ff', icon: runningTasks > 0 ? <LoadingOutlined /> : <PlayCircleOutlined /> },
-          { title: '已完成', value: completedTasks, color: '#52c41a', icon: <CheckCircleOutlined /> },
-          { title: '失败', value: failedTasks, color: '#f5222d', icon: <CloseCircleOutlined /> },
+          { title: t('tasks.statTotal'), value: totalTasks, color: '#1890ff', icon: <ClockCircleOutlined /> },
+          { title: t('tasks.statRunning'), value: runningTasks, color: '#1677ff', icon: runningTasks > 0 ? <LoadingOutlined /> : <PlayCircleOutlined /> },
+          { title: t('tasks.statCompleted'), value: completedTasks, color: '#52c41a', icon: <CheckCircleOutlined /> },
+          { title: t('tasks.statFailed'), value: failedTasks, color: '#f5222d', icon: <CloseCircleOutlined /> },
         ].map(s => (
           <Col key={s.title} xs={24} sm={12} md={6}>
             <Card size="small">
@@ -1023,13 +1030,13 @@ const TasksPage: React.FC = () => {
 
       {/* ─── Create Task Modal ─── */}
       <Modal
-        title={<Space><PlusOutlined /> 创建自动化任务</Space>}
+        title={<Space><PlusOutlined /> {t('tasks.createModalTitle')}</Space>}
         open={isModalVisible}
         onOk={handleModalOk}
         onCancel={() => { setIsModalVisible(false); form.resetFields(); }}
         confirmLoading={submitting}
-        okText="创建任务"
-        cancelText="取消"
+        okText={t('tasks.createButton')}
+        cancelText={t('tasks.cancelText')}
         width={700}
         destroyOnClose
       >
@@ -1038,24 +1045,23 @@ const TasksPage: React.FC = () => {
           {/* Basic Info */}
           <Row gutter={16}>
             <Col span={16}>
-              <Form.Item name="name" label="任务名称" rules={[{ required: true, message: '请输入任务名称' }]}>
-                <Input placeholder="例如：产品推广对话任务" />
+              <Form.Item name="name" label={t('tasks.taskNameLabel')} rules={[{ required: true, message: t('tasks.taskNameRequired') }]}>
+                <Input placeholder={t('tasks.taskNamePlaceholder')} />
               </Form.Item>
             </Col>
             <Col span={8}>
-              <Form.Item name="taskType" label="任务类型" rules={[{ required: true, message: '请选择' }]}>
-                <Select placeholder="选择类型" onChange={(v: TaskType) => { setTaskType(v); setComboActions([]); }}>
-                  <Option value="auto_chat"><MessageOutlined /> 自动聊天</Option>
-                  <Option value="auto_post_image"><PictureOutlined /> 自动发图片</Option>
-                  <Option value="auto_post_video"><VideoCameraOutlined /> 自动发视频</Option>
-                  {/* auto_call 暂时隐藏，功能待完善 */}
-                  <Option value="account_sync"><SwapOutlined /> 账号同步</Option>
-                  <Option value="auto_simulate"><EyeOutlined /> 模拟真人操作</Option>
-                  <Option value="auto_add_friends"><UserAddOutlined /> 自动加好友</Option>
-                  <Option value="auto_accept_requests"><CheckCircleOutlined /> 接受好友申请</Option>
-                  <Option value="auto_comment"><CommentOutlined /> 自动留言</Option>
-                  <Option value="auto_follow"><HeartOutlined /> 自动 Follow</Option>
-                  <Option value="auto_combo"><AppstoreOutlined /> 组合任务（多动作依次执行）</Option>
+              <Form.Item name="taskType" label={t('tasks.taskTypeLabel')} rules={[{ required: true, message: t('tasks.taskTypePlaceholder') }]}>
+                <Select placeholder={t('tasks.taskTypePlaceholder')} onChange={(v: TaskType) => { setTaskType(v); setComboActions([]); }}>
+                  <Option value="auto_chat"><MessageOutlined /> {t('tasks.taskType_auto_chat')}</Option>
+                  <Option value="auto_post_image"><PictureOutlined /> {t('tasks.taskType_auto_post_image')}</Option>
+                  <Option value="auto_post_video"><VideoCameraOutlined /> {t('tasks.taskType_auto_post_video')}</Option>
+                  <Option value="account_sync"><SwapOutlined /> {t('tasks.taskType_account_sync')}</Option>
+                  <Option value="auto_simulate"><EyeOutlined /> {t('tasks.taskType_auto_simulate')}</Option>
+                  <Option value="auto_add_friends"><UserAddOutlined /> {t('tasks.taskType_auto_add_friends')}</Option>
+                  <Option value="auto_accept_requests"><CheckCircleOutlined /> {t('tasks.taskType_auto_accept_requests')}</Option>
+                  <Option value="auto_comment"><CommentOutlined /> {t('tasks.taskType_auto_comment')}</Option>
+                  <Option value="auto_follow"><HeartOutlined /> {t('tasks.taskType_auto_follow')}</Option>
+                  <Option value="auto_combo"><AppstoreOutlined /> {t('tasks.taskType_auto_combo')}</Option>
                 </Select>
               </Form.Item>
             </Col>
@@ -1065,23 +1071,23 @@ const TasksPage: React.FC = () => {
           {taskType && taskType !== 'auto_chat' && taskType !== 'auto_call' && taskType !== 'account_sync' && (
             <Row gutter={16} style={{ marginBottom: 8, padding: '8px 12px', background: '#fafafa', borderRadius: 6, border: '1px solid #f0f0f0' }}>
               <Col span={8}>
-                <Form.Item label="批量模式" style={{ marginBottom: 0 }}>
+                <Form.Item label={t('tasks.batchMode')} style={{ marginBottom: 0 }}>
                   <Switch checked={batchMode} onChange={v => setBatchMode(v)}
-                    checkedChildren="多账号" unCheckedChildren="单账号" />
+                    checkedChildren={t('common.yes')} unCheckedChildren={t('tasks.singleAccount')} />
                 </Form.Item>
               </Col>
               {batchMode && (
                 <Col span={8}>
-                  <Form.Item label="每批并发数" style={{ marginBottom: 0 }}>
+                  <Form.Item label="Batch Size" style={{ marginBottom: 0 }}>
                     <InputNumber min={1} max={10} value={batchSize}
-                      onChange={v => setBatchSize(v || 1)} addonAfter="个/批" style={{ width: '100%' }} />
+                      onChange={v => setBatchSize(v || 1)} style={{ width: '100%' }} />
                   </Form.Item>
                 </Col>
               )}
               <Col span={8}>
-                <Form.Item label="Chrome 模式" style={{ marginBottom: 0 }}>
+                <Form.Item label={t('tasks.chromeMode')} style={{ marginBottom: 0 }}>
                   <Switch checked={headlessMode} onChange={setHeadlessMode}
-                    checkedChildren="无头（VPS）" unCheckedChildren="显示窗口" />
+                    checkedChildren={t('tasks.headless')} unCheckedChildren={t('tasks.showWindow')} />
                 </Form.Item>
               </Col>
             </Row>
@@ -1091,13 +1097,13 @@ const TasksPage: React.FC = () => {
           {taskType === 'auto_chat' && (
             <>
               <Divider orientation="left" style={{ fontSize: 13, color: '#1677ff' }}>
-                <MessageOutlined /> 聊天账号设置（A ↔ B 角色扮演）
+                <MessageOutlined /> {t('tasks.chatAccountsTitle')}
               </Divider>
               <Row gutter={16}>
                 <Col span={12}>
-                  <Form.Item name="accountAId" label={<><UserOutlined /> 账号 A（发起方）</>}
-                    rules={[{ required: true, message: '请选择账号A' }]}>
-                    <Select placeholder="选择扮演 A 角色的账号" showSearch optionFilterProp="children">
+                  <Form.Item name="accountAId" label={<><UserOutlined /> {t('tasks.accountARole')}</>}
+                    rules={[{ required: true, message: t('tasks.selectAccountA') }]}>
+                    <Select placeholder={t('tasks.selectAccountAPlaceholder')} showSearch optionFilterProp="children">
                       {accounts.map(a => (
                         <Option key={a.id} value={a.id} disabled={form.getFieldValue('accountBId') === a.id}>
                           <Badge color={a.loginStatus ? 'green' : 'default'} text={a.name} />
@@ -1108,9 +1114,9 @@ const TasksPage: React.FC = () => {
                   </Form.Item>
                 </Col>
                 <Col span={12}>
-                  <Form.Item name="accountBId" label={<><UserOutlined /> 账号 B（回应方）</>}
-                    rules={[{ required: true, message: '请选择账号B' }]}>
-                    <Select placeholder="选择扮演 B 角色的账号" showSearch optionFilterProp="children">
+                  <Form.Item name="accountBId" label={<><UserOutlined /> {t('tasks.accountBRole')}</>}
+                    rules={[{ required: true, message: t('tasks.selectAccountB') }]}>
+                    <Select placeholder={t('tasks.selectAccountBPlaceholder')} showSearch optionFilterProp="children">
                       {accounts.map(a => (
                         <Option key={a.id} value={a.id} disabled={form.getFieldValue('accountAId') === a.id}>
                           <Badge color={a.loginStatus ? 'green' : 'default'} text={a.name} />
@@ -1123,7 +1129,7 @@ const TasksPage: React.FC = () => {
               </Row>
 
               <Divider orientation="left" style={{ fontSize: 13, color: '#1677ff' }}>
-                <MessageOutlined /> 选择聊天剧本（共 {scripts.length || CHAT_SCRIPTS.length} 个）
+                <MessageOutlined /> {t('tasks.scriptSelectorTitle').replace('50', String(scripts.length || CHAT_SCRIPTS.length))}
               </Divider>
               <Form.Item shouldUpdate={(prev, cur) => prev.scriptId !== cur.scriptId} noStyle>
                 {() => {
@@ -1131,12 +1137,12 @@ const TasksPage: React.FC = () => {
                   const selectedScript = scripts.find((s: any) => s.id === selectedId);
                   return (
                     <Space direction="vertical" style={{ width: '100%' }}>
-                      <Form.Item name="scriptId" rules={[{ required: true, message: '请选择聊天剧本' }]} noStyle>
+                      <Form.Item name="scriptId" rules={[{ required: true, message: t('tasks.scriptSelectorTitle') }]} noStyle>
                         <ScriptSelector
                           scripts={scripts.length ? scripts.map((s: any) => ({
                             id: s.id,
                             title: s.title,
-                            preview: s.goal || '点击选择此聊天模式...',
+                            preview: s.goal || '',
                             rounds: s.phases?.length || 3,
                             category: s.category || '推广',
                           })) : undefined}
@@ -1148,7 +1154,7 @@ const TasksPage: React.FC = () => {
                           icon={<EditOutlined />}
                           onClick={() => setScriptEditorId(selectedId)}
                         >
-                          编辑剧本内容：{selectedScript?.title || selectedId}
+                          {t('common.edit')}: {selectedScript?.title || selectedId}
                         </Button>
                       )}
                     </Space>
@@ -1157,31 +1163,21 @@ const TasksPage: React.FC = () => {
               </Form.Item>
 
               <Divider orientation="left" style={{ fontSize: 13, color: '#722ed1' }}>
-                <RobotOutlined /> AI 辅助优化
+                <RobotOutlined /> {t('tasks.aiAssistOpt')}
               </Divider>
               <Row align="middle" gutter={16} style={{ marginBottom: 16 }}>
                 <Col>
                   <Space>
                     <Switch checked={aiEnabled} onChange={setAiEnabled} />
-                    <Text>启用 AI 优化对话内容</Text>
+                    <Text>{t('tasks.aiAssistEnable')}</Text>
                   </Space>
                 </Col>
                 <Col>
                   <Button size="small" icon={<SettingOutlined />} onClick={() => setAiModalVisible(true)}>
-                    配置 AI
+                    {t('tasks.aiAssistConfig')}
                   </Button>
                 </Col>
               </Row>
-              {aiEnabled && (
-                <Alert
-                  type="info"
-                  showIcon
-                  icon={<RobotOutlined />}
-                  message="AI 辅助已启用"
-                  description="AI 将根据剧本内容动态优化每轮对话，使聊天更自然真实。请确保已在「AI 设置」中配置好 API Key。"
-                  style={{ marginBottom: 16 }}
-                />
-              )}
             </>
           )}
 
@@ -1189,18 +1185,18 @@ const TasksPage: React.FC = () => {
           {taskType === 'auto_post_image' && (
             <>
               <Divider orientation="left" style={{ fontSize: 13, color: '#722ed1' }}>
-                <PictureOutlined /> 发图设置
+                <PictureOutlined /> {t('tasks.postImageSettings')}
               </Divider>
-              <Form.Item name={batchMode ? 'batchAccountIds' : 'accountAId'} label={batchMode ? '执行账号（批量）' : '发帖账号'} rules={[{ required: true, message: '请选择账号' }]}>
-                <Select mode={batchMode ? 'multiple' : undefined} placeholder={batchMode ? '选择多个账号批量执行' : '选择发帖的 Facebook 账号'} showSearch optionFilterProp="children">
+              <Form.Item name={batchMode ? 'batchAccountIds' : 'accountAId'} label={t('tasks.postAccount')} rules={[{ required: true }]}>
+                <Select mode={batchMode ? 'multiple' : undefined} placeholder={t('tasks.selectPostingAccount')} showSearch optionFilterProp="children">
                   {accounts.map(a => <Option key={a.id} value={a.id}><Badge color={a.loginStatus ? 'green' : 'default'} text={a.name} /></Option>)}
                 </Select>
               </Form.Item>
-              <Form.Item name="postContent" label="帖子内容" rules={[{ required: true, message: '请输入内容' }]}>
-                <TextArea rows={3} placeholder="帖子文字内容..." />
+              <Form.Item name="postContent" label={t('tasks.postContent')} rules={[{ required: true }]}>
+                <TextArea rows={3} placeholder={t('tasks.postContentPlaceholder')} />
               </Form.Item>
-              <Form.Item name="imageUrls" label="图片（URL，每行一个）">
-                <TextArea rows={3} placeholder="https://example.com/image1.jpg&#10;https://example.com/image2.jpg" />
+              <Form.Item name="imageUrls" label={t('tasks.imageList')}>
+                <TextArea rows={3} placeholder={t('tasks.imageListPlaceholder')} />
               </Form.Item>
             </>
           )}
@@ -1209,18 +1205,18 @@ const TasksPage: React.FC = () => {
           {taskType === 'auto_post_video' && (
             <>
               <Divider orientation="left" style={{ fontSize: 13, color: '#eb2f96' }}>
-                <VideoCameraOutlined /> 发视频设置
+                <VideoCameraOutlined /> {t('tasks.postVideoSettings')}
               </Divider>
-              <Form.Item name={batchMode ? 'batchAccountIds' : 'accountAId'} label={batchMode ? '执行账号（批量）' : '发帖账号'} rules={[{ required: true, message: '请选择账号' }]}>
-                <Select mode={batchMode ? 'multiple' : undefined} placeholder={batchMode ? '选择多个账号批量执行' : '选择发帖的 Facebook 账号'} showSearch optionFilterProp="children">
+              <Form.Item name={batchMode ? 'batchAccountIds' : 'accountAId'} label={t('tasks.postAccount')} rules={[{ required: true }]}>
+                <Select mode={batchMode ? 'multiple' : undefined} placeholder={t('tasks.selectPostingAccount')} showSearch optionFilterProp="children">
                   {accounts.map(a => <Option key={a.id} value={a.id}><Badge color={a.loginStatus ? 'green' : 'default'} text={a.name} /></Option>)}
                 </Select>
               </Form.Item>
-              <Form.Item name="postContent" label="视频描述">
-                <TextArea rows={2} placeholder="视频说明文字..." />
+              <Form.Item name="postContent" label={t('tasks.videoDescription')}>
+                <TextArea rows={2} placeholder={t('tasks.videoDescPlaceholder')} />
               </Form.Item>
-              <Form.Item name="videoUrl" label="视频 URL" rules={[{ required: true, message: '请输入视频地址' }]}>
-                <Input placeholder="https://example.com/video.mp4" />
+              <Form.Item name="videoUrl" label={t('tasks.videoUrl')} rules={[{ required: true }]}>
+                <Input placeholder={t('tasks.videoUrlPlaceholder')} />
               </Form.Item>
             </>
           )}
@@ -1272,15 +1268,15 @@ const TasksPage: React.FC = () => {
           {taskType === 'auto_simulate' && (
             <>
               <Divider orientation="left" style={{ fontSize: 13, color: '#13c2c2' }}>
-                <EyeOutlined /> 模拟真人操作设置
+                <EyeOutlined /> {t('tasks.simulateSectionTitle')}
               </Divider>
               <Alert
                 type="info" showIcon style={{ marginBottom: 16 }}
-                message="账号暖化"
-                description="模拟真实用户浏览行为（刷动态、看视频、点赞等），降低账号被 Facebook 标记为机器人的风险。建议每天执行 20-60 分钟。"
+                message={t('tasks.simulateWarmupTitle')}
+                description={t('tasks.simulateWarmupDesc')}
               />
-              <Form.Item name={batchMode ? 'batchAccountIds' : 'accountAId'} label={batchMode ? '目标账号（批量）' : '目标账号'} rules={[{ required: true, message: '请选择账号' }]}>
-                <Select mode={batchMode ? 'multiple' : undefined} placeholder={batchMode ? '选择多个账号批量执行' : '选择要暖化的 Facebook 账号'} showSearch optionFilterProp="children">
+              <Form.Item name={batchMode ? 'batchAccountIds' : 'accountAId'} label={t('tasks.targetAccount')} rules={[{ required: true }]}>
+                <Select mode={batchMode ? 'multiple' : undefined} placeholder={t('tasks.selectTargetAccount')} showSearch optionFilterProp="children">
                   {accounts.map(a => (
                     <Option key={a.id} value={a.id}>
                       <Badge color={a.loginStatus ? 'green' : 'default'} text={a.name} />
@@ -1288,19 +1284,19 @@ const TasksPage: React.FC = () => {
                   ))}
                 </Select>
               </Form.Item>
-              <Form.Item name="durationMinutes" label="模拟时长（分钟）" initialValue={30}
+              <Form.Item name="durationMinutes" label={t('tasks.simulateDurationLabel')} initialValue={30}
                 rules={[{ required: true }]}>
                 <InputNumber min={5} max={120} step={5} style={{ width: '100%' }}
-                  addonAfter="分钟" />
+                  addonAfter={t('tasks.minutes')} />
               </Form.Item>
-              <Form.Item name="warmingActions" label="执行动作" initialValue={['scroll_feed', 'watch_video', 'like_post']}
-                rules={[{ required: true, message: '请至少选择一项' }]}>
+              <Form.Item name="warmingActions" label={t('tasks.executeActions')} initialValue={['scroll_feed', 'watch_video', 'like_post']}
+                rules={[{ required: true }]}>
                 <Checkbox.Group style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-                  <Checkbox value="scroll_feed">📰 刷新闻 Feed（滚动浏览）</Checkbox>
-                  <Checkbox value="watch_video">🎬 停留观看视频</Checkbox>
-                  <Checkbox value="like_post">👍 随机点赞帖子</Checkbox>
-                  <Checkbox value="view_profile">👤 浏览好友主页</Checkbox>
-                  <Checkbox value="view_stories">📷 查看 Stories</Checkbox>
+                  <Checkbox value="scroll_feed">📰 {t('tasks.actionScrollFeed')}</Checkbox>
+                  <Checkbox value="watch_video">🎬 {t('tasks.actionWatchVideo')}</Checkbox>
+                  <Checkbox value="like_post">👍 {t('tasks.actionLikePost')}</Checkbox>
+                  <Checkbox value="view_profile">👤 {t('tasks.actionBrowseFriend')}</Checkbox>
+                  <Checkbox value="view_stories">📷 {t('tasks.actionViewStories')}</Checkbox>
                 </Checkbox.Group>
               </Form.Item>
             </>
@@ -1310,15 +1306,15 @@ const TasksPage: React.FC = () => {
           {taskType === 'auto_add_friends' && (
             <>
               <Divider orientation="left" style={{ fontSize: 13, color: '#1d39c4' }}>
-                <UserAddOutlined /> 自动加好友设置
+                <UserAddOutlined /> {t('tasks.addFriendsSectionTitle')}
               </Divider>
               <Alert
                 type="warning" showIcon style={{ marginBottom: 16 }}
-                message="安全提醒"
-                description="Facebook 严格管控好友申请频率。强烈建议每天不超过 6 个，超出会触发账号限制甚至封号。系统已对上限硬性限制为 6 个/天。"
+                message={t('tasks.addFriendsSafetyTitle')}
+                description={t('tasks.addFriendsSafetyDesc')}
               />
-              <Form.Item name={batchMode ? 'batchAccountIds' : 'accountAId'} label={batchMode ? '执行账号（批量）' : '执行账号'} rules={[{ required: true, message: '请选择账号' }]}>
-                <Select mode={batchMode ? 'multiple' : undefined} placeholder={batchMode ? '选择多个账号批量执行' : '选择发送好友申请的账号'} showSearch optionFilterProp="children">
+              <Form.Item name={batchMode ? 'batchAccountIds' : 'accountAId'} label={t('tasks.executingAccount')} rules={[{ required: true }]}>
+                <Select mode={batchMode ? 'multiple' : undefined} placeholder={t('tasks.selectAddFriendAccount')} showSearch optionFilterProp="children">
                   {accounts.map(a => (
                     <Option key={a.id} value={a.id}>
                       <Badge color={a.loginStatus ? 'green' : 'default'} text={a.name} />
@@ -1328,24 +1324,24 @@ const TasksPage: React.FC = () => {
               </Form.Item>
               <Row gutter={16}>
                 <Col span={8}>
-                  <Form.Item name="dailyLimit" label="每日上限（个）" initialValue={5}
+                  <Form.Item name="dailyLimit" label={t('tasks.dailyLimit')} initialValue={5}
                     rules={[{ required: true }]}>
-                    <InputNumber min={3} max={6} style={{ width: '100%' }} addonAfter="个/天" />
+                    <InputNumber min={3} max={6} style={{ width: '100%' }} addonAfter={t('tasks.perDay')} />
                   </Form.Item>
                 </Col>
                 <Col span={8}>
-                  <Form.Item name="delayMin" label="最短间隔（秒）" initialValue={60}>
-                    <InputNumber min={10} max={300} style={{ width: '100%' }} addonAfter="秒" />
+                  <Form.Item name="delayMin" label={t('tasks.minInterval')} initialValue={60}>
+                    <InputNumber min={10} max={300} style={{ width: '100%' }} addonAfter={t('tasks.seconds')} />
                   </Form.Item>
                 </Col>
                 <Col span={8}>
-                  <Form.Item name="delayMax" label="最长间隔（秒）" initialValue={240}>
-                    <InputNumber min={30} max={600} style={{ width: '100%' }} addonAfter="秒" />
+                  <Form.Item name="delayMax" label={t('tasks.maxInterval')} initialValue={240}>
+                    <InputNumber min={30} max={600} style={{ width: '100%' }} addonAfter={t('tasks.seconds')} />
                   </Form.Item>
                 </Col>
               </Row>
-              <Form.Item name="prioritizeMutual" label="优先 Mutual Friends" initialValue valuePropName="checked">
-                <Switch checkedChildren="开" unCheckedChildren="关" />
+              <Form.Item name="prioritizeMutual" label={t('tasks.mutualFriendsPriority')} initialValue valuePropName="checked">
+                <Switch checkedChildren={t('tasks.on')} unCheckedChildren={t('tasks.off')} />
               </Form.Item>
             </>
           )}
@@ -1354,10 +1350,10 @@ const TasksPage: React.FC = () => {
           {taskType === 'auto_accept_requests' && (
             <>
               <Divider orientation="left" style={{ fontSize: 13, color: '#52c41a' }}>
-                <CheckCircleOutlined /> 接受好友申请设置
+                <CheckCircleOutlined /> {t('tasks.acceptRequestsSectionTitle')}
               </Divider>
-              <Form.Item name={batchMode ? 'batchAccountIds' : 'accountAId'} label={batchMode ? '执行账号（批量）' : '执行账号'} rules={[{ required: true, message: '请选择账号' }]}>
-                <Select mode={batchMode ? 'multiple' : undefined} placeholder={batchMode ? '选择多个账号批量执行' : '选择要处理好友申请的账号'} showSearch optionFilterProp="children">
+              <Form.Item name={batchMode ? 'batchAccountIds' : 'accountAId'} label={t('tasks.executingAccount')} rules={[{ required: true }]}>
+                <Select mode={batchMode ? 'multiple' : undefined} placeholder={t('tasks.selectAcceptAccount')} showSearch optionFilterProp="children">
                   {accounts.map(a => (
                     <Option key={a.id} value={a.id}>
                       <Badge color={a.loginStatus ? 'green' : 'default'} text={a.name} />
@@ -1365,8 +1361,8 @@ const TasksPage: React.FC = () => {
                   ))}
                 </Select>
               </Form.Item>
-              <Form.Item name="maxCount" label="每次最多接受" initialValue={10}>
-                <InputNumber min={1} max={500} style={{ width: '100%' }} addonAfter="个" />
+              <Form.Item name="maxCount" label={t('tasks.acceptMaxPerRun')} initialValue={10}>
+                <InputNumber min={1} max={500} style={{ width: '100%' }} />
               </Form.Item>
             </>
           )}
@@ -1375,15 +1371,15 @@ const TasksPage: React.FC = () => {
           {taskType === 'auto_comment' && (
             <>
               <Divider orientation="left" style={{ fontSize: 13, color: '#d4b106' }}>
-                <CommentOutlined /> 自动留言设置
+                <CommentOutlined /> {t('tasks.commentSectionTitle')}
               </Divider>
               <Alert
                 type="info" showIcon style={{ marginBottom: 16 }}
-                message="防 spam 提示"
-                description="多填几条评论模板，系统每次随机选一条。内容多样化可有效降低 Facebook 将账号标记为 spam 的风险。"
+                message={t('tasks.antiSpamTitle')}
+                description={t('tasks.antiSpamDesc')}
               />
-              <Form.Item name={batchMode ? 'batchAccountIds' : 'accountAId'} label={batchMode ? '执行账号（批量）' : '执行账号'} rules={[{ required: true, message: '请选择账号' }]}>
-                <Select mode={batchMode ? 'multiple' : undefined} placeholder={batchMode ? '选择多个账号批量执行' : '选择发布评论的账号'} showSearch optionFilterProp="children">
+              <Form.Item name={batchMode ? 'batchAccountIds' : 'accountAId'} label={t('tasks.executingAccount')} rules={[{ required: true }]}>
+                <Select mode={batchMode ? 'multiple' : undefined} placeholder={t('tasks.selectCommentAccount')} showSearch optionFilterProp="children">
                   {accounts.map(a => (
                     <Option key={a.id} value={a.id}>
                       <Badge color={a.loginStatus ? 'green' : 'default'} text={a.name} />
@@ -1393,26 +1389,26 @@ const TasksPage: React.FC = () => {
               </Form.Item>
               <Form.Item
                 name="comments"
-                label="评论模板（每行一条，随机选用）"
+                label={t('tasks.commentTemplates')}
                 initialValue={'👍\n非常棒！\n赞！\n很精彩！\n支持！'}
-                rules={[{ required: true, message: '请至少填写一条评论' }]}
+                rules={[{ required: true }]}
               >
                 <TextArea rows={5} placeholder={'👍\n非常棒！\n赞！\n很精彩！\n支持！'} />
               </Form.Item>
               <Row gutter={16}>
                 <Col span={8}>
-                  <Form.Item name="dailyLimit" label="每日上限" initialValue={10}>
-                    <InputNumber min={1} max={30} style={{ width: '100%' }} addonAfter="条/天" />
+                  <Form.Item name="dailyLimit" label={t('tasks.dailyLimit')} initialValue={10}>
+                    <InputNumber min={1} max={30} style={{ width: '100%' }} addonAfter={t('tasks.perDayComment')} />
                   </Form.Item>
                 </Col>
                 <Col span={8}>
-                  <Form.Item name="delayMin" label="最短间隔（秒）" initialValue={60}>
-                    <InputNumber min={5} max={300} style={{ width: '100%' }} addonAfter="秒" />
+                  <Form.Item name="delayMin" label={t('tasks.minInterval')} initialValue={60}>
+                    <InputNumber min={5} max={300} style={{ width: '100%' }} addonAfter={t('tasks.seconds')} />
                   </Form.Item>
                 </Col>
                 <Col span={8}>
-                  <Form.Item name="delayMax" label="最长间隔（秒）" initialValue={120}>
-                    <InputNumber min={15} max={600} style={{ width: '100%' }} addonAfter="秒" />
+                  <Form.Item name="delayMax" label={t('tasks.maxInterval')} initialValue={120}>
+                    <InputNumber min={15} max={600} style={{ width: '100%' }} addonAfter={t('tasks.seconds')} />
                   </Form.Item>
                 </Col>
               </Row>
@@ -1423,14 +1419,14 @@ const TasksPage: React.FC = () => {
           {taskType === 'auto_follow' && (
             <>
               <Divider orientation="left" style={{ fontSize: 13, color: '#d4380d' }}>
-                <HeartOutlined /> 自动 Follow 设置
+                <HeartOutlined /> {t('tasks.followSectionTitle')}
               </Divider>
               <Alert
                 type="info" showIcon style={{ marginBottom: 16 }}
-                message="关注操作相对安全，但仍建议每天不超过 40 个，避免触发 Facebook 风控。"
+                message={t('tasks.followSafeNote')}
               />
-              <Form.Item name={batchMode ? 'batchAccountIds' : 'accountAId'} label={batchMode ? '执行账号（批量）' : '执行账号'} rules={[{ required: true, message: '请选择账号' }]}>
-                <Select mode={batchMode ? 'multiple' : undefined} placeholder={batchMode ? '选择多个账号批量执行' : '选择执行 Follow 的账号'} showSearch optionFilterProp="children">
+              <Form.Item name={batchMode ? 'batchAccountIds' : 'accountAId'} label={t('tasks.executingAccount')} rules={[{ required: true }]}>
+                <Select mode={batchMode ? 'multiple' : undefined} placeholder={t('tasks.selectFollowAccount')} showSearch optionFilterProp="children">
                   {accounts.map(a => (
                     <Option key={a.id} value={a.id}>
                       <Badge color={a.loginStatus ? 'green' : 'default'} text={a.name} />
@@ -1440,18 +1436,18 @@ const TasksPage: React.FC = () => {
               </Form.Item>
               <Row gutter={16}>
                 <Col span={8}>
-                  <Form.Item name="dailyLimit" label="每日上限" initialValue={10}>
-                    <InputNumber min={1} max={50} style={{ width: '100%' }} addonAfter="个/天" />
+                  <Form.Item name="dailyLimit" label={t('tasks.dailyLimit')} initialValue={10}>
+                    <InputNumber min={1} max={50} style={{ width: '100%' }} addonAfter={t('tasks.perDay')} />
                   </Form.Item>
                 </Col>
                 <Col span={8}>
-                  <Form.Item name="delayMin" label="最短间隔（秒）" initialValue={60}>
-                    <InputNumber min={5} max={120} style={{ width: '100%' }} addonAfter="秒" />
+                  <Form.Item name="delayMin" label={t('tasks.minInterval')} initialValue={60}>
+                    <InputNumber min={5} max={120} style={{ width: '100%' }} addonAfter={t('tasks.seconds')} />
                   </Form.Item>
                 </Col>
                 <Col span={8}>
-                  <Form.Item name="delayMax" label="最长间隔（秒）" initialValue={240}>
-                    <InputNumber min={10} max={300} style={{ width: '100%' }} addonAfter="秒" />
+                  <Form.Item name="delayMax" label={t('tasks.maxInterval')} initialValue={240}>
+                    <InputNumber min={10} max={300} style={{ width: '100%' }} addonAfter={t('tasks.seconds')} />
                   </Form.Item>
                 </Col>
               </Row>
@@ -1462,7 +1458,7 @@ const TasksPage: React.FC = () => {
           {taskType === 'auto_combo' && (
             <>
               <Divider orientation="left" style={{ fontSize: 13, color: '#722ed1' }}>
-                <AppstoreOutlined /> 组合任务设置
+                <AppstoreOutlined /> {t('tasks.comboSectionTitle')}
               </Divider>
               <Alert
                 type="info" showIcon style={{ marginBottom: 16 }}
@@ -1583,20 +1579,20 @@ const TasksPage: React.FC = () => {
           {/* Schedule Settings */}
           {taskType && (
             <>
-              <Divider orientation="left" style={{ fontSize: 13 }}>⏰ 执行计划</Divider>
+              <Divider orientation="left" style={{ fontSize: 13 }}>⏰ {t('tasks.executionPlan')}</Divider>
               <Row gutter={16}>
                 <Col span={14}>
-                  <Form.Item name="scheduledAt" label="执行时间" rules={[{ required: true, message: '请选择执行时间' }]}>
+                  <Form.Item name="scheduledAt" label={t('tasks.executionTime')} rules={[{ required: true, message: t('tasks.executionTime') }]}>
                     <Input type="datetime-local" />
                   </Form.Item>
                 </Col>
                 <Col span={10}>
-                  <Form.Item name="repeatCycle" label="重复周期" initialValue="once">
+                  <Form.Item name="repeatCycle" label={t('tasks.recurrence')} initialValue="once">
                     <Select>
-                      <Option value="once">单次执行</Option>
-                      <Option value="daily">每日重复</Option>
-                      <Option value="weekly">每周重复</Option>
-                      <Option value="monthly">每月重复</Option>
+                      <Option value="once">{t('tasks.recurrenceOnce')}</Option>
+                      <Option value="daily">{t('tasks.recurrenceDaily')}</Option>
+                      <Option value="weekly">{t('tasks.recurrenceWeekly')}</Option>
+                      <Option value="hourly">{t('tasks.recurrenceHourly')}</Option>
                     </Select>
                   </Form.Item>
                 </Col>
@@ -1607,7 +1603,7 @@ const TasksPage: React.FC = () => {
           {!taskType && (
             <div style={{ textAlign: 'center', padding: '24px 0', color: '#aaa' }}>
               <MessageOutlined style={{ fontSize: 32, marginBottom: 8 }} />
-              <div>请先选择任务类型</div>
+              <div>{t('tasks.pleaseSelectTypeFirst')}</div>
             </div>
           )}
         </Form>

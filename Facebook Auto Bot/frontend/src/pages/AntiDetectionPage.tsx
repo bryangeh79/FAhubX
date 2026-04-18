@@ -11,6 +11,7 @@ import {
 import dayjs from 'dayjs';
 import AppLayout from '../components/AppLayout';
 import { AntiDetectionConfig } from '../types/facebook-login';
+import { useT } from '../i18n';
 
 const { Title, Text } = Typography;
 const { Option } = Select;
@@ -18,6 +19,7 @@ const { Panel } = Collapse;
 const { TabPane } = Tabs;
 
 const AntiDetectionPage: React.FC = () => {
+  const t = useT();
   const [configs, setConfigs] = useState<AntiDetectionConfig[]>([]);
   const [loading, setLoading] = useState(false);
   const [isCreateModalVisible, setIsCreateModalVisible] = useState(false);
@@ -101,7 +103,7 @@ const AntiDetectionPage: React.FC = () => {
       ];
       setConfigs(mockConfigs);
     } catch (error) {
-      message.error('加载配置失败');
+      message.error(t('antiDetection.loadFailed'));
     } finally {
       setLoading(false);
     }
@@ -120,9 +122,9 @@ const AntiDetectionPage: React.FC = () => {
       setConfigs(prev => [...prev, newConfig]);
       setIsCreateModalVisible(false);
       createForm.resetFields();
-      message.success('配置创建成功');
+      message.success(t('antiDetection.createSuccess'));
     } catch (error) {
-      message.error('创建配置失败');
+      message.error(t('antiDetection.createFailed'));
     }
   };
 
@@ -140,9 +142,9 @@ const AntiDetectionPage: React.FC = () => {
       setIsEditModalVisible(false);
       setEditingConfig(null);
       editForm.resetFields();
-      message.success('配置更新成功');
+      message.success(t('antiDetection.updateSuccess'));
     } catch (error) {
-      message.error('更新配置失败');
+      message.error(t('antiDetection.updateFailed'));
     }
   };
 
@@ -150,26 +152,26 @@ const AntiDetectionPage: React.FC = () => {
     try {
       // 模拟删除
       setConfigs(prev => prev.filter(config => config.id !== id));
-      message.success('配置删除成功');
+      message.success(t('antiDetection.deleteSuccess'));
     } catch (error) {
-      message.error('删除配置失败');
+      message.error(t('antiDetection.deleteFailed'));
     }
   };
 
   const columns = [
     {
-      title: '配置名称',
+      title: t('antiDetection.colName'),
       dataIndex: 'name',
       key: 'name',
       render: (text: string) => <Text strong>{text}</Text>,
     },
     {
-      title: '设备类型',
+      title: t('antiDetection.colDevice'),
       key: 'device',
       render: (_: any, record: AntiDetectionConfig) => (
         <Space>
           <Tag color={record.deviceSimulation.deviceType === 'desktop' ? 'blue' : 'purple'}>
-            {record.deviceSimulation.deviceType === 'desktop' ? '桌面' : '移动'}
+            {record.deviceSimulation.deviceType === 'desktop' ? t('antiDetection.deviceDesktop') : t('antiDetection.deviceMobile')}
           </Tag>
           <Text type="secondary">
             {record.deviceSimulation.os} {record.deviceSimulation.browser}
@@ -178,26 +180,17 @@ const AntiDetectionPage: React.FC = () => {
       ),
     },
     {
-      title: '状态',
+      title: t('antiDetection.colStatus'),
       dataIndex: 'enabled',
       key: 'enabled',
       render: (enabled: boolean) => (
         <Tag color={enabled ? 'green' : 'red'}>
-          {enabled ? '启用' : '禁用'}
+          {enabled ? t('antiDetection.enabled') : t('antiDetection.disabled')}
         </Tag>
       ),
     },
     {
-      title: '关联账号',
-      key: 'accounts',
-      render: (_: any, record: AntiDetectionConfig) => (
-        <Text type="secondary">
-          {record.accounts.length} 个账号
-        </Text>
-      ),
-    },
-    {
-      title: '更新时间',
+      title: t('antiDetection.colCreatedAt'),
       dataIndex: 'updatedAt',
       key: 'updatedAt',
       render: (date: string) => (
@@ -207,11 +200,11 @@ const AntiDetectionPage: React.FC = () => {
       ),
     },
     {
-      title: '操作',
+      title: t('antiDetection.colActions'),
       key: 'actions',
       render: (_: any, record: AntiDetectionConfig) => (
         <Space size="small">
-          <Tooltip title="编辑">
+          <Tooltip title={t('antiDetection.editTooltip')}>
             <Button
               type="text"
               icon={<EditOutlined />}
@@ -222,24 +215,24 @@ const AntiDetectionPage: React.FC = () => {
               }}
             />
           </Tooltip>
-          <Tooltip title="复制配置">
+          <Tooltip title={t('antiDetection.copyTooltip')}>
             <Button
               type="text"
               icon={<CopyOutlined />}
               onClick={() => {
-                const newConfig = { ...record, id: Date.now().toString(), name: `${record.name} - 副本` };
+                const newConfig = { ...record, id: Date.now().toString(), name: `${record.name} - copy` };
                 setConfigs(prev => [...prev, newConfig]);
-                message.success('配置复制成功');
+                message.success(t('antiDetection.copySuccess'));
               }}
             />
           </Tooltip>
           <Popconfirm
-            title="确定要删除这个配置吗？"
+            title={t('antiDetection.deleteConfirm')}
             onConfirm={() => handleDeleteConfig(record.id)}
-            okText="确定"
-            cancelText="取消"
+            okText={t('common.confirm')}
+            cancelText={t('common.cancel')}
           >
-            <Tooltip title="删除">
+            <Tooltip title={t('antiDetection.deleteTooltip')}>
               <Button type="text" danger icon={<DeleteOutlined />} />
             </Tooltip>
           </Popconfirm>
@@ -253,8 +246,8 @@ const AntiDetectionPage: React.FC = () => {
       <div style={{ marginBottom: 24 }}>
         <Row justify="space-between" align="middle">
           <Col>
-            <Title level={2} style={{ marginTop: 0, marginBottom: 4 }}>反检测配置</Title>
-            <Text type="secondary">配置浏览器指纹、设备模拟和人类行为参数，避免被Facebook检测</Text>
+            <Title level={2} style={{ marginTop: 0, marginBottom: 4 }}>{t('antiDetection.title')}</Title>
+            <Text type="secondary">{t('antiDetection.subtitle')}</Text>
           </Col>
           <Col>
             <Button
@@ -263,15 +256,15 @@ const AntiDetectionPage: React.FC = () => {
               size="large"
               onClick={() => setIsCreateModalVisible(true)}
             >
-              创建配置
+              {t('antiDetection.createButton')}
             </Button>
           </Col>
         </Row>
       </div>
 
       <Alert
-        message="反检测配置说明"
-        description="通过模拟真实用户的浏览器指纹、设备信息和行为模式，可以有效降低被Facebook检测的风险。建议为不同类型的账号创建不同的配置。"
+        message={t('antiDetection.title')}
+        description={t('antiDetection.subtitle')}
         type="info"
         showIcon
         style={{ marginBottom: 24 }}
@@ -283,13 +276,13 @@ const AntiDetectionPage: React.FC = () => {
           dataSource={configs}
           rowKey="id"
           loading={loading}
-          pagination={{ pageSize: 10, showTotal: (t) => `共 ${t} 条配置` }}
+          pagination={{ pageSize: 10, showTotal: (total) => t('common.total', { count: total }) }}
         />
       </Card>
 
       {/* 创建配置模态框 */}
       <Modal
-        title="创建反检测配置"
+        title={t('antiDetection.createModalTitle')}
         open={isCreateModalVisible}
         onOk={() => createForm.submit()}
         onCancel={() => {
@@ -369,7 +362,7 @@ const AntiDetectionPage: React.FC = () => {
 
       {/* 编辑配置模态框 */}
       <Modal
-        title="编辑反检测配置"
+        title={t('antiDetection.editModalTitle')}
         open={isEditModalVisible}
         onOk={() => editForm.submit()}
         onCancel={() => {

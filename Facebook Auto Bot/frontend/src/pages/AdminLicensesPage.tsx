@@ -5,11 +5,12 @@ import {
 } from 'antd';
 import {
   ReloadOutlined, DisconnectOutlined, EditOutlined, DeleteOutlined,
-  KeyOutlined, UserOutlined, DesktopOutlined, ClockCircleOutlined,
+  KeyOutlined, DesktopOutlined,
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import AppLayout from '../components/AppLayout';
 import api from '../services/api';
+import { useT } from '../i18n';
 
 const { Title, Text, Paragraph } = Typography;
 
@@ -43,6 +44,7 @@ interface Dashboard {
 }
 
 const AdminLicensesPage: React.FC = () => {
+  const t = useT();
   const [loading, setLoading] = useState(false);
   const [licenses, setLicenses] = useState<License[]>([]);
   const [dashboard, setDashboard] = useState<Dashboard | null>(null);
@@ -59,31 +61,31 @@ const AdminLicensesPage: React.FC = () => {
       setLicenses(licRes.data?.data?.licenses || licRes.data?.licenses || []);
       setDashboard(statRes.data?.data || statRes.data || null);
     } catch (err: any) {
-      message.error('加载失败: ' + (err.response?.data?.message || err.message));
+      message.error(`${t('adminLicenses.fetchFailed')}: ${err.response?.data?.message || err.message}`);
     } finally {
       setLoading(false);
     }
   };
 
-  useEffect(() => { loadData(); }, []);
+  useEffect(() => { loadData(); /* eslint-disable-next-line */ }, []);
 
   const handleUnbind = async (id: string) => {
     try {
       await api.post(`/admin/licenses/${id}/unbind`);
-      message.success('机器已解绑，租户可在新机器激活');
+      message.success(t('adminLicenses.unbindSuccess'));
       loadData();
     } catch (err: any) {
-      message.error('解绑失败: ' + (err.response?.data?.message || err.message));
+      message.error(`${t('adminLicenses.unbindFailed')}: ${err.response?.data?.message || err.message}`);
     }
   };
 
   const handleDelete = async (id: string) => {
     try {
       await api.delete(`/admin/licenses/${id}`);
-      message.success('License 已删除');
+      message.success(t('adminLicenses.deleteSuccess'));
       loadData();
     } catch (err: any) {
-      message.error('删除失败: ' + (err.response?.data?.message || err.message));
+      message.error(`${t('adminLicenses.deleteFailed')}: ${err.response?.data?.message || err.message}`);
     }
   };
 
@@ -111,18 +113,18 @@ const AdminLicensesPage: React.FC = () => {
           ? values.subscriptionExpiry.toISOString() : null,
       };
       await api.patch(`/admin/licenses/${editing.id}`, payload);
-      message.success('更新成功');
+      message.success(t('adminLicenses.updateSuccess'));
       setEditing(null);
       loadData();
     } catch (err: any) {
       if (err.errorFields) return;
-      message.error('更新失败: ' + (err.response?.data?.message || err.message));
+      message.error(`${t('adminLicenses.updateSuccess')}: ${err.response?.data?.message || err.message}`);
     }
   };
 
   const columns = [
     {
-      title: 'License Key',
+      title: t('adminLicenses.colKey'),
       dataIndex: 'license_key',
       key: 'license_key',
       width: 220,
@@ -131,7 +133,7 @@ const AdminLicensesPage: React.FC = () => {
       ),
     },
     {
-      title: '租户',
+      title: t('adminLicenses.colTenant'),
       key: 'tenant',
       width: 200,
       render: (_: any, r: License) => (
@@ -142,7 +144,7 @@ const AdminLicensesPage: React.FC = () => {
       ),
     },
     {
-      title: '套餐',
+      title: t('adminLicenses.colPlan'),
       dataIndex: 'plan',
       key: 'plan',
       width: 100,
@@ -157,35 +159,35 @@ const AdminLicensesPage: React.FC = () => {
       },
     },
     {
-      title: '机器绑定',
+      title: t('adminLicenses.colMachine'),
       key: 'machine',
       width: 150,
       render: (_: any, r: License) =>
         r.machine_id
-          ? <Tooltip title={r.machine_id}><Tag color="green" icon={<DesktopOutlined />}>已绑定</Tag></Tooltip>
-          : <Tag>未绑定</Tag>,
+          ? <Tooltip title={r.machine_id}><Tag color="green" icon={<DesktopOutlined />}>{t('adminLicenses.machineBound')}</Tag></Tooltip>
+          : <Tag>{t('adminLicenses.machineNotBound')}</Tag>,
     },
     {
-      title: '状态',
+      title: t('adminLicenses.colStatus'),
       key: 'status',
       width: 90,
       render: (_: any, r: License) => {
-        if (!r.active) return <Tag color="red">已停用</Tag>;
+        if (!r.active) return <Tag color="red">{t('adminLicenses.statusRevoked')}</Tag>;
         if (r.subscription_expiry && new Date(r.subscription_expiry) < new Date()) {
-          return <Tag color="orange">已到期</Tag>;
+          return <Tag color="orange">{t('adminLicenses.statusExpired')}</Tag>;
         }
-        return <Tag color="green">有效</Tag>;
+        return <Tag color="green">{t('adminLicenses.statusActive')}</Tag>;
       },
     },
     {
-      title: '到期日',
+      title: t('adminLicenses.colExpiry'),
       dataIndex: 'subscription_expiry',
       key: 'subscription_expiry',
       width: 110,
       render: (d: string | null) => d ? dayjs(d).format('YYYY-MM-DD') : <Text type="secondary">—</Text>,
     },
     {
-      title: '最后心跳',
+      title: t('adminLicenses.colLastHeartbeat'),
       dataIndex: 'last_heartbeat',
       key: 'last_heartbeat',
       width: 140,
@@ -193,21 +195,21 @@ const AdminLicensesPage: React.FC = () => {
         if (!d) return <Text type="secondary">—</Text>;
         const hours = (Date.now() - new Date(d).getTime()) / 3600000;
         const color = hours < 1 ? '#52c41a' : hours < 24 ? '#faad14' : '#ff4d4f';
-        return <Text style={{ fontSize: 11, color }}>{dayjs(d).fromNow ? dayjs(d).format('MM-DD HH:mm') : d}</Text>;
+        return <Text style={{ fontSize: 11, color }}>{dayjs(d).format('MM-DD HH:mm')}</Text>;
       },
     },
     {
-      title: '操作',
+      title: t('adminLicenses.colActions'),
       key: 'action',
       width: 200,
       render: (_: any, r: License) => (
         <Space size={4}>
-          <Button size="small" icon={<EditOutlined />} onClick={() => handleEdit(r)}>编辑</Button>
-          <Popconfirm title="确定要解绑当前机器？租户可在新机器上重新激活" onConfirm={() => handleUnbind(r.id)}>
-            <Button size="small" icon={<DisconnectOutlined />} disabled={!r.machine_id}>解绑</Button>
+          <Button size="small" icon={<EditOutlined />} onClick={() => handleEdit(r)}>{t('common.edit')}</Button>
+          <Popconfirm title={t('adminLicenses.unbindConfirm')} onConfirm={() => handleUnbind(r.id)} okText={t('adminLicenses.unbindOk')} cancelText={t('adminLicenses.unbindCancel')}>
+            <Button size="small" icon={<DisconnectOutlined />} disabled={!r.machine_id}>{t('adminLicenses.unbindOk')}</Button>
           </Popconfirm>
-          <Popconfirm title="确定要删除这个 License？不可恢复！" onConfirm={() => handleDelete(r.id)}>
-            <Button size="small" icon={<DeleteOutlined />} danger>删除</Button>
+          <Popconfirm title={t('adminLicenses.deleteConfirm')} onConfirm={() => handleDelete(r.id)} okText={t('admin.deleteOk')} cancelText={t('common.cancel')}>
+            <Button size="small" icon={<DeleteOutlined />} danger>{t('common.delete')}</Button>
           </Popconfirm>
         </Space>
       ),
@@ -219,25 +221,25 @@ const AdminLicensesPage: React.FC = () => {
       <div style={{ padding: 24 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
           <div>
-            <Title level={3} style={{ margin: 0 }}>License 管理</Title>
-            <Paragraph type="secondary">查看、管理所有 License Key · 解绑机器 · 延期/停用</Paragraph>
+            <Title level={3} style={{ margin: 0 }}>{t('adminLicenses.title')}</Title>
+            <Paragraph type="secondary">{t('adminLicenses.subtitle')}</Paragraph>
           </div>
-          <Button icon={<ReloadOutlined />} onClick={loadData} loading={loading}>刷新</Button>
+          <Button icon={<ReloadOutlined />} onClick={loadData} loading={loading}>{t('adminLicenses.refresh')}</Button>
         </div>
 
         {dashboard && (
           <Row gutter={16} style={{ marginBottom: 24 }}>
             <Col span={6}>
-              <Card><Statistic title="总 License 数" value={dashboard.totalLicenses} prefix={<KeyOutlined />} /></Card>
+              <Card><Statistic title={t('adminLicenses.statTotal')} value={dashboard.totalLicenses} prefix={<KeyOutlined />} /></Card>
             </Col>
             <Col span={6}>
-              <Card><Statistic title="有效" value={dashboard.activeLicenses} valueStyle={{ color: '#3f8600' }} /></Card>
+              <Card><Statistic title={t('adminLicenses.statActive')} value={dashboard.activeLicenses} valueStyle={{ color: '#3f8600' }} /></Card>
             </Col>
             <Col span={6}>
-              <Card><Statistic title="已到期" value={dashboard.expiredLicenses} valueStyle={{ color: '#cf1322' }} /></Card>
+              <Card><Statistic title={t('adminLicenses.statExpired')} value={dashboard.expiredLicenses} valueStyle={{ color: '#cf1322' }} /></Card>
             </Col>
             <Col span={6}>
-              <Card><Statistic title="近 1 小时在线" value={dashboard.onlineNow} prefix={<DesktopOutlined />} valueStyle={{ color: '#1677ff' }} /></Card>
+              <Card><Statistic title={t('adminLicenses.statOnline')} value={dashboard.onlineNow} prefix={<DesktopOutlined />} valueStyle={{ color: '#1677ff' }} /></Card>
             </Col>
           </Row>
         )}
@@ -255,32 +257,32 @@ const AdminLicensesPage: React.FC = () => {
         </Card>
 
         <Modal
-          title="编辑 License"
+          title={t('adminLicenses.editLicense')}
           open={!!editing}
           onOk={handleSave}
           onCancel={() => setEditing(null)}
-          okText="保存"
-          cancelText="取消"
+          okText={t('common.save')}
+          cancelText={t('common.cancel')}
         >
           <Form form={form} layout="vertical" style={{ marginTop: 16 }}>
-            <Form.Item label="状态" name="active" valuePropName="checked">
+            <Form.Item label={t('adminLicenses.colStatus')} name="active" valuePropName="checked">
               <Select>
-                <Select.Option value={true}>有效</Select.Option>
-                <Select.Option value={false}>停用</Select.Option>
+                <Select.Option value={true}>{t('adminLicenses.statusActive')}</Select.Option>
+                <Select.Option value={false}>{t('adminLicenses.statusRevoked')}</Select.Option>
               </Select>
             </Form.Item>
-            <Form.Item label="套餐" name="plan">
+            <Form.Item label={t('adminLicenses.formPlan')} name="plan">
               <Select>
-                <Select.Option value="basic">Basic（10 账号）</Select.Option>
-                <Select.Option value="pro">Pro（30 账号）</Select.Option>
-                <Select.Option value="admin">Admin（不限）</Select.Option>
+                <Select.Option value="basic">Basic (10)</Select.Option>
+                <Select.Option value="pro">Pro (30)</Select.Option>
+                <Select.Option value="admin">Admin (∞)</Select.Option>
               </Select>
             </Form.Item>
-            <Form.Item label="订阅到期日（留空表示永久有效）" name="subscriptionExpiry">
+            <Form.Item label={t('adminLicenses.formExpiry')} name="subscriptionExpiry" extra={t('adminLicenses.neverExpire')}>
               <DatePicker style={{ width: '100%' }} />
             </Form.Item>
-            <Form.Item label="备注" name="notes">
-              <Input.TextArea rows={2} />
+            <Form.Item label={t('adminLicenses.formNote')} name="notes">
+              <Input.TextArea rows={2} placeholder={t('adminLicenses.formNotePlaceholder')} />
             </Form.Item>
           </Form>
         </Modal>

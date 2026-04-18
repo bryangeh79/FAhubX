@@ -186,35 +186,35 @@ const DashboardPage: React.FC = () => {
 
       <Row gutter={16}>
         <Col span={24}>
-          <Card title="系统功能概览">
+          <Card title={t('dashboard.featureOverview')}>
             <Row gutter={16}>
               <Col xs={24} md={8}>
-                <Card title="账号管理" style={{ marginBottom: 16 }}>
+                <Card title={t('dashboard.featureAccountsTitle')} style={{ marginBottom: 16 }}>
                   <ul>
-                    <li>支持多个Facebook账号管理</li>
-                    <li>账号健康度评分系统</li>
-                    <li>批量操作功能</li>
-                    <li>VPN/IP配置管理</li>
+                    <li>{t('dashboard.featureAccountsItem1')}</li>
+                    <li>{t('dashboard.featureAccountsItem2')}</li>
+                    <li>{t('dashboard.featureAccountsItem3')}</li>
+                    <li>{t('dashboard.featureAccountsItem4')}</li>
                   </ul>
                 </Card>
               </Col>
               <Col xs={24} md={8}>
-                <Card title="任务调度" style={{ marginBottom: 16 }}>
+                <Card title={t('dashboard.featureTasksTitle')} style={{ marginBottom: 16 }}>
                   <ul>
-                    <li>50个对话剧本支持</li>
-                    <li>智能时间调度</li>
-                    <li>实时任务监控</li>
-                    <li>任务执行统计</li>
+                    <li>{t('dashboard.featureTasksItem1')}</li>
+                    <li>{t('dashboard.featureTasksItem2')}</li>
+                    <li>{t('dashboard.featureTasksItem3')}</li>
+                    <li>{t('dashboard.featureTasksItem4')}</li>
                   </ul>
                 </Card>
               </Col>
               <Col xs={24} md={8}>
-                <Card title="安全特性" style={{ marginBottom: 16 }}>
+                <Card title={t('dashboard.featureSecurityTitle')} style={{ marginBottom: 16 }}>
                   <ul>
-                    <li>VPN/IP轮换系统</li>
-                    <li>人类行为模拟</li>
-                    <li>反检测机制</li>
-                    <li>数据加密存储</li>
+                    <li>{t('dashboard.featureSecurityItem1')}</li>
+                    <li>{t('dashboard.featureSecurityItem2')}</li>
+                    <li>{t('dashboard.featureSecurityItem3')}</li>
+                    <li>{t('dashboard.featureSecurityItem4')}</li>
                   </ul>
                 </Card>
               </Col>
@@ -225,18 +225,18 @@ const DashboardPage: React.FC = () => {
 
       <Row gutter={16} style={{ marginTop: 24 }}>
         <Col span={24}>
-          <Card title="快速操作">
-            <p>系统已准备就绪，您可以：</p>
+          <Card title={t('dashboard.quickActions')}>
+            <p>{t('dashboard.quickActionsReady')}</p>
             <ol>
-              <li>在"账号管理"页面添加和管理Facebook账号</li>
-              <li>在"任务调度"页面创建自动对话任务</li>
-              <li>在"VPN配置"页面设置VPN和IP管理</li>
+              <li>{t('dashboard.quickActionStep1')}</li>
+              <li>{t('dashboard.quickActionStep2')}</li>
+              <li>{t('dashboard.quickActionStep3')}</li>
             </ol>
             <div style={{ marginTop: 16 }}>
               <Button type="primary" icon={<PlayCircleOutlined />} onClick={() => navigate('/accounts')} style={{ marginRight: 8 }}>
-                开始管理账号
+                {t('dashboard.startManageAccounts')}
               </Button>
-              <Button onClick={() => navigate('/tasks')}>查看任务调度</Button>
+              <Button onClick={() => navigate('/tasks')}>{t('dashboard.viewTasks')}</Button>
             </div>
           </Card>
         </Col>
