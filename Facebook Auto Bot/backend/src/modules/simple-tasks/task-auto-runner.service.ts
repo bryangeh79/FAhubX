@@ -377,36 +377,45 @@ export class TaskAutoRunnerService implements OnModuleInit {
         }
 
       } else if (taskAction === 'auto_join_group') {
-        // v1.2.0 Phase 4b —— Puppeteer 自动加群
+        // v1.3.1 —— Puppeteer 自动加群（任务级配置）
         appendLog(taskId, 'info', '👥 正在启动自动加群...');
-        let gjs: any = params.groupJoinSettings;
-        // 手动任务不会带 settings → 从用户 preferences 读（和加群设置 Modal 同一源）
-        if (!gjs || !gjs.keywords || gjs.keywords.length === 0) {
-          try {
-            const [row] = await this.dataSource.query(
-              `SELECT preferences FROM users WHERE id = $1`, [userId],
-            );
-            gjs = row?.preferences?.warmup?.groupJoin || {};
-            if (gjs.keywords?.length > 0) {
-              appendLog(taskId, 'info', `📖 从全局加群设置读取配置（${gjs.keywords.length} 个关键词）`);
-            }
-          } catch (err: any) {
-            appendLog(taskId, 'warn', `读取全局加群设置失败：${err.message}`);
-          }
-        }
-        if (!gjs?.keywords || gjs.keywords.length === 0) {
-          appendLog(taskId, 'error', '❌ 未配置加群关键词 —— 请先在账号管理页「加群设置」里添加关键词');
+
+        // 1) 优先读 task.parameters 里的 per-task 配置（v1.3.1 新格式）
+        const keywords: string[] = Array.isArray(params.joinKeywords) ? params.joinKeywords.filter(Boolean) : [];
+        const joinCount: number = Number(params.joinCount) || 3;
+        const delayMin: number = Number(params.joinDelayMin) || 120;
+        const delayMax: number = Number(params.joinDelayMax) || 300;
+        const aiAnswer: boolean = !!params.joinAiAnswer;
+        const aiProvider: 'claude' | 'openai' | 'deepseek' = params.joinAiProvider || 'deepseek';
+        const aiApiKey: string = String(params.joinAiApiKey || '');
+        const aiPrompt: string = String(params.joinAiPrompt || '你是一个礼貌、简短、友善的新人，回答群管理员的问题以便通过审核。');
+
+        if (!keywords.length) {
+          appendLog(taskId, 'error', '❌ 未配置加群关键词');
           await this.saveTaskResult(taskId, false, '未配置加群关键词');
           return;
         }
+        if (aiAnswer && !aiApiKey) {
+          appendLog(taskId, 'error', '❌ 开启了 AI 答问但未填入 API Key');
+          await this.saveTaskResult(taskId, false, 'AI Key 未配置');
+          return;
+        }
+
+        appendLog(taskId, 'info',
+          `📋 关键词：${keywords.join(', ')} · 本次 ${joinCount} 群 · 间隔 ${delayMin}-${delayMax}s · AI ${aiAnswer ? '开启(' + aiProvider + ')' : '关闭'}`);
+
         const result = await this.groupJoinService.executeAutoJoinGroup({
           userId,
           accountId: params.accountAId || task.accountId,
-          keywords: gjs.keywords,
-          dailyLimit: gjs.dailyLimit ?? 3,
-          strategy: gjs.strategy ?? 'random',
-          aiAnswerEnabled: !!gjs.aiAnswerEnabled,
-          aiAnswerPrompt: gjs.aiAnswerPrompt ?? '',
+          keywords,
+          dailyLimit: joinCount,
+          strategy: 'random',
+          delayMinMs: delayMin * 1000,
+          delayMaxMs: delayMax * 1000,
+          aiAnswerEnabled: aiAnswer,
+          aiAnswerPrompt: aiPrompt,
+          aiProviderOverride: aiAnswer ? aiProvider : undefined,
+          aiApiKeyOverride: aiAnswer ? aiApiKey : undefined,
           headless,
           logger: (level, msg) => appendLog(taskId, level, msg),
         });

@@ -15,6 +15,12 @@ export interface GroupJoinParams {
   strategy: 'random' | 'sequential' | 'weighted';
   aiAnswerEnabled: boolean;
   aiAnswerPrompt: string;
+  /** v1.3.1 —— 任务级 AI 配置（override 全局）*/
+  aiProviderOverride?: AiProvider;
+  aiApiKeyOverride?: string;
+  /** v1.3.1 —— 加群之间的随机间隔范围（毫秒）*/
+  delayMinMs?: number;
+  delayMaxMs?: number;
   headless?: boolean;
   logger: (level: 'info' | 'success' | 'warn' | 'error', msg: string) => void;
 }
@@ -146,7 +152,12 @@ export class FacebookGroupJoinService implements OnModuleInit {
     const {
       userId, accountId, keywords, dailyLimit, strategy,
       aiAnswerEnabled, aiAnswerPrompt, headless, logger,
+      aiProviderOverride, aiApiKeyOverride,
+      delayMinMs, delayMaxMs,
     } = params;
+    // 加群之间的间隔（默认 6-12 秒 —— 暖化调度器的老默认；显式传入则覆盖）
+    const betweenGroupsMin = delayMinMs ?? 6_000;
+    const betweenGroupsMax = delayMaxMs ?? 12_000;
 
     // ── 前置检查 ───────────────────────────────────────────────────────
     if (!keywords || keywords.length === 0) {
@@ -162,14 +173,20 @@ export class FacebookGroupJoinService implements OnModuleInit {
     const remaining = dailyLimit - alreadyToday;
     logger('info', `🎯 今日目标：再加 ${remaining} 个群（已加 ${alreadyToday}/${dailyLimit}）`);
 
-    // AI Key 获取（如果开启）
+    // AI Key 获取（如果开启）—— v1.3.1 优先用任务级覆盖，否则读全局加密存储
     let aiKeySet: { provider: AiProvider; apiKey: string } | null = null;
     if (aiAnswerEnabled) {
-      aiKeySet = await this.usersService.getDecryptedAiApiKey(userId);
+      if (aiApiKeyOverride && aiProviderOverride) {
+        aiKeySet = { provider: aiProviderOverride, apiKey: aiApiKeyOverride };
+        logger('info', `🤖 使用任务级 AI (${aiProviderOverride})`);
+      } else {
+        aiKeySet = await this.usersService.getDecryptedAiApiKey(userId);
+        if (aiKeySet) {
+          logger('info', `🤖 使用全局 AI (${aiKeySet.provider})`);
+        }
+      }
       if (!aiKeySet) {
         logger('warn', '⚠️ AI 模式已开启但未配置 API Key，退化为「跳过有问题的群」');
-      } else {
-        logger('info', `🤖 AI 提供商：${aiKeySet.provider}`);
       }
     }
 
@@ -238,7 +255,7 @@ export class FacebookGroupJoinService implements OnModuleInit {
             skipped++;
           }
 
-          await randomDelay(6000, 12000);
+          await randomDelay(betweenGroupsMin, betweenGroupsMax);
         } catch (err: any) {
           logger('warn', `⚠️ 尝试加群失败（${cand.name.slice(0, 30)}）：${err.message}`);
           skipped++;

@@ -768,6 +768,15 @@ const TasksPage: React.FC = () => {
             : values.comments,
           delayMin: values.delayMin,
           delayMax: values.delayMax,
+          // v1.3.1 —— auto_join_group per-task settings
+          joinKeywords: values.joinKeywords,
+          joinCount: values.joinCount,
+          joinDelayMin: values.joinDelayMin,
+          joinDelayMax: values.joinDelayMax,
+          joinAiAnswer: values.joinAiAnswer,
+          joinAiProvider: values.joinAiProvider,
+          joinAiApiKey: values.joinAiApiKey,
+          joinAiPrompt: values.joinAiPrompt,
           comboActions: values.taskType === 'auto_combo' ? comboActions.map(type => ({
             type,
             ...(type === 'auto_accept_requests' && { maxCount: values.comboAcceptMax }),
@@ -1748,17 +1757,13 @@ const TasksPage: React.FC = () => {
             </>
           )}
 
-          {/* ── Auto Join Group ── v1.2.0 Phase 4b */}
+          {/* ── Auto Join Group ── v1.3.1 (per-task settings) */}
           {taskType === 'auto_join_group' && (
             <>
               <Divider orientation="left" style={{ fontSize: 13, color: '#13c2c2' }}>
                 <TeamOutlined /> {t('tasks.joinGroupSectionTitle')}
               </Divider>
-              <Alert
-                type="info" showIcon style={{ marginBottom: 16 }}
-                message={t('tasks.joinGroupReuseSettings')}
-                description={t('tasks.joinGroupReuseSettingsDesc')}
-              />
+
               <Form.Item name={batchMode ? 'batchAccountIds' : 'accountAId'} label={t('tasks.executingAccount')} rules={[{ required: true }]}>
                 <Select mode={batchMode ? 'multiple' : undefined} placeholder={t('tasks.selectTargetAccount')} showSearch optionFilterProp="children">
                   {accounts.map(a => (
@@ -1768,6 +1773,85 @@ const TasksPage: React.FC = () => {
                     </Option>
                   ))}
                 </Select>
+              </Form.Item>
+
+              <Form.Item
+                name="joinKeywords"
+                label={t('tasks.joinKeywords')}
+                rules={[{ required: true, message: t('tasks.joinKeywordsRequired') }]}
+                extra={t('tasks.joinKeywordsHelp')}
+              >
+                <Select
+                  mode="tags"
+                  placeholder={t('tasks.joinKeywordsPlaceholder')}
+                  tokenSeparators={[',', ',', ';', ';']}
+                  maxTagCount={20}
+                />
+              </Form.Item>
+
+              <Row gutter={16}>
+                <Col span={8}>
+                  <Form.Item name="joinCount" label={t('tasks.joinCount')} initialValue={3} rules={[{ required: true }]} extra={t('tasks.joinCountHelp')}>
+                    <InputNumber min={1} max={20} style={{ width: '100%' }} />
+                  </Form.Item>
+                </Col>
+                <Col span={8}>
+                  <Form.Item name="joinDelayMin" label={t('tasks.joinDelayMin')} initialValue={120} rules={[{ required: true }]}>
+                    <InputNumber min={30} max={1800} addonAfter="s" style={{ width: '100%' }} />
+                  </Form.Item>
+                </Col>
+                <Col span={8}>
+                  <Form.Item name="joinDelayMax" label={t('tasks.joinDelayMax')} initialValue={300} rules={[{ required: true }]}>
+                    <InputNumber min={60} max={3600} addonAfter="s" style={{ width: '100%' }} />
+                  </Form.Item>
+                </Col>
+              </Row>
+
+              <Form.Item name="joinAiAnswer" valuePropName="checked" initialValue={false}>
+                <Checkbox>
+                  <Space>
+                    <RobotOutlined style={{ color: '#722ed1' }} />
+                    <Text strong>{t('tasks.joinAiAnswer')}</Text>
+                    <Text type="secondary" style={{ fontSize: 12 }}>{t('tasks.joinAiAnswerHelp')}</Text>
+                  </Space>
+                </Checkbox>
+              </Form.Item>
+
+              <Form.Item shouldUpdate={(prev, cur) => prev.joinAiAnswer !== cur.joinAiAnswer} noStyle>
+                {() => form.getFieldValue('joinAiAnswer') && (
+                  <div style={{ background: '#f9f0ff', border: '1px solid #d3adf7', borderRadius: 6, padding: 12, marginBottom: 12 }}>
+                    <Space direction="vertical" size={8} style={{ width: '100%' }}>
+                      <Alert
+                        type="info" showIcon
+                        message={t('tasks.joinAiKeyHint')}
+                      />
+                      <Row gutter={12}>
+                        <Col span={10}>
+                          <Form.Item name="joinAiProvider" label={t('tasks.joinAiProvider')} initialValue="deepseek" style={{ marginBottom: 8 }}>
+                            <Select>
+                              <Option value="claude">Claude Haiku</Option>
+                              <Option value="openai">GPT-4o-mini</Option>
+                              <Option value="deepseek">DeepSeek (最便宜)</Option>
+                            </Select>
+                          </Form.Item>
+                        </Col>
+                        <Col span={14}>
+                          <Form.Item
+                            name="joinAiApiKey"
+                            label={t('tasks.joinAiApiKey')}
+                            extra={t('tasks.joinAiApiKeyHelp')}
+                            style={{ marginBottom: 8 }}
+                          >
+                            <Input.Password placeholder="sk-..." prefix={<KeyOutlined />} />
+                          </Form.Item>
+                        </Col>
+                      </Row>
+                      <Form.Item name="joinAiPrompt" label={t('tasks.joinAiPrompt')} style={{ marginBottom: 0 }}>
+                        <Input.TextArea rows={2} placeholder={t('tasks.joinAiPromptPlaceholder')} maxLength={300} showCount />
+                      </Form.Item>
+                    </Space>
+                  </div>
+                )}
               </Form.Item>
             </>
           )}

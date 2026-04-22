@@ -661,20 +661,7 @@ const AccountsPage: React.FC = () => {
           >
             {t('accounts.groupSettings')}
           </Button>
-          <Button
-            icon={<TeamOutlined />}
-            onClick={async () => {
-              try {
-                const s = await accountsService.getGroupJoinSettings();
-                setGroupJoinSettings(s);
-                setGroupJoinVisible(true);
-              } catch {
-                setGroupJoinVisible(true);
-              }
-            }}
-          >
-            {t('warmup.groupJoin.title')}
-          </Button>
+          {/* v1.3.1 —— 加群设置按钮已移除，加群配置改在任务调度页的任务创建表单内逐任务设置 */}
           <Button
             icon={<TeamOutlined />}
             disabled={selectedAccountIds.length === 0}
@@ -895,7 +882,8 @@ const AccountsPage: React.FC = () => {
         </Form>
       </Modal>
 
-      {/* 加群设置 Modal (v1.2.0 Phase 4) */}
+      {/* v1.3.1 —— 加群设置 Modal 已移除，相关配置已拆到任务创建表单 per-task */}
+      {false && (
       <Modal
         title={<Space><TeamOutlined /> {t('warmup.groupJoin.title')}</Space>}
         open={groupJoinVisible}
@@ -1099,6 +1087,7 @@ const AccountsPage: React.FC = () => {
           )}
         </Form>
       </Modal>
+      )}
 
       {/* Login result modal */}
       <Modal
