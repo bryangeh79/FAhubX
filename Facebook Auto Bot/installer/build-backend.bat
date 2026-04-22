@@ -35,6 +35,11 @@ if errorlevel 1 (
 
 :: Step 2: Build
 echo [2/5] Compiling TypeScript...
+:: 关键：先清 dist，防止上次已被混淆的文件再次被混淆导致指数级膨胀
+if exist "%BACKEND_DIR%\dist" (
+    echo   Removing previous dist to force fresh build...
+    rmdir /s /q "%BACKEND_DIR%\dist"
+)
 call npx nest build
 if errorlevel 1 (
     echo ERROR: nest build failed
@@ -52,7 +57,8 @@ if errorlevel 1 (
     call npm install javascript-obfuscator --no-save
 )
 
-node obfuscate.js --backend-dist "%BACKEND_DIR%\dist"
+:: Obfuscator 需要大堆内存（license.service.js 可能 >5MB，默认 4GB 堆不够）
+node --max-old-space-size=8192 obfuscate.js --backend-dist "%BACKEND_DIR%\dist"
 if errorlevel 1 (
     echo ERROR: Obfuscation failed
     exit /b 1
