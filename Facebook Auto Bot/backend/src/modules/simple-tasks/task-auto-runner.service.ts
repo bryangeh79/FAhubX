@@ -33,13 +33,27 @@ export class TaskAutoRunnerService implements OnModuleInit {
     private readonly dataSource: DataSource,
   ) {}
 
-  /** On startup: reset any tasks stuck in RUNNING (e.g. from a previous crashed backend) */
+  /** On startup: reset any tasks stuck in RUNNING (e.g. from a previous crashed backend)
+   *  v1.3.0：排除 auto_warmup 任务 —— 养号任务跨 7-14 天是合法的 running 状态
+   */
   async onModuleInit() {
     try {
-      const stuck = await this.taskRepo.find({ where: { status: TaskStatus.RUNNING } });
-      if (stuck.length > 0) {
-        await this.taskRepo.update({ status: TaskStatus.RUNNING }, { status: TaskStatus.FAILED });
-        this.logger.warn(`⚠️ 启动时发现 ${stuck.length} 个卡住的任务，已标记为失败（可手动重新执行）`);
+      const stuck = await this.taskRepo.find({
+        where: { status: TaskStatus.RUNNING },
+      });
+      // 只清理非养号的 running 任务
+      const nonWarmupStuck = stuck.filter(t => t.taskAction !== 'auto_warmup');
+      if (nonWarmupStuck.length > 0) {
+        await this.dataSource.query(
+          `UPDATE tasks SET status = 'failed' WHERE status = 'running' AND "taskAction" != 'auto_warmup'`,
+        );
+        this.logger.warn(
+          `⚠️ 启动时发现 ${nonWarmupStuck.length} 个卡住的任务（非养号），已标记为失败（可手动重新执行）`,
+        );
+      }
+      const warmupRunning = stuck.length - nonWarmupStuck.length;
+      if (warmupRunning > 0) {
+        this.logger.log(`ℹ️ 保留 ${warmupRunning} 个养号任务的 running 状态（这是正常的 7-14 天进度）`);
       }
     } catch (e) {
       this.logger.error('启动检查失败', e);

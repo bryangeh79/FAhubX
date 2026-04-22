@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import {
   Card, Table, Button, Space, Typography, Tag, Modal, Form, Input, Select,
   message, Row, Col, Statistic, Popconfirm, Switch, Divider, List, Badge,
-  Tabs, Alert, InputNumber, Tooltip, Upload, Steps,
+  Tabs, Alert, InputNumber, Tooltip, Upload, Steps, Progress,
 } from 'antd';
 import {
   PlusOutlined, DeleteOutlined, PlayCircleOutlined, PauseCircleOutlined,
@@ -21,6 +21,7 @@ import api from '../services/api';
 import { useT, useI18n } from '../i18n';
 import { translateLogMessage } from '../i18n/logTranslator';
 import { formatAccountNumber } from '../services/accounts';
+import { warmupService, WarmupProgress, computePackageInfoFromProgress, formatProgressText, getPackageModeLabel, getPackageModeColor } from '../services/warmup';
 
 const { Title, Text, Paragraph } = Typography;
 const { Option } = Select;
@@ -29,7 +30,7 @@ const { TabPane } = Tabs;
 
 type TaskStatus = 'pending' | 'running' | 'completed' | 'failed';
 type TaskType = 'auto_chat' | 'auto_post_image' | 'auto_post_video' | 'auto_call' | 'account_sync' | 'auto_simulate'
-  | 'auto_add_friends' | 'auto_accept_requests' | 'auto_comment' | 'auto_follow' | 'auto_combo' | 'auto_join_group';
+  | 'auto_add_friends' | 'auto_accept_requests' | 'auto_comment' | 'auto_follow' | 'auto_combo' | 'auto_join_group' | 'auto_warmup';
 
 interface Task {
   id: string;
@@ -85,6 +86,7 @@ const TASK_TYPE_CONFIG: Record<TaskType, { color: string; text: string; icon: Re
   auto_follow:          { color: 'volcano',  text: 'tasks.taskType_auto_follow',          icon: <HeartOutlined /> },
   auto_combo:           { color: 'purple',   text: 'tasks.taskType_auto_combo',           icon: <AppstoreOutlined /> },
   auto_join_group:      { color: 'cyan',     text: 'tasks.taskType_auto_join_group',      icon: <TeamOutlined /> },
+  auto_warmup:          { color: 'orange',   text: 'tasks.taskType_auto_warmup',          icon: <ThunderboltOutlined /> },
 };
 
 const STATUS_CONFIG: Record<TaskStatus, { color: string; icon: React.ReactNode; text: string }> = {
@@ -628,6 +630,7 @@ const TasksPage: React.FC = () => {
   const t = useT();
   const [tasks, setTasks] = useState<Task[]>(initialTasks);
   const [isModalVisible, setIsModalVisible] = useState(false);
+  const [warmupMap, setWarmupMap] = useState<Record<string, WarmupProgress>>({});
   const [aiModalVisible, setAiModalVisible] = useState(false);
   const [scriptEditorId, setScriptEditorId] = useState<string | null>(null);
   const [scripts, setScripts] = useState<any[]>([]);
@@ -671,11 +674,29 @@ const TasksPage: React.FC = () => {
       setScripts(Array.isArray(list) ? list : []);
     }).catch(() => {});
     fetchTasks();
+    fetchWarmupMap();
 
     // Auto-refresh task list every 30s to reflect scheduled executions
-    const refreshInterval = setInterval(fetchTasks, 30000);
+    const refreshInterval = setInterval(() => {
+      fetchTasks();
+      fetchWarmupMap();
+    }, 30000);
     return () => clearInterval(refreshInterval);
   }, []);
+
+  const fetchWarmupMap = async () => {
+    try {
+      const list = await warmupService.listForUser();
+      const map: Record<string, WarmupProgress> = {};
+      for (const p of list) {
+        map[p.accountId] = p;
+        if (p.taskId) map[p.taskId] = p;
+      }
+      setWarmupMap(map);
+    } catch {
+      // ignore
+    }
+  };
 
   const totalTasks = tasks.length;
   const runningTasks = tasks.filter(t => t.status === 'running').length;
@@ -778,6 +799,39 @@ const TasksPage: React.FC = () => {
   const handleModalOk = async () => {
     let values: any;
     try { values = await form.validateFields(); } catch { return; }
+
+    // v1.3.0 ── auto_warmup 走专门的 warmup batch API
+    if (values.taskType === 'auto_warmup') {
+      setSubmitting(true);
+      try {
+        const targetType = values.warmupTargetType;
+        const packageMode = values.warmupPackageMode || 'P1+P2';
+        const result = await warmupService.batch({
+          packageMode,
+          accountIds: targetType === 'accounts' ? values.warmupAccountIds : undefined,
+          groupNumber: targetType === 'group' ? values.warmupGroupNumber : undefined,
+        });
+        if (result.started.length > 0) {
+          message.success(t('tasks.warmupBatchSuccess', { count: result.started.length }));
+        }
+        if (result.skipped.length > 0) {
+          const lines = result.skipped.map(s => `#${s.accountNumber ?? '?'}: ${s.reason}`).join('\n');
+          message.warning({
+            content: t('tasks.warmupBatchSkipped', { count: result.skipped.length }),
+            duration: 5,
+          });
+          console.warn('Warmup skipped:', lines);
+        }
+        setIsModalVisible(false);
+        form.resetFields();
+        fetchTasks();
+      } catch (err: any) {
+        message.error(err?.response?.data?.message || t('tasks.warmupBatchFailed'));
+      } finally {
+        setSubmitting(false);
+      }
+      return;
+    }
 
     // Social task types that support multi-account batch mode
     const socialTypes: TaskType[] = ['auto_combo', 'auto_add_friends', 'auto_accept_requests', 'auto_comment', 'auto_follow', 'auto_simulate', 'auto_post_image', 'auto_post_video'];
@@ -904,7 +958,35 @@ const TasksPage: React.FC = () => {
     {
       title: t('tasks.colStatus'),
       key: 'status',
+      width: 220,
       render: (_: any, record: Task) => {
+        // v1.3.0 —— 养号任务显示进度条替代普通 status tag
+        if (record.taskType === 'auto_warmup') {
+          const matching = warmupMap[record.id];
+          if (matching) {
+            const info = computePackageInfoFromProgress(matching);
+            return (
+              <Space direction="vertical" size={2} style={{ width: '100%' }}>
+                <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                  <Tag
+                    color={getPackageModeColor(matching.packageMode)}
+                    style={{ margin: 0, fontSize: 11, padding: '0 6px', lineHeight: '18px' }}
+                  >
+                    {getPackageModeLabel(matching.packageMode)}
+                  </Tag>
+                  <Text style={{ fontSize: 11, color: '#666' }}>{formatProgressText(matching)}</Text>
+                </div>
+                <Progress
+                  percent={info.progressPercent}
+                  size="small"
+                  status={info.isMaintenance ? 'success' : 'active'}
+                  strokeColor={info.isMaintenance ? '#52c41a' : info.packageNumber === 1 ? '#1890ff' : '#faad14'}
+                  showInfo={false}
+                />
+              </Space>
+            );
+          }
+        }
         const c = STATUS_CONFIG[record.status];
         const tagText = c ? t(c.text) : (record.status || t('tasks.statusUnknown'));
         const tag = <Tag color={c?.color || 'default'} icon={c?.icon}>{tagText}</Tag>;
@@ -1068,6 +1150,7 @@ const TasksPage: React.FC = () => {
                   <Option value="auto_follow"><HeartOutlined /> {t('tasks.taskType_auto_follow')}</Option>
                   <Option value="auto_combo"><AppstoreOutlined /> {t('tasks.taskType_auto_combo')}</Option>
                   <Option value="auto_join_group"><TeamOutlined /> {t('tasks.taskType_auto_join_group')}</Option>
+                  <Option value="auto_warmup"><ThunderboltOutlined style={{ color: '#fa8c16' }}/> {t('tasks.taskType_auto_warmup')}</Option>
                 </Select>
               </Form.Item>
             </Col>
@@ -1597,6 +1680,71 @@ const TasksPage: React.FC = () => {
                   </Row>
                 </div>
               )}
+            </>
+          )}
+
+          {/* ── Auto Warmup ── v1.3.0 */}
+          {taskType === 'auto_warmup' && (
+            <>
+              <Divider orientation="left" style={{ fontSize: 13, color: '#fa8c16' }}>
+                <ThunderboltOutlined /> {t('tasks.warmupSectionTitle')}
+              </Divider>
+              <Alert
+                type="info" showIcon style={{ marginBottom: 16 }}
+                message={t('tasks.warmupPackageDesc')}
+              />
+              <Form.Item name="warmupPackageMode" label={t('tasks.warmupPackageLabel')} initialValue="P1+P2" rules={[{ required: true }]}>
+                <Select>
+                  <Option value="P1">① {t('tasks.warmupModeP1')}</Option>
+                  <Option value="P2">② {t('tasks.warmupModeP2')}</Option>
+                  <Option value="P1+P2">③ {t('tasks.warmupModeP1P2')} ⭐</Option>
+                  <Option value="P3">④ {t('tasks.warmupModeP3')}</Option>
+                </Select>
+              </Form.Item>
+
+              <Form.Item name="warmupTargetType" label={t('tasks.warmupTargetType')} initialValue="accounts" rules={[{ required: true }]}>
+                <Select>
+                  <Option value="accounts">{t('tasks.warmupTargetAccounts')}</Option>
+                  <Option value="group">{t('tasks.warmupTargetGroup')}</Option>
+                </Select>
+              </Form.Item>
+
+              <Form.Item shouldUpdate={(p, c) => p.warmupTargetType !== c.warmupTargetType} noStyle>
+                {() => {
+                  const tgt = form.getFieldValue('warmupTargetType');
+                  if (tgt === 'group') {
+                    return (
+                      <Form.Item name="warmupGroupNumber" label={t('tasks.warmupSelectGroup')} rules={[{ required: true, message: t('tasks.warmupSelectGroup') }]}>
+                        <Select placeholder={t('tasks.warmupSelectGroupPlaceholder')}>
+                          {[1, 2, 3, 4, 5, 6].map(g => {
+                            const count = accounts.filter((a: any) => a.warmupGroupNumber === g).length;
+                            return (
+                              <Option key={g} value={g} disabled={count === 0}>
+                                G{g} ({count} {t('tasks.accountsLabel')})
+                              </Option>
+                            );
+                          })}
+                        </Select>
+                      </Form.Item>
+                    );
+                  }
+                  return (
+                    <Form.Item name="warmupAccountIds" label={t('tasks.warmupSelectAccounts')} rules={[{ required: true, message: t('tasks.warmupSelectAccounts') }]}>
+                      <Select mode="multiple" placeholder={t('tasks.warmupSelectAccountsPlaceholder')} showSearch optionFilterProp="children">
+                        {accounts.map(a => (
+                          <Option key={a.id} value={a.id} disabled={a.warmupGroupNumber == null}>
+                            {a.accountNumber != null && <Text strong style={{ color: '#1890ff', marginRight: 6 }}>{formatAccountNumber(a.accountNumber)}</Text>}
+                            <Badge color={a.loginStatus ? 'green' : 'default'} text={a.name} />
+                            {a.warmupGroupNumber != null
+                              ? <Tag color="blue" style={{ marginLeft: 6, fontSize: 10 }}>G{a.warmupGroupNumber}</Tag>
+                              : <Tag color="default" style={{ marginLeft: 6, fontSize: 10 }}>{t('tasks.warmupNoGroup')}</Tag>}
+                          </Option>
+                        ))}
+                      </Select>
+                    </Form.Item>
+                  );
+                }}
+              </Form.Item>
             </>
           )}
 

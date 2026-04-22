@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   Card, Table, Button, Space, Typography, Tag, Modal, Form,
-  Input, Select, message, Popconfirm, Row, Col, Statistic, Tooltip, Alert, Badge,
+  Input, Select, message, Popconfirm, Row, Col, Statistic, Tooltip, Alert, Badge, Progress,
 } from 'antd';
+import { useNavigate } from 'react-router-dom';
 import {
   PlusOutlined, EditOutlined, DeleteOutlined, SyncOutlined,
   UserOutlined, LockOutlined, MailOutlined, SafetyOutlined, GlobalOutlined,
@@ -18,7 +19,9 @@ import {
   GroupStats, GroupJoinSettings, AI_PROVIDERS, formatGroupLabel, getGroupColor,
 } from '../services/accounts';
 import {
-  warmupService, WarmupProgress, getPackageColor, computePackageInfoFromStart,
+  warmupService, WarmupProgress,
+  computePackageInfoFromProgress, formatProgressText,
+  getPackageModeLabel, getPackageModeColor,
 } from '../services/warmup';
 import api from '../services/api';
 import { useT } from '../i18n';
@@ -36,6 +39,7 @@ interface VPNOption {
 
 const AccountsPage: React.FC = () => {
   const t = useT();
+  const navigate = useNavigate();
   const [accounts, setAccounts] = useState<FacebookAccount[]>([]);
   const [stats, setStats] = useState<AccountStats | null>(null);
   const [loading, setLoading] = useState(false);
@@ -396,39 +400,37 @@ const AccountsPage: React.FC = () => {
     {
       title: t('accounts.colWarmup'),
       key: 'warmup',
-      width: 180,
-      align: 'center' as const,
+      width: 220,
       render: (_: any, record: FacebookAccount) => {
         const p = warmupMap[record.id];
+        // 未启动 → 一键养号按钮（P1+P2 默认）
         if (!p) {
+          const noGroup = record.warmupGroupNumber == null;
           return (
             <Popconfirm
-              title={t('accounts.warmupStart')}
-              description={
-                record.warmupGroupNumber == null
-                  ? t('accounts.warmupNeedGroup')
-                  : t('accounts.warmupStartConfirm')
-              }
-              disabled={record.warmupGroupNumber == null}
+              title={t('accounts.quickStartTitle')}
+              description={noGroup ? t('accounts.warmupNeedGroup') : t('accounts.quickStartDesc')}
+              disabled={noGroup}
               onConfirm={async () => {
                 try {
-                  await warmupService.start(record.id);
+                  await warmupService.start(record.id, 'P1+P2');
                   message.success(t('accounts.warmupStartSuccess'));
                   fetchWarmupList();
                 } catch (e: any) {
                   message.error(e?.response?.data?.message || t('accounts.warmupStartFailed'));
                 }
               }}
-              okText={t('common.confirm')}
+              okText={t('accounts.quickStartOk')}
               cancelText={t('common.cancel')}
             >
               <Button
                 size="small"
-                type="link"
-                disabled={record.warmupGroupNumber == null}
-                title={record.warmupGroupNumber == null ? t('accounts.warmupNeedGroup') : undefined}
+                type="primary"
+                ghost
+                disabled={noGroup}
+                title={noGroup ? t('accounts.warmupNeedGroup') : ''}
               >
-                {t('accounts.warmupNotStarted')} → {t('accounts.warmupStart')}
+                🚀 {t('accounts.quickStart')}
               </Button>
             </Popconfirm>
           );
@@ -452,36 +454,66 @@ const AccountsPage: React.FC = () => {
             </Space>
           );
         }
-        // active —— 计算进度标签
-        const info = computePackageInfoFromStart(p.startedAt);
-        const pkgText = info.isMaintenance
-          ? `P3 · ${t('warmup.package.operation')}`
-          : `P${info.packageNumber} D${info.dayInPackage} · ${info.progressPercent}%`;
+        // Active —— 进度条 + 标签 + 跳转任务
+        const info = computePackageInfoFromProgress(p);
         const missedWarn = p.missedToday >= 6;
+        const progressText = formatProgressText(p);
         return (
-          <Space direction="vertical" size={0} style={{ width: '100%' }}>
-            <Tag color={getPackageColor(info)} style={{ margin: 0 }}>{pkgText}</Tag>
+          <Space direction="vertical" size={2} style={{ width: '100%' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <Tag
+                color={getPackageModeColor(p.packageMode)}
+                style={{ margin: 0, fontSize: 11, padding: '0 6px', lineHeight: '16px' }}
+              >
+                {getPackageModeLabel(p.packageMode)}
+              </Tag>
+              <Text style={{ fontSize: 11, color: '#666' }}>{progressText}</Text>
+            </div>
+            <Progress
+              percent={info.progressPercent}
+              size="small"
+              status={info.isMaintenance ? 'success' : 'active'}
+              strokeColor={
+                info.isMaintenance ? '#52c41a'
+                  : info.packageNumber === 1 ? '#1890ff'
+                  : '#faad14'
+              }
+              showInfo={false}
+              style={{ marginBottom: 0 }}
+            />
+            <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+              {p.taskId && (
+                <Button
+                  size="small"
+                  type="link"
+                  style={{ padding: 0, height: 18, fontSize: 11 }}
+                  onClick={() => navigate(`/tasks?taskId=${p.taskId}`)}
+                >
+                  {t('accounts.viewLog')}
+                </Button>
+              )}
+              <Popconfirm
+                title={t('accounts.warmupRetireConfirm')}
+                onConfirm={async () => {
+                  await warmupService.retire(record.id);
+                  message.success(t('accounts.updateSuccess'));
+                  fetchWarmupList();
+                }}
+                okText={t('common.confirm')}
+                cancelText={t('common.cancel')}
+              >
+                <Button size="small" type="link" danger style={{ padding: 0, height: 18, fontSize: 11 }}>
+                  {t('accounts.warmupRetire')}
+                </Button>
+              </Popconfirm>
+            </div>
             {missedWarn && (
               <Tooltip title={t('accounts.warmupMissedHint')}>
-                <Tag color="red" style={{ marginTop: 2 }}>
+                <Tag color="red" style={{ fontSize: 10, padding: '0 4px', margin: 0, lineHeight: '14px' }}>
                   <WarningOutlined /> {t('accounts.warmupMissedWarning', { count: p.missedToday })}
                 </Tag>
               </Tooltip>
             )}
-            <Popconfirm
-              title={t('accounts.warmupRetireConfirm')}
-              onConfirm={async () => {
-                await warmupService.retire(record.id);
-                message.success(t('accounts.updateSuccess'));
-                fetchWarmupList();
-              }}
-              okText={t('common.confirm')}
-              cancelText={t('common.cancel')}
-            >
-              <Button size="small" type="link" danger style={{ padding: 0, height: 18 }}>
-                {t('accounts.warmupRetire')}
-              </Button>
-            </Popconfirm>
           </Space>
         );
       },

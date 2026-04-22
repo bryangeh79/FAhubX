@@ -9,11 +9,13 @@ import {
 import { ApiProperty } from '@nestjs/swagger';
 
 /**
- * v1.2.0 Phase 2 — 账号暖化进度
+ * v1.3.0 Phase — 账号暖化进度（重构版）
  *
- * 每个启动了暖化的账号对应一行。
- * 账号被「退役 (retired)」后保留记录但 status = 'retired'，可重启。
+ * 每个账号的每个暖化任务对应一行。和 tasks 表的父任务 1:1 关联（通过 taskId）。
+ * 账号被「退役」后保留记录但 status='retired'。
  */
+export type PackageMode = 'P1' | 'P2' | 'P1+P2' | 'P3';
+
 @Entity('warmup_progress')
 export class WarmupProgress {
   @ApiProperty({ description: '进度ID' })
@@ -30,6 +32,15 @@ export class WarmupProgress {
   @Index('idx_warmup_progress_account_id')
   accountId: string;
 
+  @ApiProperty({ description: '关联的父任务 ID（tasks.id）' })
+  @Column({ type: 'uuid', nullable: true })
+  @Index('idx_warmup_progress_task_id')
+  taskId: string | null;
+
+  @ApiProperty({ description: '暖化包模式', enum: ['P1', 'P2', 'P1+P2', 'P3'] })
+  @Column({ type: 'varchar', length: 10, default: 'P1+P2', name: 'packageMode' })
+  packageMode: PackageMode;
+
   @ApiProperty({ description: '暖化开始时间 = Day 1 00:00' })
   @Column({ type: 'timestamptz', name: 'startedAt' })
   startedAt: Date;
@@ -42,7 +53,7 @@ export class WarmupProgress {
   @Column({ type: 'varchar', length: 20, nullable: true, name: 'lastFiredWindow' })
   lastFiredWindow: string | null;
 
-  @ApiProperty({ description: '上次调度器检查此账号的时间（用于 findJustMissedWindow）' })
+  @ApiProperty({ description: '上次调度器检查此账号的时间' })
   @Column({ type: 'timestamptz', nullable: true, name: 'lastCheckedAt' })
   lastCheckedAt: Date | null;
 
@@ -50,11 +61,11 @@ export class WarmupProgress {
   @Column({ type: 'int', default: 0, name: 'missedToday' })
   missedToday: number;
 
-  @ApiProperty({ description: '今日统计对应的日期（YYYY-MM-DD，日期变了重置 missedToday）' })
+  @ApiProperty({ description: '今日统计对应的日期（YYYY-MM-DD）' })
   @Column({ type: 'varchar', length: 10, nullable: true, name: 'missedDateKey' })
   missedDateKey: string | null;
 
-  @ApiProperty({ description: '累计错过窗口数（整个暖化生命周期）' })
+  @ApiProperty({ description: '累计错过窗口数' })
   @Column({ type: 'int', default: 0, name: 'missedTotal' })
   missedTotal: number;
 
@@ -62,7 +73,7 @@ export class WarmupProgress {
   @Column({ type: 'int', default: 0, name: 'firedTotal' })
   firedTotal: number;
 
-  @ApiProperty({ description: '退役时间（status=retired 时设置）' })
+  @ApiProperty({ description: '退役时间' })
   @Column({ type: 'timestamptz', nullable: true, name: 'retiredAt' })
   retiredAt: Date | null;
 

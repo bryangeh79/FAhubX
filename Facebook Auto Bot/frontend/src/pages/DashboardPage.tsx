@@ -12,9 +12,11 @@ import {
 import AppLayout from '../components/AppLayout';
 import { accountsService, AccountStats } from '../services/accounts';
 import { vpnService, VPNConfig } from '../services/vpn';
+import { warmupService, WarmupStats } from '../services/warmup';
 import api from '../services/api';
 import { useNavigate } from 'react-router-dom';
 import { useT } from '../i18n';
+import { ThunderboltOutlined } from '@ant-design/icons';
 
 const { Title, Text } = Typography;
 
@@ -31,18 +33,24 @@ const DashboardPage: React.FC = () => {
   const [accountStats, setAccountStats] = useState<AccountStats | null>(null);
   const [taskStats, setTaskStats] = useState<TaskStats | null>(null);
   const [vpns, setVpns] = useState<VPNConfig[]>([]);
+  const [warmupStats, setWarmupStats] = useState<WarmupStats | null>(null);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     const fetchAll = async () => {
       setLoading(true);
       try {
-        // Parallel fetch: account stats, task stats, VPN list
-        const [accountRes, taskRes, vpnRes] = await Promise.allSettled([
+        // Parallel fetch: account stats, task stats, VPN list, warmup stats
+        const [accountRes, taskRes, vpnRes, warmupRes] = await Promise.allSettled([
           accountsService.getStats(),
           api.get<any>('/tasks/stats'),
           vpnService.getVPNs({ limit: 100 }),
+          warmupService.getStats(),
         ]);
+
+        if (warmupRes.status === 'fulfilled') {
+          setWarmupStats(warmupRes.value);
+        }
 
         if (accountRes.status === 'fulfilled') {
           setAccountStats(accountRes.value.data);
@@ -179,6 +187,46 @@ const DashboardPage: React.FC = () => {
               value={taskStats?.failed ?? '-'}
               prefix={<CloseCircleOutlined />}
               valueStyle={{ color: (taskStats?.failed ?? 0) > 0 ? '#f5222d' : '#8c8c8c' }}
+            />
+          </Card>
+        </Col>
+      </Row>
+
+      {/* Row 3: 暖化统计（v1.3.0）—— 独立于任务统计 */}
+      <Row gutter={16} style={{ marginBottom: 24 }}>
+        <Col xs={24} sm={8}>
+          <Card
+            loading={loading}
+            hoverable
+            onClick={() => navigate('/accounts')}
+            style={{ cursor: 'pointer' }}
+          >
+            <Statistic
+              title={t('dashboard.warmupActive')}
+              value={warmupStats?.activeCount ?? 0}
+              prefix={<ThunderboltOutlined />}
+              suffix={t('dashboard.warmupAccountsUnit')}
+              valueStyle={{ color: '#fa8c16' }}
+            />
+          </Card>
+        </Col>
+        <Col xs={24} sm={8}>
+          <Card loading={loading}>
+            <Statistic
+              title={t('dashboard.warmupMaintenance')}
+              value={warmupStats?.maintenanceCount ?? 0}
+              suffix={t('dashboard.warmupAccountsUnit')}
+              valueStyle={{ color: '#52c41a' }}
+            />
+          </Card>
+        </Col>
+        <Col xs={24} sm={8}>
+          <Card loading={loading}>
+            <Statistic
+              title={t('dashboard.warmupRetired')}
+              value={warmupStats?.retiredCount ?? 0}
+              suffix={t('dashboard.warmupAccountsUnit')}
+              valueStyle={{ color: '#8c8c8c' }}
             />
           </Card>
         </Col>

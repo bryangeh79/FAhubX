@@ -138,10 +138,12 @@ export class SimpleTasksService {
    * success = completed, failed = failed
    */
   async getTaskStats(userId: string): Promise<{ total: number; running: number; success: number; failed: number }> {
+    // v1.3.0：排除养号任务（auto_warmup），养号跑几周 running 是正常的，
+    // 不应该算到「执行中」里冲淡其他统计。仪表板另有独立的「暖化中」数字。
     const rows: Array<{ status: string; count: number }> = await this.dataSource.query(
       `SELECT status, COUNT(*)::int AS count
        FROM tasks
-       WHERE "userId" = $1
+       WHERE "userId" = $1 AND "taskAction" != 'auto_warmup'
        GROUP BY status`,
       [userId],
     );

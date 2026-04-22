@@ -56,54 +56,118 @@ export function findJustMissedWindow(
 }
 
 /**
- * 根据 warmup_started_at 计算当前处于哪个暖化包 + 包内第几天
+ * v1.3.0 —— 暖化包模式 + 进度计算
  *
- * Day 1-7   → Package 1 (Incubation / 孵化)
- * Day 8-14  → Package 2 (Activation / 激活)
- * Day 15+   → Package 3 (Operation / 运营，无限维护)
+ * 租户创建养号任务时选择 packageMode：
+ *   P1      — 只孵化（Day 1-7，跑完自动转 P3）
+ *   P2      — 只激活（Day 1-7 用 P2 动作，跑完自动转 P3）
+ *   P1+P2   — 完整养号（Day 1-14：前 7 天 P1，后 7 天 P2，跑完自动转 P3）
+ *   P3      — 立即进入维护模式（无限运行）
+ *
+ * 注意 P2 单独时，Day 1 就用激活期动作，而不是等到 Day 8。
+ * 从 startedAt 开始算 Day 1。
+ *
+ * 跑完自动转 P3 的时机：
+ *   - P1 跑完 = day > 7：packageMode 改为 'P3'，startedAt 重置为 now（Day 1 of P3）
+ *   - P2 跑完 = day > 7：同上
+ *   - P1+P2 跑完 = day > 14：同上
  */
+export type PackageMode = 'P1' | 'P2' | 'P1+P2' | 'P3';
+
 export interface PackageInfo {
+  /** 当前真实的包（调度器用这个决定动作）：1 孵化 / 2 激活 / 3 运营 */
   packageNumber: 1 | 2 | 3;
   packageName: 'incubation' | 'activation' | 'operation';
-  dayInPackage: number;        // 1-7 for P1/P2, 1+ for P3
-  overallDay: number;          // 累计天数
-  progressPercent: number;     // 0-100（P1/P2 基于 7 天；P3 始终 100）
-  isMaintenance: boolean;      // P3 时为 true
+  /** 当前包内的天数（1-7 或 1+） */
+  dayInPackage: number;
+  /** 整个养号任务的累计天数 */
+  overallDay: number;
+  /** 相对 packageMode 总天数的进度 0-100；P3 始终 100 */
+  progressPercent: number;
+  /** 总天数（7 / 14 / 0=无限） */
+  totalDays: number;
+  isMaintenance: boolean;
+  /** 是否已经跑完当前 packageMode 需要升级到 P3 */
+  shouldTransitionToP3: boolean;
 }
 
-export function getPackageInfo(startedAt: Date, now: Date = new Date()): PackageInfo {
-  // 用 UTC 日期差，避免时区边界跳变
+export function getPackageInfo(
+  startedAt: Date,
+  packageMode: PackageMode = 'P1+P2',
+  now: Date = new Date(),
+): PackageInfo {
   const msPerDay = 86_400_000;
-  const daysSinceStart = Math.floor((now.getTime() - startedAt.getTime()) / msPerDay) + 1;
+  const day = Math.floor((now.getTime() - startedAt.getTime()) / msPerDay) + 1;
 
-  if (daysSinceStart <= 7) {
+  // P3 无限维护
+  if (packageMode === 'P3') {
     return {
-      packageNumber: 1,
-      packageName: 'incubation',
-      dayInPackage: daysSinceStart,
-      overallDay: daysSinceStart,
-      progressPercent: Math.round((daysSinceStart / 7) * 100),
-      isMaintenance: false,
+      packageNumber: 3, packageName: 'operation',
+      dayInPackage: day, overallDay: day,
+      progressPercent: 100, totalDays: 0,
+      isMaintenance: true, shouldTransitionToP3: false,
     };
   }
-  if (daysSinceStart <= 14) {
-    const d = daysSinceStart - 7;
+
+  // P1 单独：Day 1-7 用 P1 动作 —— 超过自动转 P3
+  if (packageMode === 'P1') {
+    if (day > 7) {
+      return {
+        packageNumber: 1, packageName: 'incubation',
+        dayInPackage: 7, overallDay: day,
+        progressPercent: 100, totalDays: 7,
+        isMaintenance: false, shouldTransitionToP3: true,
+      };
+    }
     return {
-      packageNumber: 2,
-      packageName: 'activation',
-      dayInPackage: d,
-      overallDay: daysSinceStart,
-      progressPercent: Math.round((d / 7) * 100),
-      isMaintenance: false,
+      packageNumber: 1, packageName: 'incubation',
+      dayInPackage: day, overallDay: day,
+      progressPercent: Math.round((day / 7) * 100),
+      totalDays: 7, isMaintenance: false, shouldTransitionToP3: false,
     };
   }
+
+  // P2 单独：Day 1-7 用 P2 动作
+  if (packageMode === 'P2') {
+    if (day > 7) {
+      return {
+        packageNumber: 2, packageName: 'activation',
+        dayInPackage: 7, overallDay: day,
+        progressPercent: 100, totalDays: 7,
+        isMaintenance: false, shouldTransitionToP3: true,
+      };
+    }
+    return {
+      packageNumber: 2, packageName: 'activation',
+      dayInPackage: day, overallDay: day,
+      progressPercent: Math.round((day / 7) * 100),
+      totalDays: 7, isMaintenance: false, shouldTransitionToP3: false,
+    };
+  }
+
+  // P1+P2 完整养号：Day 1-7 → P1，Day 8-14 → P2，Day 15+ → 转 P3
+  if (day <= 7) {
+    return {
+      packageNumber: 1, packageName: 'incubation',
+      dayInPackage: day, overallDay: day,
+      progressPercent: Math.round((day / 14) * 100),
+      totalDays: 14, isMaintenance: false, shouldTransitionToP3: false,
+    };
+  }
+  if (day <= 14) {
+    return {
+      packageNumber: 2, packageName: 'activation',
+      dayInPackage: day - 7, overallDay: day,
+      progressPercent: Math.round((day / 14) * 100),
+      totalDays: 14, isMaintenance: false, shouldTransitionToP3: false,
+    };
+  }
+  // 超过 14 天 → 需转 P3
   return {
-    packageNumber: 3,
-    packageName: 'operation',
-    dayInPackage: daysSinceStart - 14,
-    overallDay: daysSinceStart,
-    progressPercent: 100,
-    isMaintenance: true,
+    packageNumber: 2, packageName: 'activation',
+    dayInPackage: 7, overallDay: day,
+    progressPercent: 100, totalDays: 14,
+    isMaintenance: false, shouldTransitionToP3: true,
   };
 }
 
