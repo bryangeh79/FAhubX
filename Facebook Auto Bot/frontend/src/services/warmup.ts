@@ -51,26 +51,35 @@ export interface BatchStartResult {
   skipped: Array<{ accountId: string; accountNumber: number | null; reason: string }>;
 }
 
+// 后端有全局 TransformInterceptor 包装：{ success, data, timestamp }
+// 所以真正的 payload 在 r.data.data（axios response.data = body；body.data = interceptor wrapped payload）
+// 为了兼容旧路径（某些接口直接返回 payload 不包装），都做 fallback
+function unwrap<T>(body: any): T {
+  return (body && typeof body === 'object' && 'data' in body && 'success' in body)
+    ? body.data as T
+    : body as T;
+}
+
 export const warmupService = {
   async listForUser(): Promise<WarmupProgress[]> {
-    const r = await api.get<WarmupProgress[]>('/warmup/progress');
-    return r.data;
+    const r = await api.get<any>('/warmup/progress');
+    return unwrap<WarmupProgress[]>(r.data);
   },
 
   async getStats(): Promise<WarmupStats> {
-    const r = await api.get<WarmupStats>('/warmup/stats');
-    return r.data;
+    const r = await api.get<any>('/warmup/stats');
+    return unwrap<WarmupStats>(r.data);
   },
 
   async getStatus(accountId: string): Promise<WarmupStatus> {
-    const r = await api.get<WarmupStatus>(`/warmup/status/${accountId}`);
-    return r.data;
+    const r = await api.get<any>(`/warmup/status/${accountId}`);
+    return unwrap<WarmupStatus>(r.data);
   },
 
   /** 一键启动单账号（默认 P1+P2 完整养号） */
   async start(accountId: string, packageMode: PackageMode = 'P1+P2'): Promise<any> {
     const r = await api.post<any>(`/warmup/start/${accountId}`, { packageMode });
-    return r.data;
+    return unwrap<any>(r.data);
   },
 
   /** 批量启动（按账号列表或整组） */
@@ -79,18 +88,18 @@ export const warmupService = {
     accountIds?: string[];
     groupNumber?: number;
   }): Promise<BatchStartResult> {
-    const r = await api.post<BatchStartResult>('/warmup/batch', params);
-    return r.data;
+    const r = await api.post<any>('/warmup/batch', params);
+    return unwrap<BatchStartResult>(r.data);
   },
 
   async retire(accountId: string): Promise<WarmupProgress> {
-    const r = await api.post<WarmupProgress>(`/warmup/retire/${accountId}`);
-    return r.data;
+    const r = await api.post<any>(`/warmup/retire/${accountId}`);
+    return unwrap<WarmupProgress>(r.data);
   },
 
   async resume(accountId: string): Promise<WarmupProgress> {
-    const r = await api.post<WarmupProgress>(`/warmup/resume/${accountId}`);
-    return r.data;
+    const r = await api.post<any>(`/warmup/resume/${accountId}`);
+    return unwrap<WarmupProgress>(r.data);
   },
 };
 

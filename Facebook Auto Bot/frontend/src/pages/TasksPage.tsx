@@ -820,16 +820,22 @@ const TasksPage: React.FC = () => {
           accountIds: targetType === 'accounts' ? values.warmupAccountIds : undefined,
           groupNumber: targetType === 'group' ? values.warmupGroupNumber : undefined,
         });
-        if (result.started.length > 0) {
-          message.success(t('tasks.warmupBatchSuccess', { count: result.started.length }));
+        const started = Array.isArray(result?.started) ? result.started : [];
+        const skipped = Array.isArray(result?.skipped) ? result.skipped : [];
+        if (started.length > 0) {
+          message.success(t('tasks.warmupBatchSuccess', { count: started.length }));
         }
-        if (result.skipped.length > 0) {
-          const lines = result.skipped.map(s => `#${s.accountNumber ?? '?'}: ${s.reason}`).join('\n');
+        if (skipped.length > 0) {
+          const lines = skipped.map((s: any) => `#${s.accountNumber ?? '?'}: ${s.reason}`).join('\n');
           message.warning({
-            content: t('tasks.warmupBatchSkipped', { count: result.skipped.length }),
+            content: t('tasks.warmupBatchSkipped', { count: skipped.length }),
             duration: 5,
           });
           console.warn('Warmup skipped:', lines);
+        }
+        // 如果两个数组都空但没出错，也提示一下避免沉默失败
+        if (started.length === 0 && skipped.length === 0) {
+          message.info(t('tasks.warmupBatchEmpty') || '未启动任何账号（检查目标选择是否有效）');
         }
         setIsModalVisible(false);
         form.resetFields();

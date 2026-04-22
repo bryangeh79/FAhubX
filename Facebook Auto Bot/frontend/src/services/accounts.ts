@@ -1,6 +1,16 @@
 import api from './api';
 import { ExtendedFacebookAccount } from '../types/facebook-login';
 
+/**
+ * 后端有全局 TransformInterceptor 包装：{ success, data, timestamp }
+ * 此 helper 统一解包；非包装响应原样返回。
+ */
+function unwrapApi<T>(body: any): T {
+  return (body && typeof body === 'object' && 'data' in body && 'success' in body && 'timestamp' in body)
+    ? body.data as T
+    : body as T;
+}
+
 export interface FacebookAccount {
   id: string;
   name: string;
@@ -189,13 +199,13 @@ export const accountsService = {
     recycledNumber: number | null;
   }> {
     const r = await api.post<any>(`/facebook-accounts/${id}/factory-reset`);
-    return r.data;
+    return unwrapApi<any>(r.data);
   },
 
-  // ─── v1.2.0 Phase 1 — 暖化分组 ─────────────────────────────────
+  // ─── v1.2.0 Phase 1 — 暖化分组（用 unwrap 解包 TransformInterceptor 的 { success, data, ts }） ─
   async getGroupStats(): Promise<GroupStats> {
-    const response = await api.get<GroupStats>('/facebook-accounts/group-stats');
-    return response.data;
+    const response = await api.get<any>('/facebook-accounts/group-stats');
+    return unwrapApi<GroupStats>(response.data);
   },
 
   async assignGroup(id: string, groupNumber: number | null): Promise<{ data: FacebookAccount }> {
@@ -210,31 +220,31 @@ export const accountsService = {
     accountIds: string[],
     groupNumber: number | null,
   ): Promise<{ updated: number }> {
-    const response = await api.patch<{ updated: number }>(
+    const response = await api.patch<any>(
       '/facebook-accounts/batch-assign-group',
       { accountIds, groupNumber },
     );
-    return response.data;
+    return unwrapApi<{ updated: number }>(response.data);
   },
 
   async getWarmupSettings(): Promise<WarmupSettings> {
-    const response = await api.get<WarmupSettings>('/users/me/warmup-settings');
-    return response.data;
+    const response = await api.get<any>('/users/me/warmup-settings');
+    return unwrapApi<WarmupSettings>(response.data);
   },
 
   async updateWarmupSettings(settings: WarmupSettings): Promise<WarmupSettings> {
-    const response = await api.patch<WarmupSettings>('/users/me/warmup-settings', settings);
-    return response.data;
+    const response = await api.patch<any>('/users/me/warmup-settings', settings);
+    return unwrapApi<WarmupSettings>(response.data);
   },
 
   async getGroupJoinSettings(): Promise<GroupJoinSettings> {
-    const response = await api.get<GroupJoinSettings>('/users/me/group-join-settings');
-    return response.data;
+    const response = await api.get<any>('/users/me/group-join-settings');
+    return unwrapApi<GroupJoinSettings>(response.data);
   },
 
   async updateGroupJoinSettings(settings: GroupJoinSettings): Promise<GroupJoinSettings> {
-    const response = await api.patch<GroupJoinSettings>('/users/me/group-join-settings', settings);
-    return response.data;
+    const response = await api.patch<any>('/users/me/group-join-settings', settings);
+    return unwrapApi<GroupJoinSettings>(response.data);
   },
 };
 
