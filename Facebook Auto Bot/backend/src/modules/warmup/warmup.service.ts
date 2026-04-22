@@ -59,15 +59,13 @@ export class WarmupService implements OnModuleInit {
 
   async onModuleInit(): Promise<void> {
     try {
-      // v1.3.0：清空 v1.2.x 的旧表（用户选 B 清空重来）+ 建新 schema
-      await this.dataSource.query(`DROP TABLE IF EXISTS warmup_progress CASCADE`);
+      // 幂等 schema ensure —— 只建不删，升级自动加新列
+      // 首次创建
       await this.dataSource.query(`
-        CREATE TABLE warmup_progress (
+        CREATE TABLE IF NOT EXISTS warmup_progress (
           id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
           "userId" UUID NOT NULL,
           "accountId" UUID NOT NULL UNIQUE,
-          "taskId" UUID,
-          "packageMode" VARCHAR(10) NOT NULL DEFAULT 'P1+P2',
           "startedAt" TIMESTAMPTZ NOT NULL,
           status VARCHAR(20) NOT NULL DEFAULT 'active',
           "lastFiredWindow" VARCHAR(20),
@@ -81,19 +79,36 @@ export class WarmupService implements OnModuleInit {
           "updatedAt" TIMESTAMPTZ NOT NULL DEFAULT NOW()
         )
       `);
-      await this.dataSource.query(`
-        CREATE INDEX IF NOT EXISTS idx_warmup_progress_user_id
-          ON warmup_progress ("userId")
+      // v1.3.0 新增字段（老 schema 升级兼容）
+      await this.dataSource.query(`ALTER TABLE warmup_progress ADD COLUMN IF NOT EXISTS "taskId" UUID`);
+      await this.dataSource.query(`ALTER TABLE warmup_progress ADD COLUMN IF NOT EXISTS "packageMode" VARCHAR(10) NOT NULL DEFAULT 'P1+P2'`);
+      await this.dataSource.query(`CREATE INDEX IF NOT EXISTS idx_warmup_progress_user_id ON warmup_progress ("userId")`);
+      await this.dataSource.query(`CREATE INDEX IF NOT EXISTS idx_warmup_progress_task_id ON warmup_progress ("taskId")`);
+      await this.dataSource.query(`CREATE INDEX IF NOT EXISTS idx_warmup_progress_status ON warmup_progress (status)`);
+
+      // 启动时自动清理孤儿 auto_warmup 任务 ——
+      // 这些任务没有关联的 warmup_progress 记录（通常是旧版事务 bug 留下的残留）。
+      // 打印到日志让运维知道。
+      const orphans = await this.dataSource.query(`
+        SELECT id, name FROM tasks
+         WHERE "taskAction" = 'auto_warmup'
+           AND status = 'running'
+           AND id NOT IN (SELECT "taskId" FROM warmup_progress WHERE "taskId" IS NOT NULL)
       `);
-      await this.dataSource.query(`
-        CREATE INDEX IF NOT EXISTS idx_warmup_progress_task_id
-          ON warmup_progress ("taskId")
-      `);
-      await this.dataSource.query(`
-        CREATE INDEX IF NOT EXISTS idx_warmup_progress_status
-          ON warmup_progress (status)
-      `);
-      this.logger.log('✅ warmup_progress schema v1.3.0 ensured (clean slate)');
+      if (orphans.length > 0) {
+        await this.dataSource.query(`
+          UPDATE tasks
+             SET status = 'cancelled',
+                 "completedAt" = NOW(),
+                 result = '{"success": false, "error": "孤儿养号任务，无关联的 warmup_progress 记录，启动时自动清理"}'::jsonb
+           WHERE "taskAction" = 'auto_warmup'
+             AND status = 'running'
+             AND id NOT IN (SELECT "taskId" FROM warmup_progress WHERE "taskId" IS NOT NULL)
+        `);
+        this.logger.warn(`🧹 清理了 ${orphans.length} 个孤儿养号任务：${orphans.map((o: any) => o.name).join(', ')}`);
+      }
+
+      this.logger.log('✅ warmup_progress schema ensured (idempotent)');
     } catch (err: any) {
       this.logger.error(`warmup schema init failed: ${err.message}`);
     }
@@ -120,10 +135,6 @@ export class WarmupService implements OnModuleInit {
     if (existing && existing.status === 'active') {
       throw new BadRequestException(`账号 #${account.accountNumber} 已在暖化中`);
     }
-    // 有旧的 retired 记录 → 删掉（accountId UNIQUE 约束不允许两行）
-    if (existing) {
-      await this.progressRepo.delete({ id: existing.id });
-    }
 
     const accountTag = account.accountNumber != null
       ? `#${String(account.accountNumber).padStart(2, '0')}`
@@ -131,50 +142,60 @@ export class WarmupService implements OnModuleInit {
 
     const packageLabel = this.getPackageLabel(packageMode);
 
-    // 1. 创建父任务（status = RUNNING 直接开跑）
-    const task = this.taskRepo.create({
-      name: `[养号] ${accountTag} ${packageLabel}`,
-      description: `自动养号任务 · ${packageLabel} · G${account.warmupGroupNumber}`,
-      type: TaskType.IMMEDIATE,
-      status: TaskStatus.RUNNING,
-      userId,
-      taskAction: 'auto_warmup',
-      accountId: account.id,
-      executionData: {
-        scriptId: 'auto_warmup',
-        scriptType: 'browser',
-        targets: [],
-        parameters: {
-          taskAction: 'auto_warmup',
-          accountAId: account.id,
-          accountName: accountTag,
-          packageMode,
-          groupNumber: account.warmupGroupNumber,
+    // ── 事务包裹：task + progress 要么都成，要么都回滚，避免孤儿任务 ──
+    const result = await this.dataSource.transaction(async (manager) => {
+      // 先删旧的 retired 记录（accountId UNIQUE 约束）
+      if (existing) {
+        await manager.delete(WarmupProgress, { id: existing.id });
+      }
+
+      // 1. 创建父任务
+      const task = manager.create(Task, {
+        name: `[养号] ${accountTag} ${packageLabel}`,
+        description: `自动养号任务 · ${packageLabel} · G${account.warmupGroupNumber}`,
+        type: TaskType.IMMEDIATE,
+        status: TaskStatus.RUNNING,
+        userId,
+        taskAction: 'auto_warmup',
+        accountId: account.id,
+        executionData: {
+          scriptId: 'auto_warmup',
+          scriptType: 'browser',
+          targets: [],
+          parameters: {
+            taskAction: 'auto_warmup',
+            accountAId: account.id,
+            accountName: accountTag,
+            packageMode,
+            groupNumber: account.warmupGroupNumber,
+          },
         },
-      },
-      priority: 3,
-      maxRetries: 0,
-      timeoutMinutes: 20160, // 14 天，超时标志无实际意义
-      scheduledAt: new Date(),
-    } as Partial<Task>);
-    const savedTask = await this.taskRepo.save(task);
+        priority: 3,
+        maxRetries: 0,
+        timeoutMinutes: 20160,
+        scheduledAt: new Date(),
+      } as Partial<Task>);
+      const savedTask = await manager.save(task);
 
-    // 2. 创建 warmup_progress 链接父任务
-    const progress = this.progressRepo.create({
-      userId,
-      accountId,
-      taskId: savedTask.id,
-      packageMode,
-      startedAt: new Date(),
-      status: 'active',
+      // 2. 创建 warmup_progress
+      const progress = manager.create(WarmupProgress, {
+        userId,
+        accountId,
+        taskId: savedTask.id,
+        packageMode,
+        startedAt: new Date(),
+        status: 'active',
+      });
+      const savedProgress = await manager.save(progress);
+
+      return { task: savedTask, progress: savedProgress };
     });
-    const savedProgress = await this.progressRepo.save(progress);
 
-    // 初始日志
-    appendLog(savedTask.id, 'info',
+    // 初始日志（事务外，不影响）
+    appendLog(result.task.id, 'info',
       `🌱 养号启动 · ${packageLabel} · 账号 ${accountTag} (G${account.warmupGroupNumber}) · Day 1 开始`);
 
-    return { progress: savedProgress, task: savedTask };
+    return { progress: result.progress, task: result.task };
   }
 
   /**
