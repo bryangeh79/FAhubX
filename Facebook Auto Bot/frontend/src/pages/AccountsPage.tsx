@@ -294,9 +294,11 @@ const AccountsPage: React.FC = () => {
       title: t('accounts.colName'),
       dataIndex: 'name',
       key: 'name',
+      width: 180,
+      ellipsis: true,
       render: (text: string, record: FacebookAccount) => (
-        <Space direction="vertical" size={0}>
-          <Text strong>{text}</Text>
+        <Space direction="vertical" size={0} style={{ minWidth: 140 }}>
+          <Text strong style={{ whiteSpace: 'nowrap' }}>{text}</Text>
           <Text type="secondary" style={{ fontSize: 12 }}>{record.email}</Text>
           {(record as any).lastLoginAt && (
             <Text type="secondary" style={{ fontSize: 11 }}>
@@ -685,6 +687,7 @@ const AccountsPage: React.FC = () => {
           dataSource={accounts}
           rowKey="id"
           loading={loading}
+          scroll={{ x: 1400 }}
           rowSelection={{
             selectedRowKeys: selectedAccountIds,
             onChange: (keys) => setSelectedAccountIds(keys as string[]),
@@ -958,7 +961,7 @@ const AccountsPage: React.FC = () => {
                     }
                     onChange={(e) => setGroupJoinSettings(p => ({ ...p, aiApiKey: e.target.value }))}
                     addonAfter={
-                      groupJoinSettings.aiApiKeyConfigured && (
+                      groupJoinSettings.aiApiKeyConfigured ? (
                         <Button
                           type="link"
                           size="small"
@@ -967,7 +970,7 @@ const AccountsPage: React.FC = () => {
                         >
                           {t('warmup.groupJoin.aiApiKeyClearBtn')}
                         </Button>
-                      )
+                      ) : undefined
                     }
                   />
                 </Form.Item>

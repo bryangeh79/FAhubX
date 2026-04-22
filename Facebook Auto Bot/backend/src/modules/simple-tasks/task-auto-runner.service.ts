@@ -365,9 +365,23 @@ export class TaskAutoRunnerService implements OnModuleInit {
       } else if (taskAction === 'auto_join_group') {
         // v1.2.0 Phase 4b —— Puppeteer 自动加群
         appendLog(taskId, 'info', '👥 正在启动自动加群...');
-        const gjs = params.groupJoinSettings || {};
-        if (!gjs.keywords || gjs.keywords.length === 0) {
-          appendLog(taskId, 'error', '❌ 未配置加群关键词');
+        let gjs: any = params.groupJoinSettings;
+        // 手动任务不会带 settings → 从用户 preferences 读（和加群设置 Modal 同一源）
+        if (!gjs || !gjs.keywords || gjs.keywords.length === 0) {
+          try {
+            const [row] = await this.dataSource.query(
+              `SELECT preferences FROM users WHERE id = $1`, [userId],
+            );
+            gjs = row?.preferences?.warmup?.groupJoin || {};
+            if (gjs.keywords?.length > 0) {
+              appendLog(taskId, 'info', `📖 从全局加群设置读取配置（${gjs.keywords.length} 个关键词）`);
+            }
+          } catch (err: any) {
+            appendLog(taskId, 'warn', `读取全局加群设置失败：${err.message}`);
+          }
+        }
+        if (!gjs?.keywords || gjs.keywords.length === 0) {
+          appendLog(taskId, 'error', '❌ 未配置加群关键词 —— 请先在账号管理页「加群设置」里添加关键词');
           await this.saveTaskResult(taskId, false, '未配置加群关键词');
           return;
         }

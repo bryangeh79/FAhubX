@@ -12,7 +12,7 @@ import {
   ThunderboltOutlined, ApiOutlined, SettingOutlined, EyeOutlined, EditOutlined,
   SaveOutlined, PlusCircleOutlined, MinusCircleOutlined,
   UserAddOutlined, CommentOutlined, HeartOutlined, AppstoreOutlined,
-  DesktopOutlined,
+  DesktopOutlined, TeamOutlined,
 } from '@ant-design/icons';
 import { Checkbox } from 'antd';
 import dayjs from 'dayjs';
@@ -29,7 +29,7 @@ const { TabPane } = Tabs;
 
 type TaskStatus = 'pending' | 'running' | 'completed' | 'failed';
 type TaskType = 'auto_chat' | 'auto_post_image' | 'auto_post_video' | 'auto_call' | 'account_sync' | 'auto_simulate'
-  | 'auto_add_friends' | 'auto_accept_requests' | 'auto_comment' | 'auto_follow' | 'auto_combo';
+  | 'auto_add_friends' | 'auto_accept_requests' | 'auto_comment' | 'auto_follow' | 'auto_combo' | 'auto_join_group';
 
 interface Task {
   id: string;
@@ -84,6 +84,7 @@ const TASK_TYPE_CONFIG: Record<TaskType, { color: string; text: string; icon: Re
   auto_comment:         { color: 'gold',     text: 'tasks.taskType_auto_comment',         icon: <CommentOutlined /> },
   auto_follow:          { color: 'volcano',  text: 'tasks.taskType_auto_follow',          icon: <HeartOutlined /> },
   auto_combo:           { color: 'purple',   text: 'tasks.taskType_auto_combo',           icon: <AppstoreOutlined /> },
+  auto_join_group:      { color: 'cyan',     text: 'tasks.taskType_auto_join_group',      icon: <TeamOutlined /> },
 };
 
 const STATUS_CONFIG: Record<TaskStatus, { color: string; icon: React.ReactNode; text: string }> = {
@@ -1066,6 +1067,7 @@ const TasksPage: React.FC = () => {
                   <Option value="auto_comment"><CommentOutlined /> {t('tasks.taskType_auto_comment')}</Option>
                   <Option value="auto_follow"><HeartOutlined /> {t('tasks.taskType_auto_follow')}</Option>
                   <Option value="auto_combo"><AppstoreOutlined /> {t('tasks.taskType_auto_combo')}</Option>
+                  <Option value="auto_join_group"><TeamOutlined /> {t('tasks.taskType_auto_join_group')}</Option>
                 </Select>
               </Form.Item>
             </Col>
@@ -1595,6 +1597,30 @@ const TasksPage: React.FC = () => {
                   </Row>
                 </div>
               )}
+            </>
+          )}
+
+          {/* ── Auto Join Group ── v1.2.0 Phase 4b */}
+          {taskType === 'auto_join_group' && (
+            <>
+              <Divider orientation="left" style={{ fontSize: 13, color: '#13c2c2' }}>
+                <TeamOutlined /> {t('tasks.joinGroupSectionTitle')}
+              </Divider>
+              <Alert
+                type="info" showIcon style={{ marginBottom: 16 }}
+                message={t('tasks.joinGroupReuseSettings')}
+                description={t('tasks.joinGroupReuseSettingsDesc')}
+              />
+              <Form.Item name={batchMode ? 'batchAccountIds' : 'accountAId'} label={t('tasks.executingAccount')} rules={[{ required: true }]}>
+                <Select mode={batchMode ? 'multiple' : undefined} placeholder={t('tasks.selectTargetAccount')} showSearch optionFilterProp="children">
+                  {accounts.map(a => (
+                    <Option key={a.id} value={a.id}>
+                      {a.accountNumber != null && <Text strong style={{ color: '#1890ff', marginRight: 6 }}>{formatAccountNumber(a.accountNumber)}</Text>}
+                      <Badge color={a.loginStatus ? 'green' : 'default'} text={a.name} />
+                    </Option>
+                  ))}
+                </Select>
+              </Form.Item>
             </>
           )}
 
