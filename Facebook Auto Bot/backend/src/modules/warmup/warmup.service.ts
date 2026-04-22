@@ -120,6 +120,10 @@ export class WarmupService implements OnModuleInit {
     if (existing && existing.status === 'active') {
       throw new BadRequestException(`账号 #${account.accountNumber} 已在暖化中`);
     }
+    // 有旧的 retired 记录 → 删掉（accountId UNIQUE 约束不允许两行）
+    if (existing) {
+      await this.progressRepo.delete({ id: existing.id });
+    }
 
     const accountTag = account.accountNumber != null
       ? `#${String(account.accountNumber).padStart(2, '0')}`
@@ -169,13 +173,6 @@ export class WarmupService implements OnModuleInit {
     // 初始日志
     appendLog(savedTask.id, 'info',
       `🌱 养号启动 · ${packageLabel} · 账号 ${accountTag} (G${account.warmupGroupNumber}) · Day 1 开始`);
-
-    if (existing && existing.status === 'retired') {
-      // 如果有旧的 retired 记录，删掉（unique 约束冲突）
-      await this.progressRepo.delete({ id: existing.id });
-      // 重新建（因为 save 上面的 progress 已带新 unique accountId —— 需确认）
-      // 实际上上面 save 已经完成了，existing 删除即可
-    }
 
     return { progress: savedProgress, task: savedTask };
   }
