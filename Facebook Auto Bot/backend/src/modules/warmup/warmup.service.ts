@@ -409,7 +409,7 @@ export class WarmupService implements OnModuleInit {
       accountId: account.id,
       executionData: {
         scriptId: action,
-        scriptType: 'warmup',
+        scriptType: 'browser', // 复用现有枚举（'browser' | 'dialogue'），warmup 识别靠 [Warmup] 任务名前缀
         targets: [],
         parameters,
       },

@@ -31,7 +31,7 @@ import { useT } from '../i18n';
 import LanguageSwitcher from './LanguageSwitcher';
 
 // App version — bump this when releasing a new installer
-const APP_VERSION = '1.1.0';
+const APP_VERSION = '1.2.0';
 
 const { Header, Content, Sider } = Layout;
 const { Text } = Typography;

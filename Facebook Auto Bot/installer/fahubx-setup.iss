@@ -6,7 +6,7 @@
 ; ============================================================
 
 #define MyAppName "FAhubX"
-#define MyAppVersion "1.0.0"
+#define MyAppVersion "1.2.0"
 #define MyAppPublisher "FAhubX"
 #define MyAppURL "https://fahubx.starbright-solutions.com"
 #define MyAppExeName "FAhubX.bat"
