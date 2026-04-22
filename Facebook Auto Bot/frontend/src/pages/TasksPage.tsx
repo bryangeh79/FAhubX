@@ -20,6 +20,7 @@ import AppLayout from '../components/AppLayout';
 import api from '../services/api';
 import { useT, useI18n } from '../i18n';
 import { translateLogMessage } from '../i18n/logTranslator';
+import { formatAccountNumber } from '../services/accounts';
 
 const { Title, Text, Paragraph } = Typography;
 const { Option } = Select;
@@ -707,7 +708,9 @@ const TasksPage: React.FC = () => {
   ) => {
     const accA = accounts.find(a => a.id === accountId);
     const accB = accounts.find(a => a.id === values.accountBId);
-    const accountName = accA ? `${accA.name}${accB ? ` ↔ ${accB.name}` : ''}` : accountId;
+    const labelA = accA ? `${formatAccountNumber(accA.accountNumber)} ${accA.name}`.trim() : accountId;
+    const labelB = accB ? `${formatAccountNumber(accB.accountNumber)} ${accB.name}`.trim() : '';
+    const accountName = labelB ? `${labelA} ↔ ${labelB}` : labelA;
     return {
       name: values.name,
       type: values.scheduledAt ? 'scheduled' : 'immediate',
@@ -1107,6 +1110,9 @@ const TasksPage: React.FC = () => {
                     <Select placeholder={t('tasks.selectAccountAPlaceholder')} showSearch optionFilterProp="children">
                       {accounts.map(a => (
                         <Option key={a.id} value={a.id} disabled={form.getFieldValue('accountBId') === a.id}>
+                          {a.accountNumber != null && (
+                            <Text strong style={{ color: '#1890ff', marginRight: 6 }}>{formatAccountNumber(a.accountNumber)}</Text>
+                          )}
                           <Badge color={a.loginStatus ? 'green' : 'default'} text={a.name} />
                           <Text type="secondary" style={{ fontSize: 11, marginLeft: 8 }}>{a.email}</Text>
                         </Option>
@@ -1120,6 +1126,9 @@ const TasksPage: React.FC = () => {
                     <Select placeholder={t('tasks.selectAccountBPlaceholder')} showSearch optionFilterProp="children">
                       {accounts.map(a => (
                         <Option key={a.id} value={a.id} disabled={form.getFieldValue('accountAId') === a.id}>
+                          {a.accountNumber != null && (
+                            <Text strong style={{ color: '#1890ff', marginRight: 6 }}>{formatAccountNumber(a.accountNumber)}</Text>
+                          )}
                           <Badge color={a.loginStatus ? 'green' : 'default'} text={a.name} />
                           <Text type="secondary" style={{ fontSize: 11, marginLeft: 8 }}>{a.email}</Text>
                         </Option>
@@ -1190,7 +1199,10 @@ const TasksPage: React.FC = () => {
               </Divider>
               <Form.Item name={batchMode ? 'batchAccountIds' : 'accountAId'} label={t('tasks.postAccount')} rules={[{ required: true }]}>
                 <Select mode={batchMode ? 'multiple' : undefined} placeholder={t('tasks.selectPostingAccount')} showSearch optionFilterProp="children">
-                  {accounts.map(a => <Option key={a.id} value={a.id}><Badge color={a.loginStatus ? 'green' : 'default'} text={a.name} /></Option>)}
+                  {accounts.map(a => <Option key={a.id} value={a.id}>
+                    {a.accountNumber != null && <Text strong style={{ color: '#1890ff', marginRight: 6 }}>{formatAccountNumber(a.accountNumber)}</Text>}
+                    <Badge color={a.loginStatus ? 'green' : 'default'} text={a.name} />
+                  </Option>)}
                 </Select>
               </Form.Item>
               <Form.Item name="postContent" label={t('tasks.postContent')} rules={[{ required: true }]}>
@@ -1210,7 +1222,10 @@ const TasksPage: React.FC = () => {
               </Divider>
               <Form.Item name={batchMode ? 'batchAccountIds' : 'accountAId'} label={t('tasks.postAccount')} rules={[{ required: true }]}>
                 <Select mode={batchMode ? 'multiple' : undefined} placeholder={t('tasks.selectPostingAccount')} showSearch optionFilterProp="children">
-                  {accounts.map(a => <Option key={a.id} value={a.id}><Badge color={a.loginStatus ? 'green' : 'default'} text={a.name} /></Option>)}
+                  {accounts.map(a => <Option key={a.id} value={a.id}>
+                    {a.accountNumber != null && <Text strong style={{ color: '#1890ff', marginRight: 6 }}>{formatAccountNumber(a.accountNumber)}</Text>}
+                    <Badge color={a.loginStatus ? 'green' : 'default'} text={a.name} />
+                  </Option>)}
                 </Select>
               </Form.Item>
               <Form.Item name="postContent" label={t('tasks.videoDescription')}>
@@ -1280,6 +1295,7 @@ const TasksPage: React.FC = () => {
                 <Select mode={batchMode ? 'multiple' : undefined} placeholder={t('tasks.selectTargetAccount')} showSearch optionFilterProp="children">
                   {accounts.map(a => (
                     <Option key={a.id} value={a.id}>
+                      {a.accountNumber != null && <Text strong style={{ color: '#1890ff', marginRight: 6 }}>{formatAccountNumber(a.accountNumber)}</Text>}
                       <Badge color={a.loginStatus ? 'green' : 'default'} text={a.name} />
                     </Option>
                   ))}
@@ -1318,6 +1334,7 @@ const TasksPage: React.FC = () => {
                 <Select mode={batchMode ? 'multiple' : undefined} placeholder={t('tasks.selectAddFriendAccount')} showSearch optionFilterProp="children">
                   {accounts.map(a => (
                     <Option key={a.id} value={a.id}>
+                      {a.accountNumber != null && <Text strong style={{ color: '#1890ff', marginRight: 6 }}>{formatAccountNumber(a.accountNumber)}</Text>}
                       <Badge color={a.loginStatus ? 'green' : 'default'} text={a.name} />
                     </Option>
                   ))}
@@ -1357,6 +1374,7 @@ const TasksPage: React.FC = () => {
                 <Select mode={batchMode ? 'multiple' : undefined} placeholder={t('tasks.selectAcceptAccount')} showSearch optionFilterProp="children">
                   {accounts.map(a => (
                     <Option key={a.id} value={a.id}>
+                      {a.accountNumber != null && <Text strong style={{ color: '#1890ff', marginRight: 6 }}>{formatAccountNumber(a.accountNumber)}</Text>}
                       <Badge color={a.loginStatus ? 'green' : 'default'} text={a.name} />
                     </Option>
                   ))}
@@ -1383,6 +1401,7 @@ const TasksPage: React.FC = () => {
                 <Select mode={batchMode ? 'multiple' : undefined} placeholder={t('tasks.selectCommentAccount')} showSearch optionFilterProp="children">
                   {accounts.map(a => (
                     <Option key={a.id} value={a.id}>
+                      {a.accountNumber != null && <Text strong style={{ color: '#1890ff', marginRight: 6 }}>{formatAccountNumber(a.accountNumber)}</Text>}
                       <Badge color={a.loginStatus ? 'green' : 'default'} text={a.name} />
                     </Option>
                   ))}
@@ -1430,6 +1449,7 @@ const TasksPage: React.FC = () => {
                 <Select mode={batchMode ? 'multiple' : undefined} placeholder={t('tasks.selectFollowAccount')} showSearch optionFilterProp="children">
                   {accounts.map(a => (
                     <Option key={a.id} value={a.id}>
+                      {a.accountNumber != null && <Text strong style={{ color: '#1890ff', marginRight: 6 }}>{formatAccountNumber(a.accountNumber)}</Text>}
                       <Badge color={a.loginStatus ? 'green' : 'default'} text={a.name} />
                     </Option>
                   ))}
@@ -1469,6 +1489,7 @@ const TasksPage: React.FC = () => {
                 <Select mode={batchMode ? 'multiple' : undefined} placeholder={batchMode ? '选择多个账号批量执行' : '选择执行所有动作的 Facebook 账号'} showSearch optionFilterProp="children">
                   {accounts.map(a => (
                     <Option key={a.id} value={a.id}>
+                      {a.accountNumber != null && <Text strong style={{ color: '#1890ff', marginRight: 6 }}>{formatAccountNumber(a.accountNumber)}</Text>}
                       <Badge color={a.loginStatus ? 'green' : 'default'} text={a.name} />
                     </Option>
                   ))}

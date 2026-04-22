@@ -4,6 +4,8 @@ import { ExtendedFacebookAccount } from '../types/facebook-login';
 export interface FacebookAccount {
   id: string;
   name: string;
+  accountNumber?: number | null;
+  warmupGroupNumber?: number | null;
   facebookId?: string;
   email?: string;
   remarks?: string;
@@ -13,6 +15,36 @@ export interface FacebookAccount {
   status?: string;
   createdAt: string;
   updatedAt?: string;
+}
+
+export interface GroupStats {
+  groupCount: number;
+  groups: { group: number; count: number }[];
+  unassigned: number;
+  total: number;
+}
+
+export interface WarmupSettings {
+  groupCount: number;
+}
+
+/**
+ * 格式化账号编号：1 -> "#01"，10 -> "#10"，100 -> "#100"
+ * 账号号未分配（null/undefined）时返回空串
+ */
+export function formatAccountNumber(n?: number | null): string {
+  if (n == null) return '';
+  return n < 100 ? `#${String(n).padStart(2, '0')}` : `#${n}`;
+}
+
+/**
+ * 账号展示标签：#01 bryangeh@hotmail.com
+ * 用于下拉选择器、日志、错误提示等需要简短可读标识的地方
+ */
+export function formatAccountLabel(a: Pick<FacebookAccount, 'accountNumber' | 'email' | 'name'>): string {
+  const num = formatAccountNumber(a.accountNumber);
+  const id = a.email || a.name || '';
+  return num ? `${num} ${id}` : id;
 }
 
 export interface AccountStats {
@@ -143,4 +175,112 @@ export const accountsService = {
   async cancelRegistration(accountId: string): Promise<void> {
     await api.post(`/facebook-accounts/${accountId}/cancel-registration`);
   },
+
+  // ─── v1.2.0 Phase 1 — 暖化分组 ─────────────────────────────────
+  async getGroupStats(): Promise<GroupStats> {
+    const response = await api.get<GroupStats>('/facebook-accounts/group-stats');
+    return response.data;
+  },
+
+  async assignGroup(id: string, groupNumber: number | null): Promise<{ data: FacebookAccount }> {
+    const response = await api.patch<{ data: FacebookAccount }>(
+      `/facebook-accounts/${id}/group`,
+      { groupNumber },
+    );
+    return response.data;
+  },
+
+  async batchAssignGroup(
+    accountIds: string[],
+    groupNumber: number | null,
+  ): Promise<{ updated: number }> {
+    const response = await api.patch<{ updated: number }>(
+      '/facebook-accounts/batch-assign-group',
+      { accountIds, groupNumber },
+    );
+    return response.data;
+  },
+
+  async getWarmupSettings(): Promise<WarmupSettings> {
+    const response = await api.get<WarmupSettings>('/users/me/warmup-settings');
+    return response.data;
+  },
+
+  async updateWarmupSettings(settings: WarmupSettings): Promise<WarmupSettings> {
+    const response = await api.patch<WarmupSettings>('/users/me/warmup-settings', settings);
+    return response.data;
+  },
+
+  async getGroupJoinSettings(): Promise<GroupJoinSettings> {
+    const response = await api.get<GroupJoinSettings>('/users/me/group-join-settings');
+    return response.data;
+  },
+
+  async updateGroupJoinSettings(settings: GroupJoinSettings): Promise<GroupJoinSettings> {
+    const response = await api.patch<GroupJoinSettings>('/users/me/group-join-settings', settings);
+    return response.data;
+  },
 };
+
+export type AiProvider = 'claude' | 'openai' | 'deepseek';
+
+export interface GroupJoinSettings {
+  keywords: string[];
+  dailyLimit: number;
+  strategy: 'random' | 'sequential' | 'weighted';
+  aiAnswerEnabled: boolean;
+  aiAnswerPrompt: string;
+  aiProvider?: AiProvider;
+  /** 读取时：遮罩字符串（如 sk-…abc9）；写入时：新 key 明文，或空串保留旧值，或 "__CLEAR__" 清空 */
+  aiApiKey?: string;
+  /** 只读：后端告诉前端是否已配置过 key */
+  aiApiKeyConfigured?: boolean;
+}
+
+/** 提供商元数据 —— UI 下拉显示用 */
+export const AI_PROVIDERS: Array<{
+  value: AiProvider;
+  label: string;
+  model: string;
+  costHint: string;
+  keyHint: string;
+}> = [
+  {
+    value: 'claude',
+    label: 'Claude Haiku',
+    model: 'claude-haiku (Anthropic)',
+    costHint: '每 500 次加群约 $0.5',
+    keyHint: 'sk-ant-api03-...',
+  },
+  {
+    value: 'openai',
+    label: 'GPT-4o-mini',
+    model: 'gpt-4o-mini (OpenAI)',
+    costHint: '每 500 次加群约 $0.4',
+    keyHint: 'sk-proj-...',
+  },
+  {
+    value: 'deepseek',
+    label: 'DeepSeek Chat',
+    model: 'deepseek-chat (性价比最高)',
+    costHint: '每 500 次加群约 $0.05（最便宜）',
+    keyHint: 'sk-...',
+  },
+];
+
+/**
+ * 格式化分组标签：1 -> "G1", 3 -> "G3", null -> "未分组"
+ */
+export function formatGroupLabel(n?: number | null): string {
+  if (n == null) return '未分组';
+  return `G${n}`;
+}
+
+/**
+ * 分组颜色（6 组各一个色，保持视觉区分）
+ */
+export function getGroupColor(n?: number | null): string {
+  if (n == null) return 'default';
+  const colors = ['blue', 'green', 'gold', 'purple', 'magenta', 'cyan'];
+  return colors[(n - 1) % colors.length] || 'default';
+}

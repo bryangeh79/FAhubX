@@ -23,6 +23,7 @@ export class DatabaseConfig implements TypeOrmOptionsFactory {
         join(__dirname, '../modules/vpn-integration/entities/vpn-config.entity{.ts,.js}'),
         join(__dirname, '../modules/task-scheduler/**/*.entity{.ts,.js}'),
         join(__dirname, '../modules/chat-scripts/**/*.entity{.ts,.js}'),
+        join(__dirname, '../modules/warmup/**/*.entity{.ts,.js}'),
       ],
       synchronize: false,
       logging: this.configService.get('database.logging', false),

@@ -11,6 +11,7 @@ import {
   Request,
   HttpCode,
   HttpStatus,
+  BadRequestException,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -248,6 +249,48 @@ export class FacebookAccountsController {
     @Param('facebookId') facebookId: string,
   ): Promise<FacebookAccountResponseDto> {
     return this.facebookAccountsService.findByFacebookId(req.user.id, facebookId);
+  }
+
+  // ─── v1.2.0 Phase 1 — 暖化分组管理 ────────────────────────────────
+  @Get('group-stats')
+  @ApiOperation({ summary: '获取每个分组的账号数量统计' })
+  async getGroupStats(@Request() req) {
+    return this.facebookAccountsService.getGroupStats(req.user.id);
+  }
+
+  @Patch(':id/group')
+  @ApiOperation({ summary: '分配单个账号到指定分组（1-6 或 null 取消分组）' })
+  async assignGroup(
+    @Request() req,
+    @Param('id') id: string,
+    @Body() body: { groupNumber: number | null },
+  ): Promise<FacebookAccountResponseDto> {
+    const g = body?.groupNumber;
+    if (g != null && (typeof g !== 'number' || g < 1 || g > 6 || !Number.isInteger(g))) {
+      throw new BadRequestException('groupNumber 必须是 1-6 之间的整数，或 null（取消分组）');
+    }
+    return this.facebookAccountsService.assignGroup(req.user.id, id, g ?? null);
+  }
+
+  @Patch('batch-assign-group')
+  @ApiOperation({ summary: '批量分配账号到分组' })
+  async batchAssignGroup(
+    @Request() req,
+    @Body() body: { accountIds: string[]; groupNumber: number | null },
+  ): Promise<{ updated: number }> {
+    const { accountIds, groupNumber } = body || ({} as any);
+    if (!Array.isArray(accountIds) || accountIds.length === 0) {
+      throw new BadRequestException('accountIds 必须是非空数组');
+    }
+    if (groupNumber != null && (typeof groupNumber !== 'number' || groupNumber < 1 || groupNumber > 6 || !Number.isInteger(groupNumber))) {
+      throw new BadRequestException('groupNumber 必须是 1-6 之间的整数，或 null');
+    }
+    const updated = await this.facebookAccountsService.batchAssignGroup(
+      req.user.id,
+      accountIds,
+      groupNumber ?? null,
+    );
+    return { updated };
   }
 
   @Patch(':id')

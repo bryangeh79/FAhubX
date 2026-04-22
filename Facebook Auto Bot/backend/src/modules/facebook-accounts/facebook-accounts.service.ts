@@ -5,6 +5,8 @@ import {
   BadRequestException,
   InternalServerErrorException,
   ForbiddenException,
+  OnModuleInit,
+  Logger,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, MoreThan, LessThanOrEqual, DataSource } from 'typeorm';
@@ -17,13 +19,68 @@ import { UpdateFacebookAccountDto } from './dto/update-facebook-account.dto';
 import { FacebookAccountResponseDto } from './dto/facebook-account-response.dto';
 
 @Injectable()
-export class FacebookAccountsService {
+export class FacebookAccountsService implements OnModuleInit {
+  private readonly logger = new Logger(FacebookAccountsService.name);
+
   constructor(
     @InjectRepository(FacebookAccount)
     private readonly facebookAccountsRepository: Repository<FacebookAccount>,
     private readonly configService: ConfigService,
     private readonly dataSource: DataSource,
   ) {}
+
+  /**
+   * 启动时自动 ensure schema —— 项目没启用 migrationsRun，
+   * 所以在这里 idempotent 地加列 + 回填 + 建唯一索引。
+   * 既适用于升级也适用于全新装机。
+   */
+  async onModuleInit(): Promise<void> {
+    try {
+      // 1. 加 accountNumber 字段（v1.2.0 Phase 0）
+      await this.dataSource.query(`
+        ALTER TABLE facebook_accounts
+          ADD COLUMN IF NOT EXISTS "accountNumber" INTEGER
+      `);
+
+      // 2. 回填现有账号（每租户按 createdAt ASC 从 1 开始）
+      //    只填 accountNumber IS NULL 的记录，重启时不会重复
+      await this.dataSource.query(`
+        WITH numbered AS (
+          SELECT
+            id,
+            ROW_NUMBER() OVER (PARTITION BY "userId" ORDER BY "createdAt" ASC) AS rn
+          FROM facebook_accounts
+          WHERE "deletedAt" IS NULL AND "accountNumber" IS NULL
+        )
+        UPDATE facebook_accounts
+        SET "accountNumber" = numbered.rn
+        FROM numbered
+        WHERE facebook_accounts.id = numbered.id
+      `);
+
+      // 3. 建唯一索引（同一租户的未删除账号不能重复编号）
+      await this.dataSource.query(`
+        CREATE UNIQUE INDEX IF NOT EXISTS idx_facebook_accounts_user_number
+          ON facebook_accounts ("userId", "accountNumber")
+          WHERE "deletedAt" IS NULL AND "accountNumber" IS NOT NULL
+      `);
+
+      // 4. 加 warmupGroupNumber 字段（v1.2.0 Phase 1 —— 分组系统）
+      await this.dataSource.query(`
+        ALTER TABLE facebook_accounts
+          ADD COLUMN IF NOT EXISTS "warmupGroupNumber" INTEGER
+      `);
+      await this.dataSource.query(`
+        CREATE INDEX IF NOT EXISTS idx_facebook_accounts_warmup_group
+          ON facebook_accounts ("warmupGroupNumber")
+          WHERE "deletedAt" IS NULL
+      `);
+
+      this.logger.log('✅ accountNumber + warmupGroup schema ensured (v1.2.0 Phase 0+1)');
+    } catch (err: any) {
+      this.logger.error(`accountNumber schema init failed: ${err.message}`);
+    }
+  }
 
   /**
    * 创建Facebook账号
@@ -103,9 +160,13 @@ export class FacebookAccountsService {
         ? this.encryptData(createFacebookAccountDto.accessToken)
         : null;
 
+      // 分配账号编号（#01 起，回收已删除的编号）
+      const accountNumber = await this.allocateAccountNumber(userId);
+
       // 创建账号实体
       const account = this.facebookAccountsRepository.create({
         userId,
+        accountNumber,
         facebookId: createFacebookAccountDto.facebookId || null,
         name: createFacebookAccountDto.name,
         email: createFacebookAccountDto.email,
@@ -196,9 +257,10 @@ export class FacebookAccountsService {
     // 获取总数
     const total = await queryBuilder.getCount();
 
-    // 获取分页数据
+    // 获取分页数据 — 按账号编号 ASC 排序（#01 在最上面），无编号的旧号回退到 createdAt
     const accounts = await queryBuilder
-      .orderBy('account.createdAt', 'DESC')
+      .orderBy('account.accountNumber', 'ASC', 'NULLS LAST')
+      .addOrderBy('account.createdAt', 'ASC')
       .skip(skip)
       .take(limit)
       .getMany();
@@ -472,6 +534,126 @@ export class FacebookAccountsService {
     };
   }
 
+  // ─── v1.2.0 Phase 1 — 暖化分组 ──────────────────────────────────
+  /**
+   * 分配单个账号到分组（或取消分组）
+   * groupNumber: 1-6 或 null
+   * 注意：入参的 groupCount 不在这里校验，前端 UI 限制
+   *       （若租户把 groupCount 从 6 改到 4，DB 里原有的 G5/G6 账号依旧保留 —— UI 会显示「未匹配组」标签）
+   */
+  async assignGroup(
+    userId: string,
+    accountId: string,
+    groupNumber: number | null,
+  ): Promise<FacebookAccountResponseDto> {
+    const account = await this.facebookAccountsRepository.findOne({
+      where: { id: accountId, userId },
+    });
+    if (!account) {
+      throw new NotFoundException(`Facebook账号 ${accountId} 不存在`);
+    }
+    account.warmupGroupNumber = groupNumber;
+    const saved = await this.facebookAccountsRepository.save(account);
+    this.logger.log(
+      `[${account.accountNumber != null ? '#' + account.accountNumber : accountId}] 分组 → ${groupNumber ?? '未分组'}`,
+    );
+    return this.toResponseDto(saved);
+  }
+
+  /**
+   * 批量分配分组（返回实际更新的账号数）
+   */
+  async batchAssignGroup(
+    userId: string,
+    accountIds: string[],
+    groupNumber: number | null,
+  ): Promise<number> {
+    const result = await this.facebookAccountsRepository
+      .createQueryBuilder()
+      .update()
+      .set({ warmupGroupNumber: groupNumber })
+      .where('userId = :userId AND id IN (:...ids) AND "deletedAt" IS NULL', {
+        userId,
+        ids: accountIds,
+      })
+      .execute();
+    this.logger.log(
+      `[batch] 批量分组：${result.affected ?? 0} 个账号 → ${groupNumber ?? '未分组'}`,
+    );
+    return result.affected ?? 0;
+  }
+
+  /**
+   * 每个分组的账号数 + 未分组账号数
+   * 返回 { groupCount, groups: [{ group: 1, count: 5 }, ...], unassigned: 3 }
+   */
+  async getGroupStats(userId: string): Promise<{
+    groupCount: number;
+    groups: { group: number; count: number }[];
+    unassigned: number;
+    total: number;
+  }> {
+    // 读用户的 groupCount 设置（preferences.warmup.groupCount，默认 3）
+    const [u] = await this.dataSource.query(
+      `SELECT preferences FROM users WHERE id = $1`,
+      [userId],
+    );
+    const groupCount = u?.preferences?.warmup?.groupCount ?? 3;
+
+    const rows = await this.dataSource.query(
+      `SELECT "warmupGroupNumber" AS group, COUNT(*)::int AS count
+         FROM facebook_accounts
+        WHERE "userId" = $1 AND "deletedAt" IS NULL
+        GROUP BY "warmupGroupNumber"`,
+      [userId],
+    );
+    const byGroup = new Map<number | null, number>();
+    let total = 0;
+    for (const r of rows) {
+      const g = r.group == null ? null : Number(r.group);
+      byGroup.set(g, Number(r.count));
+      total += Number(r.count);
+    }
+    const groups: { group: number; count: number }[] = [];
+    for (let i = 1; i <= 6; i++) {
+      const c = byGroup.get(i) ?? 0;
+      if (i <= groupCount || c > 0) {
+        // 显示 1..groupCount，以及超出范围但仍有账号的组（让租户能看到需要重新分配的账号）
+        groups.push({ group: i, count: c });
+      }
+    }
+    return {
+      groupCount,
+      groups,
+      unassigned: byGroup.get(null) ?? 0,
+      total,
+    };
+  }
+
+  /**
+   * 分配账号编号
+   *
+   * 规则：
+   * - 每租户独立，从 #1 开始
+   * - 删号后编号回收：找当前未用的最小正整数
+   * - 例子：如果该租户已有 #1, #2, #4 → 新账号分配 #3；如果 #1, #2, #3 → 新账号分配 #4
+   * - 软删除的账号不占号（migration 里的唯一索引带 WHERE "deletedAt" IS NULL 过滤）
+   */
+  private async allocateAccountNumber(userId: string): Promise<number> {
+    const rows = await this.dataSource.query(
+      `SELECT "accountNumber" FROM facebook_accounts
+       WHERE "userId" = $1 AND "deletedAt" IS NULL AND "accountNumber" IS NOT NULL
+       ORDER BY "accountNumber" ASC`,
+      [userId],
+    );
+    const used = new Set<number>(rows.map((r: any) => r.accountNumber as number));
+    // 找最小未用正整数
+    for (let i = 1; i <= used.size + 1; i++) {
+      if (!used.has(i)) return i;
+    }
+    return used.size + 1; // fallback（理论上不会到这）
+  }
+
   /**
    * 加密数据
    */
@@ -526,6 +708,8 @@ export class FacebookAccountsService {
     return {
       id: account.id,
       userId: account.userId,
+      accountNumber: account.accountNumber ?? null,
+      warmupGroupNumber: account.warmupGroupNumber ?? null,
       facebookId: account.facebookId,
       name: account.name,
       email: account.email,

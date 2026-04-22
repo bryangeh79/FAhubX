@@ -10,6 +10,12 @@ export class FacebookAccountResponseDto {
   @ApiProperty({ description: 'Facebook账号ID', example: '123456789012345' })
   facebookId: string;
 
+  @ApiProperty({ description: '账号编号（每租户独立 #01 起，删号后回收）', example: 1, required: false })
+  accountNumber?: number | null;
+
+  @ApiProperty({ description: '暖化分组编号 1-6，null=未分组', example: 1, required: false })
+  warmupGroupNumber?: number | null;
+
   @ApiProperty({ description: 'Facebook账号名称', example: 'John Doe' })
   name: string;
 

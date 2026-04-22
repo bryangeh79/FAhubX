@@ -7,12 +7,18 @@ import {
   PlusOutlined, EditOutlined, DeleteOutlined, SyncOutlined,
   UserOutlined, LockOutlined, MailOutlined, SafetyOutlined, GlobalOutlined,
   LoginOutlined, LogoutOutlined, CheckCircleOutlined, CloseCircleOutlined,
-  LoadingOutlined, WarningOutlined,
+  LoadingOutlined, WarningOutlined, TeamOutlined, SettingOutlined,
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import AppLayout from '../components/AppLayout';
 import RegistrationModal from '../components/RegistrationModal';
-import { accountsService, FacebookAccount, AccountStats, CreateAccountData } from '../services/accounts';
+import {
+  accountsService, FacebookAccount, AccountStats, CreateAccountData,
+  GroupStats, GroupJoinSettings, AI_PROVIDERS, formatGroupLabel, getGroupColor,
+} from '../services/accounts';
+import {
+  warmupService, WarmupProgress, getPackageColor, computePackageInfoFromStart,
+} from '../services/warmup';
 import api from '../services/api';
 import { useT } from '../i18n';
 
@@ -45,7 +51,47 @@ const AccountsPage: React.FC = () => {
   const [defaultVPN, setDefaultVPN] = useState<VPNOption | null>(null);
   const [loginResultModal, setLoginResultModal] = useState<{ visible: boolean; success: boolean; message: string; requiresManual?: boolean }>({ visible: false, success: false, message: '' });
   const [registrationModalVisible, setRegistrationModalVisible] = useState(false);
+  // v1.2.0 Phase 1 — 分组状态
+  const [groupStats, setGroupStats] = useState<GroupStats | null>(null);
+  const [groupCount, setGroupCount] = useState<number>(3);
+  const [selectedAccountIds, setSelectedAccountIds] = useState<string[]>([]);
+  const [batchAssignVisible, setBatchAssignVisible] = useState(false);
+  const [settingsVisible, setSettingsVisible] = useState(false);
+  const [pendingGroupCount, setPendingGroupCount] = useState<number>(3);
+  // v1.2.0 Phase 2 —— 暖化进度
+  const [warmupMap, setWarmupMap] = useState<Record<string, WarmupProgress>>({});
+  // v1.2.0 Phase 4 —— 加群设置
+  const [groupJoinVisible, setGroupJoinVisible] = useState(false);
+  const [groupJoinSettings, setGroupJoinSettings] = useState<GroupJoinSettings>({
+    keywords: [], dailyLimit: 3, strategy: 'random',
+    aiAnswerEnabled: false, aiAnswerPrompt: '',
+    aiProvider: 'claude', aiApiKey: '', aiApiKeyConfigured: false,
+  });
   const [form] = Form.useForm();
+
+  const fetchWarmupList = useCallback(async () => {
+    try {
+      const list = await warmupService.listForUser();
+      const map: Record<string, WarmupProgress> = {};
+      for (const p of list) map[p.accountId] = p;
+      setWarmupMap(map);
+    } catch {
+      // ignore
+    }
+  }, []);
+
+  const fetchGroupData = useCallback(async () => {
+    try {
+      const [gs, ws] = await Promise.all([
+        accountsService.getGroupStats(),
+        accountsService.getWarmupSettings(),
+      ]);
+      setGroupStats(gs);
+      setGroupCount(ws.groupCount);
+    } catch {
+      // ignore —— 旧后端没这个端点
+    }
+  }, []);
 
   const fetchAccounts = useCallback(async () => {
     setLoading(true);
@@ -93,7 +139,12 @@ const AccountsPage: React.FC = () => {
     fetchAccounts();
     fetchStats();
     fetchVPNOptions();
-  }, [fetchAccounts, fetchStats, fetchVPNOptions]);
+    fetchGroupData();
+    fetchWarmupList();
+    // 60 秒轮询一次暖化状态
+    const t = setInterval(fetchWarmupList, 60_000);
+    return () => clearInterval(t);
+  }, [fetchAccounts, fetchStats, fetchVPNOptions, fetchGroupData, fetchWarmupList]);
 
   const handleCreate = () => {
     setEditingAccount(null);
@@ -226,6 +277,20 @@ const AccountsPage: React.FC = () => {
 
   const columns = [
     {
+      title: '#',
+      dataIndex: 'accountNumber',
+      key: 'accountNumber',
+      width: 60,
+      align: 'center' as const,
+      sorter: (a: any, b: any) => (a.accountNumber ?? 9999) - (b.accountNumber ?? 9999),
+      defaultSortOrder: 'ascend' as const,
+      render: (n: number | null | undefined) =>
+        n == null ? <Text type="secondary">-</Text> :
+          <Text strong style={{ color: '#1890ff' }}>
+            {n < 100 ? `#${String(n).padStart(2, '0')}` : `#${n}`}
+          </Text>,
+    },
+    {
       title: t('accounts.colName'),
       dataIndex: 'name',
       key: 'name',
@@ -280,6 +345,141 @@ const AccountsPage: React.FC = () => {
               {defaultVPN ? t('accounts.defaultVpn', { name: defaultVPN.name }) : t('accounts.globalIp')}
             </Tag>
           </Tooltip>
+        );
+      },
+    },
+    {
+      title: t('accounts.colGroup'),
+      dataIndex: 'warmupGroupNumber',
+      key: 'warmupGroupNumber',
+      width: 100,
+      align: 'center' as const,
+      sorter: (a: any, b: any) => (a.warmupGroupNumber ?? 99) - (b.warmupGroupNumber ?? 99),
+      render: (n: number | null | undefined, record: FacebookAccount) => {
+        const outOfRange = n != null && n > groupCount;
+        return (
+          <Select
+            size="small"
+            style={{ width: 90 }}
+            value={n == null ? 'none' : String(n)}
+            onChange={async (val) => {
+              const newGroup = val === 'none' ? null : parseInt(val, 10);
+              try {
+                await accountsService.assignGroup(record.id, newGroup);
+                message.success(t('accounts.updateSuccess'));
+                fetchAccounts();
+                fetchGroupData();
+              } catch {
+                message.error(t('accounts.operationFailed'));
+              }
+            }}
+            status={outOfRange ? 'warning' : undefined}
+          >
+            <Option value="none">{t('accounts.groupUnassigned')}</Option>
+            {Array.from({ length: groupCount }, (_, i) => i + 1).map(g => (
+              <Option key={g} value={String(g)}>
+                <Tag color={getGroupColor(g)} style={{ margin: 0 }}>{formatGroupLabel(g)}</Tag>
+              </Option>
+            ))}
+            {outOfRange && (
+              <Option value={String(n)} disabled>
+                <Tag color="red" style={{ margin: 0 }}>{formatGroupLabel(n)} ({t('accounts.groupOutOfRange')})</Tag>
+              </Option>
+            )}
+          </Select>
+        );
+      },
+    },
+    {
+      title: t('accounts.colWarmup'),
+      key: 'warmup',
+      width: 180,
+      align: 'center' as const,
+      render: (_: any, record: FacebookAccount) => {
+        const p = warmupMap[record.id];
+        if (!p) {
+          return (
+            <Popconfirm
+              title={t('accounts.warmupStart')}
+              description={
+                record.warmupGroupNumber == null
+                  ? t('accounts.warmupNeedGroup')
+                  : t('accounts.warmupStartConfirm')
+              }
+              disabled={record.warmupGroupNumber == null}
+              onConfirm={async () => {
+                try {
+                  await warmupService.start(record.id);
+                  message.success(t('accounts.warmupStartSuccess'));
+                  fetchWarmupList();
+                } catch (e: any) {
+                  message.error(e?.response?.data?.message || t('accounts.warmupStartFailed'));
+                }
+              }}
+              okText={t('common.confirm')}
+              cancelText={t('common.cancel')}
+            >
+              <Button
+                size="small"
+                type="link"
+                disabled={record.warmupGroupNumber == null}
+                title={record.warmupGroupNumber == null ? t('accounts.warmupNeedGroup') : undefined}
+              >
+                {t('accounts.warmupNotStarted')} → {t('accounts.warmupStart')}
+              </Button>
+            </Popconfirm>
+          );
+        }
+        if (p.status === 'retired') {
+          return (
+            <Space size={4}>
+              <Tag color="default">{t('accounts.warmupRetired')}</Tag>
+              <Popconfirm
+                title={t('accounts.warmupResumeConfirm')}
+                onConfirm={async () => {
+                  await warmupService.resume(record.id);
+                  message.success(t('accounts.updateSuccess'));
+                  fetchWarmupList();
+                }}
+                okText={t('common.confirm')}
+                cancelText={t('common.cancel')}
+              >
+                <Button size="small" type="link">{t('accounts.warmupResume')}</Button>
+              </Popconfirm>
+            </Space>
+          );
+        }
+        // active —— 计算进度标签
+        const info = computePackageInfoFromStart(p.startedAt);
+        const pkgText = info.isMaintenance
+          ? `P3 · ${t('warmup.package.operation')}`
+          : `P${info.packageNumber} D${info.dayInPackage} · ${info.progressPercent}%`;
+        const missedWarn = p.missedToday >= 6;
+        return (
+          <Space direction="vertical" size={0} style={{ width: '100%' }}>
+            <Tag color={getPackageColor(info)} style={{ margin: 0 }}>{pkgText}</Tag>
+            {missedWarn && (
+              <Tooltip title={t('accounts.warmupMissedHint')}>
+                <Tag color="red" style={{ marginTop: 2 }}>
+                  <WarningOutlined /> {t('accounts.warmupMissedWarning', { count: p.missedToday })}
+                </Tag>
+              </Tooltip>
+            )}
+            <Popconfirm
+              title={t('accounts.warmupRetireConfirm')}
+              onConfirm={async () => {
+                await warmupService.retire(record.id);
+                message.success(t('accounts.updateSuccess'));
+                fetchWarmupList();
+              }}
+              okText={t('common.confirm')}
+              cancelText={t('common.cancel')}
+            >
+              <Button size="small" type="link" danger style={{ padding: 0, height: 18 }}>
+                {t('accounts.warmupRetire')}
+              </Button>
+            </Popconfirm>
+          </Space>
         );
       },
     },
@@ -360,6 +560,37 @@ const AccountsPage: React.FC = () => {
         <Title level={2} style={{ margin: 0 }}>{t('accounts.title')}</Title>
         <Space>
           <Button
+            icon={<SettingOutlined />}
+            onClick={() => {
+              setPendingGroupCount(groupCount);
+              setSettingsVisible(true);
+            }}
+          >
+            {t('accounts.groupSettings')}
+          </Button>
+          <Button
+            icon={<TeamOutlined />}
+            onClick={async () => {
+              try {
+                const s = await accountsService.getGroupJoinSettings();
+                setGroupJoinSettings(s);
+                setGroupJoinVisible(true);
+              } catch {
+                setGroupJoinVisible(true);
+              }
+            }}
+          >
+            {t('warmup.groupJoin.title')}
+          </Button>
+          <Button
+            icon={<TeamOutlined />}
+            disabled={selectedAccountIds.length === 0}
+            onClick={() => setBatchAssignVisible(true)}
+          >
+            {t('accounts.batchAssignGroup')}
+            {selectedAccountIds.length > 0 && ` (${selectedAccountIds.length})`}
+          </Button>
+          <Button
             type="default"
             icon={<GlobalOutlined />}
             onClick={() => {
@@ -377,6 +608,41 @@ const AccountsPage: React.FC = () => {
           </Button>
         </Space>
       </div>
+
+      {/* 分组概览 card —— 每组账号数 + 未分组数 */}
+      {groupStats && (
+        <Card size="small" style={{ marginBottom: 16 }} title={
+          <Space>
+            <TeamOutlined style={{ color: '#1890ff' }} />
+            <span>{t('accounts.groupOverview')}</span>
+            <Text type="secondary" style={{ fontSize: 12 }}>
+              ({groupCount} {t('accounts.groupCountLabel')})
+            </Text>
+          </Space>
+        }>
+          <Space wrap>
+            {groupStats.groups.map(g => {
+              const outOfRange = g.group > groupCount;
+              return (
+                <Tag
+                  key={g.group}
+                  color={outOfRange ? 'red' : getGroupColor(g.group)}
+                  style={{ fontSize: 13, padding: '4px 10px' }}
+                >
+                  {formatGroupLabel(g.group)}
+                  {outOfRange && ` (${t('accounts.groupOutOfRange')})`}
+                  <Text strong style={{ marginLeft: 6 }}>{g.count}</Text>
+                </Tag>
+              );
+            })}
+            {groupStats.unassigned > 0 && (
+              <Tag color="default" style={{ fontSize: 13, padding: '4px 10px' }}>
+                {t('accounts.groupOverviewUnassigned', { count: groupStats.unassigned })}
+              </Tag>
+            )}
+          </Space>
+        </Card>
+      )}
 
       <Row gutter={16} style={{ marginBottom: 24 }}>
         <Col xs={12} sm={6}>
@@ -419,6 +685,10 @@ const AccountsPage: React.FC = () => {
           dataSource={accounts}
           rowKey="id"
           loading={loading}
+          rowSelection={{
+            selectedRowKeys: selectedAccountIds,
+            onChange: (keys) => setSelectedAccountIds(keys as string[]),
+          }}
           pagination={{
             current: page,
             pageSize,
@@ -428,6 +698,313 @@ const AccountsPage: React.FC = () => {
           }}
         />
       </Card>
+
+      {/* 批量分组 Modal */}
+      <Modal
+        title={<Space><TeamOutlined /> {t('accounts.batchAssignTitle')}</Space>}
+        open={batchAssignVisible}
+        onCancel={() => setBatchAssignVisible(false)}
+        footer={null}
+        width={480}
+      >
+        <Alert
+          type="info"
+          showIcon
+          message={t('accounts.batchAssignDesc', { count: selectedAccountIds.length })}
+          style={{ marginBottom: 16 }}
+        />
+        <Space wrap>
+          {Array.from({ length: groupCount }, (_, i) => i + 1).map(g => (
+            <Button
+              key={g}
+              size="large"
+              onClick={async () => {
+                try {
+                  const res = await accountsService.batchAssignGroup(selectedAccountIds, g);
+                  message.success(t('accounts.batchAssignSuccess', { count: res.updated }));
+                  setBatchAssignVisible(false);
+                  setSelectedAccountIds([]);
+                  fetchAccounts();
+                  fetchGroupData();
+                } catch {
+                  message.error(t('accounts.operationFailed'));
+                }
+              }}
+            >
+              <Tag color={getGroupColor(g)} style={{ margin: 0 }}>{formatGroupLabel(g)}</Tag>
+            </Button>
+          ))}
+          <Button
+            size="large"
+            danger
+            onClick={async () => {
+              try {
+                const res = await accountsService.batchAssignGroup(selectedAccountIds, null);
+                message.success(t('accounts.batchAssignSuccess', { count: res.updated }));
+                setBatchAssignVisible(false);
+                setSelectedAccountIds([]);
+                fetchAccounts();
+                fetchGroupData();
+              } catch {
+                message.error(t('accounts.operationFailed'));
+              }
+            }}
+          >
+            {t('accounts.removeFromGroup')}
+          </Button>
+        </Space>
+      </Modal>
+
+      {/* 分组设置 Modal */}
+      <Modal
+        title={<Space><SettingOutlined /> {t('accounts.groupSettingsTitle')}</Space>}
+        open={settingsVisible}
+        onCancel={() => setSettingsVisible(false)}
+        onOk={async () => {
+          try {
+            await accountsService.updateWarmupSettings({ groupCount: pendingGroupCount });
+            setGroupCount(pendingGroupCount);
+            setSettingsVisible(false);
+            message.success(t('accounts.updateSuccess'));
+            fetchGroupData();
+          } catch {
+            message.error(t('accounts.operationFailed'));
+          }
+        }}
+        width={520}
+      >
+        <Alert
+          type="info"
+          showIcon
+          message={t('accounts.groupCountHelp')}
+          style={{ marginBottom: 16 }}
+        />
+        <Form layout="vertical">
+          <Form.Item label={t('accounts.groupCountLabel')}>
+            <Select
+              value={pendingGroupCount}
+              onChange={setPendingGroupCount}
+              size="large"
+            >
+              {[2, 3, 4, 5, 6].map(n => (
+                <Option key={n} value={n}>{n} {t('accounts.groupCountLabel')}</Option>
+              ))}
+            </Select>
+          </Form.Item>
+          {pendingGroupCount < groupCount && (
+            <Alert
+              type="warning"
+              showIcon
+              message={t('accounts.groupCountWarn', { max: groupCount, newMax: pendingGroupCount })}
+            />
+          )}
+        </Form>
+      </Modal>
+
+      {/* 加群设置 Modal (v1.2.0 Phase 4) */}
+      <Modal
+        title={<Space><TeamOutlined /> {t('warmup.groupJoin.title')}</Space>}
+        open={groupJoinVisible}
+        onCancel={() => setGroupJoinVisible(false)}
+        onOk={async () => {
+          if (!groupJoinSettings.keywords || groupJoinSettings.keywords.length === 0) {
+            message.warning(t('warmup.groupJoin.needKeywords'));
+            return;
+          }
+          // 开启 AI 必须先有 key
+          if (groupJoinSettings.aiAnswerEnabled
+              && !groupJoinSettings.aiApiKeyConfigured
+              && (!groupJoinSettings.aiApiKey || groupJoinSettings.aiApiKey.includes('…'))) {
+            message.warning(t('warmup.groupJoin.needApiKey'));
+            return;
+          }
+          try {
+            // 如果 aiApiKey 是遮罩形式（服务器回传的），不要传回去 —— 留空意味着保留旧值
+            const payload: GroupJoinSettings = {
+              ...groupJoinSettings,
+              aiApiKey: groupJoinSettings.aiApiKey?.includes('…') ? '' : groupJoinSettings.aiApiKey,
+            };
+            const saved = await accountsService.updateGroupJoinSettings(payload);
+            setGroupJoinSettings(saved);
+            message.success(t('warmup.groupJoin.saveSuccess'));
+            setGroupJoinVisible(false);
+          } catch {
+            message.error(t('accounts.operationFailed'));
+          }
+        }}
+        width={640}
+        okText={t('warmup.groupJoin.save')}
+      >
+        <Alert
+          type="info"
+          showIcon
+          message={t('warmup.groupJoin.subtitle')}
+          style={{ marginBottom: 16 }}
+        />
+        <Form layout="vertical">
+          <Form.Item
+            label={t('warmup.groupJoin.keywords')}
+            help={t('warmup.groupJoin.keywordsHelp')}
+          >
+            <Select
+              mode="tags"
+              style={{ width: '100%' }}
+              placeholder={t('warmup.groupJoin.keywordsPlaceholder')}
+              value={groupJoinSettings.keywords}
+              onChange={(vals) => setGroupJoinSettings(p => ({ ...p, keywords: vals as string[] }))}
+              tokenSeparators={[',', '，', ';', '；']}
+              maxTagCount={20}
+            />
+          </Form.Item>
+          <Row gutter={16}>
+            <Col span={12}>
+              <Form.Item
+                label={t('warmup.groupJoin.dailyLimit')}
+                help={t('warmup.groupJoin.dailyLimitHelp')}
+              >
+                <Select
+                  value={groupJoinSettings.dailyLimit}
+                  onChange={(v) => setGroupJoinSettings(p => ({ ...p, dailyLimit: v }))}
+                >
+                  {[1, 2, 3, 4, 5, 6, 8, 10, 15, 20].map(n => (
+                    <Option key={n} value={n}>{n}</Option>
+                  ))}
+                </Select>
+              </Form.Item>
+            </Col>
+            <Col span={12}>
+              <Form.Item label={t('warmup.groupJoin.strategy')}>
+                <Select
+                  value={groupJoinSettings.strategy}
+                  onChange={(v) => setGroupJoinSettings(p => ({ ...p, strategy: v as any }))}
+                >
+                  <Option value="random">{t('warmup.groupJoin.strategyRandom')}</Option>
+                  <Option value="sequential">{t('warmup.groupJoin.strategySequential')}</Option>
+                  <Option value="weighted">{t('warmup.groupJoin.strategyWeighted')}</Option>
+                </Select>
+              </Form.Item>
+            </Col>
+          </Row>
+          <Alert
+            type="success"
+            showIcon
+            message={t('warmup.groupJoin.defaultModeLabel')}
+            style={{ marginBottom: 12 }}
+          />
+
+          {/* AI 高级设置 —— 可折叠区 */}
+          <Card
+            size="small"
+            title={<Space><SettingOutlined /> {t('warmup.groupJoin.aiAdvancedTitle')}</Space>}
+            style={{ marginBottom: 12, background: '#fafafa' }}
+          >
+            <Form.Item
+              label={t('warmup.groupJoin.aiAnswerEnabled')}
+              help={t('warmup.groupJoin.aiAnswerEnabledHelp')}
+            >
+              <Select
+                value={groupJoinSettings.aiAnswerEnabled ? 'on' : 'off'}
+                onChange={(v) => setGroupJoinSettings(p => ({ ...p, aiAnswerEnabled: v === 'on' }))}
+              >
+                <Option value="off">{t('warmup.groupJoin.aiModeOff')}</Option>
+                <Option value="on">{t('warmup.groupJoin.aiModeOn')}</Option>
+              </Select>
+            </Form.Item>
+
+            {groupJoinSettings.aiAnswerEnabled && (
+              <>
+                <Row gutter={12}>
+                  <Col span={24}>
+                    <Form.Item label={t('warmup.groupJoin.aiProvider')}>
+                      <Select
+                        value={groupJoinSettings.aiProvider ?? 'claude'}
+                        onChange={(v) => setGroupJoinSettings(p => ({ ...p, aiProvider: v as any }))}
+                      >
+                        {AI_PROVIDERS.map(p => (
+                          <Option key={p.value} value={p.value}>
+                            <Space>
+                              <Text strong>{p.label}</Text>
+                              <Text type="secondary" style={{ fontSize: 12 }}>— {p.model}</Text>
+                              <Tag color={p.value === 'deepseek' ? 'green' : 'blue'}>{p.costHint}</Tag>
+                            </Space>
+                          </Option>
+                        ))}
+                      </Select>
+                    </Form.Item>
+                  </Col>
+                </Row>
+
+                <Form.Item
+                  label={t('warmup.groupJoin.aiApiKey')}
+                  help={
+                    <Space direction="vertical" size={2}>
+                      <Text type="secondary" style={{ fontSize: 12 }}>
+                        {t('warmup.groupJoin.aiKeyHint', {
+                          hint: AI_PROVIDERS.find(p => p.value === groupJoinSettings.aiProvider)?.keyHint || 'sk-...',
+                        })}
+                      </Text>
+                      <Text type="secondary" style={{ fontSize: 12 }}>
+                        {t('warmup.groupJoin.aiKeyPrivacy')}
+                      </Text>
+                    </Space>
+                  }
+                >
+                  <Input.Password
+                    value={groupJoinSettings.aiApiKey || ''}
+                    placeholder={
+                      groupJoinSettings.aiApiKeyConfigured
+                        ? t('warmup.groupJoin.aiApiKeyConfigured', { masked: groupJoinSettings.aiApiKey || '***' })
+                        : t('warmup.groupJoin.aiApiKeyPlaceholder')
+                    }
+                    onChange={(e) => setGroupJoinSettings(p => ({ ...p, aiApiKey: e.target.value }))}
+                    addonAfter={
+                      groupJoinSettings.aiApiKeyConfigured && (
+                        <Button
+                          type="link"
+                          size="small"
+                          danger
+                          onClick={() => setGroupJoinSettings(p => ({ ...p, aiApiKey: '__CLEAR__' }))}
+                        >
+                          {t('warmup.groupJoin.aiApiKeyClearBtn')}
+                        </Button>
+                      )
+                    }
+                  />
+                </Form.Item>
+
+                {!groupJoinSettings.aiApiKeyConfigured && (!groupJoinSettings.aiApiKey || groupJoinSettings.aiApiKey.includes('…')) && (
+                  <Alert
+                    type="warning"
+                    showIcon
+                    message={t('warmup.groupJoin.aiApiKeyMissing')}
+                    style={{ marginTop: -8, marginBottom: 12 }}
+                  />
+                )}
+
+                <Form.Item label={t('warmup.groupJoin.aiAnswerPrompt')}>
+                  <Input.TextArea
+                    rows={3}
+                    value={groupJoinSettings.aiAnswerPrompt}
+                    onChange={(e) => setGroupJoinSettings(p => ({ ...p, aiAnswerPrompt: e.target.value }))}
+                    placeholder={t('warmup.groupJoin.aiAnswerPromptPlaceholder')}
+                    maxLength={500}
+                    showCount
+                  />
+                </Form.Item>
+              </>
+            )}
+          </Card>
+
+          {groupJoinSettings.keywords.length === 0 && (
+            <Alert
+              type="warning"
+              showIcon
+              message={t('warmup.groupJoin.emptyKeywordsWarn')}
+              style={{ marginTop: 8 }}
+            />
+          )}
+        </Form>
+      </Modal>
 
       {/* Login result modal */}
       <Modal

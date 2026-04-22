@@ -274,6 +274,55 @@ export class UsersController {
     return { language: body.language };
   }
 
+  /**
+   * v1.2.0 Phase 1 — 暖化分组设置
+   * 读取/修改每个租户的分组数（2-6）
+   */
+  @Get('me/warmup-settings')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth('JWT-auth')
+  @ApiOperation({ summary: '获取暖化分组设置' })
+  async getWarmupSettings(@CurrentUser() user: User): Promise<{ groupCount: number }> {
+    return this.usersService.getWarmupSettings(user.id);
+  }
+
+  @Patch('me/warmup-settings')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth('JWT-auth')
+  @ApiOperation({ summary: '更新暖化分组设置（组数 2-6）' })
+  async updateWarmupSettings(
+    @CurrentUser() user: User,
+    @Body() body: { groupCount: number },
+  ): Promise<{ groupCount: number }> {
+    const n = parseInt(String(body?.groupCount), 10);
+    if (!Number.isFinite(n) || n < 2 || n > 6) {
+      throw new BadRequestException('groupCount 必须是 2-6 之间的整数');
+    }
+    return this.usersService.updateWarmupSettings(user.id, { groupCount: n });
+  }
+
+  /**
+   * v1.2.0 Phase 4 —— 加群设置
+   */
+  @Get('me/group-join-settings')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth('JWT-auth')
+  @ApiOperation({ summary: '获取加群设置（关键词、上限、策略、AI 回答）' })
+  async getGroupJoinSettings(@CurrentUser() user: User) {
+    return this.usersService.getGroupJoinSettings(user.id);
+  }
+
+  @Patch('me/group-join-settings')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth('JWT-auth')
+  @ApiOperation({ summary: '更新加群设置' })
+  async updateGroupJoinSettings(
+    @CurrentUser() user: User,
+    @Body() body: any,
+  ) {
+    return this.usersService.updateGroupJoinSettings(user.id, body);
+  }
+
   @Delete(':id')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('admin')

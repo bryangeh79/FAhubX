@@ -28,6 +28,15 @@ export class FacebookAccount {
   @Index('idx_facebook_accounts_facebook_id')
   facebookId: string;
 
+  @ApiProperty({ description: '账号编号（每租户独立，#01 起，删号后回收）', example: 1, required: false })
+  @Column({ type: 'int', nullable: true, name: 'accountNumber' })
+  accountNumber: number | null;
+
+  @ApiProperty({ description: '暖化分组编号 1-6，null=未分组', example: 1, required: false })
+  @Column({ type: 'int', nullable: true, name: 'warmupGroupNumber' })
+  @Index('idx_facebook_accounts_warmup_group')
+  warmupGroupNumber: number | null;
+
   @ApiProperty({ description: 'Facebook账号显示名称', example: 'John Doe' })
   @Column({ type: 'varchar', length: 200 })
   name: string;

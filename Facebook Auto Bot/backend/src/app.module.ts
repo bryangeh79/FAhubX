@@ -19,6 +19,7 @@ import { FacebookAccountsModule } from './modules/facebook-accounts/facebook-acc
 import { VpnModule } from './modules/vpn/vpn.module';
 import { ChatScriptsModule } from './modules/chat-scripts/chat-scripts.module';
 import { SimpleTasksModule } from './modules/simple-tasks/simple-tasks.module';
+import { WarmupModule } from './modules/warmup/warmup.module';
 import { LicenseModule } from './modules/license/license.module';
 import { AdminLicensesModule } from './modules/admin-licenses/admin-licenses.module';
 // import { VPNClientModule } from './modules/vpn-client/vpn-client.module';
@@ -121,6 +122,7 @@ import { AdminLicensesModule } from './modules/admin-licenses/admin-licenses.mod
     VpnModule,
     ChatScriptsModule,
     SimpleTasksModule,
+    WarmupModule, // v1.2.0 Phase 2 —— 账号暖化调度
 
     // License 模块（local 和 cloud 模式都加载，但 service 内部自动跳过 cloud 逻辑）
     LicenseModule,

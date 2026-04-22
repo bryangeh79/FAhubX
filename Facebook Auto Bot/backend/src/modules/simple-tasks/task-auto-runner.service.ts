@@ -10,6 +10,7 @@ import { AccountWarmingService } from '../task-executor/integrations/account-war
 import { FacebookChatService } from '../task-executor/integrations/facebook-chat.service';
 import { FacebookPostService } from '../task-executor/integrations/facebook-post.service';
 import { FacebookSocialService } from '../task-executor/integrations/facebook-social.service';
+import { FacebookGroupJoinService } from '../task-executor/integrations/facebook-group-join.service';
 import { DataSource } from 'typeorm';
 
 @Injectable()
@@ -27,6 +28,7 @@ export class TaskAutoRunnerService implements OnModuleInit {
     private readonly chatService: FacebookChatService,
     private readonly postService: FacebookPostService,
     private readonly socialService: FacebookSocialService,
+    private readonly groupJoinService: FacebookGroupJoinService,
     private readonly simpleTasksService: SimpleTasksService,
     private readonly dataSource: DataSource,
   ) {}
@@ -357,6 +359,35 @@ export class TaskAutoRunnerService implements OnModuleInit {
           await this.saveTaskResult(taskId, true);
         } else {
           appendLog(taskId, 'error', `❌ 失败：${result.error}`);
+          await this.saveTaskResult(taskId, false, result.error);
+        }
+
+      } else if (taskAction === 'auto_join_group') {
+        // v1.2.0 Phase 4b —— Puppeteer 自动加群
+        appendLog(taskId, 'info', '👥 正在启动自动加群...');
+        const gjs = params.groupJoinSettings || {};
+        if (!gjs.keywords || gjs.keywords.length === 0) {
+          appendLog(taskId, 'error', '❌ 未配置加群关键词');
+          await this.saveTaskResult(taskId, false, '未配置加群关键词');
+          return;
+        }
+        const result = await this.groupJoinService.executeAutoJoinGroup({
+          userId,
+          accountId: params.accountAId || task.accountId,
+          keywords: gjs.keywords,
+          dailyLimit: gjs.dailyLimit ?? 3,
+          strategy: gjs.strategy ?? 'random',
+          aiAnswerEnabled: !!gjs.aiAnswerEnabled,
+          aiAnswerPrompt: gjs.aiAnswerPrompt ?? '',
+          headless,
+          logger: (level, msg) => appendLog(taskId, level, msg),
+        });
+        if (result.success) {
+          appendLog(taskId, 'success',
+            `✅ 完成！加入 ${result.joined} 个群（跳过 ${result.skipped}，AI 回答 ${result.aiAnswered} 次）`);
+          await this.saveTaskResult(taskId, true);
+        } else {
+          appendLog(taskId, 'error', `❌ 加群失败：${result.error}`);
           await this.saveTaskResult(taskId, false, result.error);
         }
 

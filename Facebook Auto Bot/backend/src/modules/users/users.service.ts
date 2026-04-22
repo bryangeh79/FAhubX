@@ -15,6 +15,22 @@ import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { UpdatePreferencesDto } from './dto/update-preferences.dto';
 import { UserResponseDto } from './dto/user-response.dto';
+import { encryptString, decryptString, maskSecret } from '../../common/crypto.util';
+
+export type AiProvider = 'claude' | 'openai' | 'deepseek';
+
+export interface GroupJoinSettings {
+  keywords: string[];
+  dailyLimit: number;
+  strategy: 'random' | 'sequential' | 'weighted';
+  aiAnswerEnabled: boolean;
+  aiAnswerPrompt: string;
+  aiProvider?: AiProvider;
+  /** 响应时遮罩显示（如 sk-…abc9）；保存时如果传新 key 会加密覆盖 */
+  aiApiKey?: string;
+  /** 标记：当前是否已配置 key（前端根据此判断 */
+  aiApiKeyConfigured?: boolean;
+}
 
 @Injectable()
 export class UsersService {
@@ -246,6 +262,141 @@ export class UsersService {
   async updateLanguage(id: string, language: string): Promise<void> {
     await this.usersRepository.update(id, { language });
   }
+
+  /**
+   * v1.2.0 Phase 1 — 暖化设置（存在 preferences.warmup 里）
+   */
+  async getWarmupSettings(id: string): Promise<{ groupCount: number }> {
+    const user = await this.usersRepository.findOne({ where: { id } });
+    if (!user) throw new NotFoundException(`用户 ${id} 不存在`);
+    const groupCount = (user.preferences as any)?.warmup?.groupCount ?? 3;
+    return { groupCount };
+  }
+
+  async updateWarmupSettings(
+    id: string,
+    settings: { groupCount: number },
+  ): Promise<{ groupCount: number }> {
+    const user = await this.usersRepository.findOne({ where: { id } });
+    if (!user) throw new NotFoundException(`用户 ${id} 不存在`);
+    user.preferences = {
+      ...(user.preferences || {}),
+      warmup: {
+        ...((user.preferences as any)?.warmup || {}),
+        groupCount: settings.groupCount,
+      },
+    };
+    await this.usersRepository.save(user);
+    return { groupCount: settings.groupCount };
+  }
+
+  /**
+   * v1.2.0 Phase 4 —— 加群设置（关键词、上限、策略、AI 回答）
+   *
+   * 响应时 API Key 已被遮罩 —— 不会泄露真实 key。
+   * 新 key 写入时会用 encryption.key 加密后存 JSONB。
+   */
+  async getGroupJoinSettings(id: string): Promise<GroupJoinSettings> {
+    const user = await this.usersRepository.findOne({ where: { id } });
+    if (!user) throw new NotFoundException(`用户 ${id} 不存在`);
+    const gj = (user.preferences as any)?.warmup?.groupJoin || {};
+    let aiApiKeyMasked = '';
+    let aiApiKeyConfigured = false;
+    if (gj.aiApiKeyEncrypted) {
+      try {
+        const decrypted = decryptString(gj.aiApiKeyEncrypted, this.getEncryptionKey());
+        aiApiKeyMasked = maskSecret(decrypted);
+        aiApiKeyConfigured = !!decrypted;
+      } catch {
+        // 解密失败 —— 可能是 encryption.key 变了；不暴露任何东西
+      }
+    }
+    return {
+      keywords: gj.keywords ?? [],
+      dailyLimit: gj.dailyLimit ?? 3,
+      strategy: gj.strategy ?? 'random',
+      aiAnswerEnabled: gj.aiAnswerEnabled ?? false,
+      aiAnswerPrompt: gj.aiAnswerPrompt ?? '',
+      aiProvider: gj.aiProvider ?? 'claude',
+      aiApiKey: aiApiKeyMasked,
+      aiApiKeyConfigured,
+    };
+  }
+
+  async updateGroupJoinSettings(
+    id: string,
+    settings: GroupJoinSettings,
+  ): Promise<GroupJoinSettings> {
+    const user = await this.usersRepository.findOne({ where: { id } });
+    if (!user) throw new NotFoundException(`用户 ${id} 不存在`);
+
+    const existing = (user.preferences as any)?.warmup?.groupJoin || {};
+
+    // API Key 规则：
+    // - 空串 / undefined → 保留旧值
+    // - 以 '…' 开头（前端回传的遮罩值）→ 保留旧值
+    // - '__CLEAR__' → 明确清空
+    // - 其他非空 → 加密后覆盖
+    let aiApiKeyEncrypted = existing.aiApiKeyEncrypted;
+    const rawKey = (settings.aiApiKey ?? '').trim();
+    if (rawKey === '__CLEAR__') {
+      aiApiKeyEncrypted = null;
+    } else if (rawKey && !rawKey.includes('…')) {
+      aiApiKeyEncrypted = encryptString(rawKey, this.getEncryptionKey());
+    }
+
+    user.preferences = {
+      ...(user.preferences || {}),
+      warmup: {
+        ...((user.preferences as any)?.warmup || {}),
+        groupJoin: {
+          keywords: Array.isArray(settings.keywords)
+            ? settings.keywords.filter(k => k && typeof k === 'string').slice(0, 50)
+            : [],
+          dailyLimit: Math.max(1, Math.min(20, Number(settings.dailyLimit) || 3)),
+          strategy: ['random', 'sequential', 'weighted'].includes(settings.strategy)
+            ? settings.strategy : 'random',
+          aiAnswerEnabled: !!settings.aiAnswerEnabled,
+          aiAnswerPrompt: typeof settings.aiAnswerPrompt === 'string'
+            ? settings.aiAnswerPrompt.slice(0, 500) : '',
+          aiProvider: ['claude', 'openai', 'deepseek'].includes(settings.aiProvider as string)
+            ? settings.aiProvider : 'claude',
+          aiApiKeyEncrypted,
+        },
+      },
+    };
+    await this.usersRepository.save(user);
+    return this.getGroupJoinSettings(id);
+  }
+
+  /**
+   * 内部使用：拿明文 API Key（任务执行器调 AI 时用）
+   * 不通过 HTTP 响应暴露，只给其他后端服务调用。
+   */
+  async getDecryptedAiApiKey(userId: string): Promise<{ provider: AiProvider; apiKey: string } | null> {
+    const user = await this.usersRepository.findOne({ where: { id: userId } });
+    if (!user) return null;
+    const gj = (user.preferences as any)?.warmup?.groupJoin;
+    if (!gj?.aiApiKeyEncrypted) return null;
+    try {
+      const apiKey = decryptString(gj.aiApiKeyEncrypted, this.getEncryptionKey());
+      if (!apiKey) return null;
+      return {
+        provider: (gj.aiProvider ?? 'claude') as AiProvider,
+        apiKey,
+      };
+    } catch {
+      return null;
+    }
+  }
+
+  private getEncryptionKey(): string {
+    return this.configService.get(
+      'encryption.key',
+      'your-32-character-encryption-key-here',
+    );
+  }
+
 
   /**
    * 更新用户偏好设置
