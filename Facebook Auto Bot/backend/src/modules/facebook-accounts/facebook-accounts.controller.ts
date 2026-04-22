@@ -272,6 +272,15 @@ export class FacebookAccountsController {
     return this.facebookAccountsService.assignGroup(req.user.id, id, g ?? null);
   }
 
+  @Post(':id/factory-reset')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: '出厂重置账号 —— 删除所有浏览器数据、暖化进度、加群历史、任务记录，编号回收',
+  })
+  async factoryReset(@Request() req, @Param('id') id: string) {
+    return this.facebookAccountsService.factoryReset(req.user.id, id);
+  }
+
   @Patch('batch-assign-group')
   @ApiOperation({ summary: '批量分配账号到分组' })
   async batchAssignGroup(

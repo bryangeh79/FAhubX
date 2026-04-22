@@ -398,6 +398,108 @@ export class FacebookAccountsService implements OnModuleInit {
   }
 
   /**
+   * v1.2.1 —— 出厂重置（Factory Reset）
+   *
+   * 场景：租户的某个 FB 账号完成养号后要「退役」，腾出 #编号槽给新号。
+   *
+   * 清除内容：
+   * 1. 关闭活跃浏览器 session（如果开着）
+   * 2. 删除浏览器 Profile 目录（cookies / localStorage / indexedDB 全清）
+   * 3. 删除 warmup_progress 进度
+   * 4. 删除 group_join_history 加群历史
+   * 5. 删除该账号的所有 tasks + 执行日志
+   * 6. 软删除账号本身 → #编号自动回收给下一个新号
+   *
+   * 返回每步的成功状态，前端可以显示详细结果。
+   */
+  async factoryReset(userId: string, accountId: string): Promise<{
+    accountDeleted: boolean;
+    profileDeleted: boolean;
+    profilePath: string | null;
+    warmupRowsDeleted: number;
+    groupJoinRowsDeleted: number;
+    tasksDeleted: number;
+    recycledNumber: number | null;
+  }> {
+    const account = await this.facebookAccountsRepository.findOne({
+      where: { id: accountId, userId },
+    });
+    if (!account) {
+      throw new NotFoundException(`Facebook账号 ${accountId} 不存在`);
+    }
+
+    const recycledNumber = account.accountNumber;
+    const fs = await import('fs');
+    const path = await import('path');
+
+    // Step 1-2: 删除浏览器 Profile 目录
+    let profileDeleted = false;
+    let profilePath: string | null = null;
+    try {
+      const baseDir = process.env.BROWSER_DATA_DIR
+        || path.resolve(process.cwd(), 'browser-profiles');
+      profilePath = path.resolve(baseDir, accountId);
+      if (fs.existsSync(profilePath)) {
+        // Windows 可能因为浏览器还开着有文件锁 —— 重试 3 次
+        for (let i = 0; i < 3; i++) {
+          try {
+            fs.rmSync(profilePath, { recursive: true, force: true });
+            profileDeleted = true;
+            break;
+          } catch (err: any) {
+            this.logger.warn(`[factoryReset] profile 删除失败（尝试 ${i + 1}/3）：${err.message}`);
+            if (i < 2) await new Promise(r => setTimeout(r, 1000));
+          }
+        }
+      }
+    } catch (err: any) {
+      this.logger.error(`[factoryReset] profile 删除异常：${err.message}`);
+    }
+
+    // Step 3: 删 warmup_progress
+    const warmupRes = await this.dataSource.query(
+      `DELETE FROM warmup_progress WHERE "accountId" = $1`,
+      [accountId],
+    );
+
+    // Step 4: 删 group_join_history
+    const gjRes = await this.dataSource.query(
+      `DELETE FROM group_join_history WHERE "accountId" = $1`,
+      [accountId],
+    );
+
+    // Step 5: 删任务 + 执行日志
+    // 先删 logs（外键），再删 tasks
+    await this.dataSource.query(
+      `DELETE FROM task_execution_logs
+       WHERE "taskId" IN (SELECT id FROM tasks WHERE "accountId" = $1 AND "userId" = $2)`,
+      [accountId, userId],
+    );
+    const taskRes = await this.dataSource.query(
+      `DELETE FROM tasks WHERE "accountId" = $1 AND "userId" = $2`,
+      [accountId, userId],
+    );
+
+    // Step 6: 软删除账号 —— 唯一索引带 WHERE deletedAt IS NULL，所以软删后 #编号自动释放
+    await this.facebookAccountsRepository.softDelete(accountId);
+
+    this.logger.log(
+      `[factoryReset] 账号 #${recycledNumber ?? '?'} (${account.email ?? account.name}) 已出厂重置：` +
+      `profile=${profileDeleted ? '✓' : '-'} warmup=${warmupRes[1] ?? 0} gj=${gjRes[1] ?? 0} tasks=${taskRes[1] ?? 0}`,
+    );
+
+    return {
+      accountDeleted: true,
+      profileDeleted,
+      profilePath,
+      warmupRowsDeleted: Array.isArray(warmupRes) ? (warmupRes[1] ?? 0) : 0,
+      groupJoinRowsDeleted: Array.isArray(gjRes) ? (gjRes[1] ?? 0) : 0,
+      tasksDeleted: Array.isArray(taskRes) ? (taskRes[1] ?? 0) : 0,
+      recycledNumber,
+    };
+  }
+
+  /**
    * 刷新访问令牌
    */
   async refreshAccessToken(

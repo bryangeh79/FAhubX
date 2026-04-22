@@ -176,6 +176,22 @@ export const accountsService = {
     await api.post(`/facebook-accounts/${accountId}/cancel-registration`);
   },
 
+  /**
+   * v1.2.1 —— 出厂重置账号
+   */
+  async factoryReset(id: string): Promise<{
+    accountDeleted: boolean;
+    profileDeleted: boolean;
+    profilePath: string | null;
+    warmupRowsDeleted: number;
+    groupJoinRowsDeleted: number;
+    tasksDeleted: number;
+    recycledNumber: number | null;
+  }> {
+    const r = await api.post<any>(`/facebook-accounts/${id}/factory-reset`);
+    return r.data;
+  },
+
   // ─── v1.2.0 Phase 1 — 暖化分组 ─────────────────────────────────
   async getGroupStats(): Promise<GroupStats> {
     const response = await api.get<GroupStats>('/facebook-accounts/group-stats');

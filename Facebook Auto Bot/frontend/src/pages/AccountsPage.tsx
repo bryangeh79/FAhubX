@@ -8,6 +8,7 @@ import {
   UserOutlined, LockOutlined, MailOutlined, SafetyOutlined, GlobalOutlined,
   LoginOutlined, LogoutOutlined, CheckCircleOutlined, CloseCircleOutlined,
   LoadingOutlined, WarningOutlined, TeamOutlined, SettingOutlined,
+  FireOutlined,
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import AppLayout from '../components/AppLayout';
@@ -500,7 +501,8 @@ const AccountsPage: React.FC = () => {
     {
       title: t('accounts.colAction'),
       key: 'action',
-      width: 200,
+      width: 240,
+      fixed: 'right' as const,
       render: (_: any, record: any) => (
         <Space size={4}>
           {/* Login / Logout button */}
@@ -541,6 +543,63 @@ const AccountsPage: React.FC = () => {
               loading={syncingId === record.id}
             />
           </Tooltip>
+          <Popconfirm
+            title={t('accounts.factoryResetTitle', { num: record.accountNumber ?? '?' })}
+            description={
+              <div style={{ maxWidth: 360 }}>
+                <Alert
+                  type="error"
+                  showIcon
+                  message={t('accounts.factoryResetWarning')}
+                  style={{ marginBottom: 8 }}
+                />
+                <ul style={{ paddingLeft: 18, margin: '6px 0' }}>
+                  <li>{t('accounts.factoryResetItem1')}</li>
+                  <li>{t('accounts.factoryResetItem2')}</li>
+                  <li>{t('accounts.factoryResetItem3')}</li>
+                  <li>{t('accounts.factoryResetItem4')}</li>
+                  <li>{t('accounts.factoryResetItem5')}</li>
+                </ul>
+                <Text type="secondary" style={{ fontSize: 12 }}>
+                  {t('accounts.factoryResetRecycled', { num: record.accountNumber ?? '?' })}
+                </Text>
+              </div>
+            }
+            onConfirm={async () => {
+              try {
+                const res = await accountsService.factoryReset(record.id);
+                message.success(
+                  t('accounts.factoryResetSuccess', {
+                    num: res.recycledNumber ?? record.accountNumber ?? '?',
+                    profile: res.profileDeleted ? '✓' : '-',
+                    tasks: res.tasksDeleted,
+                  }),
+                  4,
+                );
+                fetchAccounts();
+                fetchStats();
+                fetchGroupData();
+                fetchWarmupList();
+              } catch {
+                message.error(t('accounts.factoryResetFailed'));
+              }
+            }}
+            okText={t('accounts.factoryReset')}
+            okButtonProps={{ danger: true, icon: <FireOutlined /> }}
+            cancelText={t('common.cancel')}
+            icon={<FireOutlined style={{ color: '#fa541c' }} />}
+          >
+            <Tooltip title={t('accounts.factoryResetTooltip')}>
+              <Button
+                size="small"
+                type="text"
+                style={{ color: '#fa541c' }}
+                icon={<FireOutlined />}
+              >
+                {t('accounts.factoryReset')}
+              </Button>
+            </Tooltip>
+          </Popconfirm>
           <Popconfirm
             title={t('accounts.deleteConfirm')}
             onConfirm={() => handleDelete(record.id)}
