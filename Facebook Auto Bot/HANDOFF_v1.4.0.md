@@ -209,6 +209,34 @@ P3 维护：    永远 isMaintenance = true，shouldTransitionToP3 = false
 
 ---
 
+## 📌 待合并的 commit（必看！）
+
+另一个 agent 在 worktree 分支 `claude/focused-meitner-3fe069` 上做了一个修复：
+
+- **commit hash**：`8e174c2`
+- **commit msg**：`fix: enterprise plan UI + show-browser auto-login fallback`
+- **改动**：6 files changed, 25 insertions(+), 26 deletions(-)
+- **状态**：⚠️ **未合并到 main**（push 被沙箱拦截）
+
+**新 agent 接手后第一步**：
+```bash
+cd "C:\AI_WORKSPACE\Facebook Auto Bot"
+git fetch
+git log --oneline claude/focused-meitner-3fe069 -5    # 看下里面到底改了啥
+# 如果内容确认 OK：
+git merge claude/focused-meitner-3fe069 --ff-only
+git push origin main
+# (push 可能再次被拦 → 让用户在他自己终端手动推)
+```
+
+这个 commit 包含的可能是：
+- Enterprise plan UI 的小修复（admin users page 或 sidebar 颜色）
+- 「显示窗口」模式下账号未登录时的 cookie 注入兜底逻辑
+
+**优先级**：高 —— 既然已经修了就别浪费，但合并前先 `git diff` 一遍确认不冲突。
+
+---
+
 ## ⚠️ 已知 Bug / 待办事项（用户授权累计修，不急）
 
 按优先级排序：
