@@ -337,6 +337,7 @@
     "planUnlimited": "无限制",
     "planPro": "Pro · 30账号",
     "planBasic": "Basic · 10账号",
+    "planEnterprise": "Enterprise · 50账号",
     "expired": "已到期",
     "expiresToday": "今天到期",
     "expiresInDays": "{days} 天后到期",

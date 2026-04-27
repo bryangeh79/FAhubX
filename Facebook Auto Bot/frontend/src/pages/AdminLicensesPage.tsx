@@ -149,7 +149,7 @@ const AdminLicensesPage: React.FC = () => {
       key: 'plan',
       width: 100,
       render: (plan: string, r: License) => {
-        const color = plan === 'pro' ? 'purple' : plan === 'admin' ? 'red' : 'blue';
+        const color = plan === 'admin' ? 'red' : plan === 'enterprise' ? 'blue' : plan === 'pro' ? 'purple' : 'default';
         return <div>
           <Tag color={color}>{plan.toUpperCase()}</Tag>
           <div style={{ fontSize: 11, color: '#888', marginTop: 4 }}>
@@ -275,6 +275,7 @@ const AdminLicensesPage: React.FC = () => {
               <Select>
                 <Select.Option value="basic">Basic (10)</Select.Option>
                 <Select.Option value="pro">Pro (30)</Select.Option>
+                <Select.Option value="enterprise">Enterprise (50)</Select.Option>
                 <Select.Option value="admin">Admin (∞)</Select.Option>
               </Select>
             </Form.Item>

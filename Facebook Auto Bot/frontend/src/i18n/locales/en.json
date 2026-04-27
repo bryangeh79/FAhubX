@@ -337,6 +337,7 @@
     "planUnlimited": "Unlimited",
     "planPro": "Pro · 30 accts",
     "planBasic": "Basic · 10 accts",
+    "planEnterprise": "Enterprise · 50 accts",
     "expired": "Expired",
     "expiresToday": "Expires today",
     "expiresInDays": "Expires in {days} days",

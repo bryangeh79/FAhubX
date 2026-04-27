@@ -692,7 +692,7 @@ export class SimpleTasksController {
     for (const accountId of accountIds) {
       try {
         const [acc] = await this.dataSource.query(
-          `SELECT name, cookies FROM facebook_accounts WHERE id = $1`, [accountId],
+          `SELECT name FROM facebook_accounts WHERE id = $1`, [accountId],
         );
 
         const browser = await (puppeteer as any).default.launch({
@@ -702,21 +702,15 @@ export class SimpleTasksController {
         });
         const page = await browser.newPage();
 
-        if (acc?.cookies) {
-          try {
-            const cookieList = typeof acc.cookies === 'string' ? JSON.parse(acc.cookies) : acc.cookies;
-            await page.goto('https://www.facebook.com/', { waitUntil: 'domcontentloaded', timeout: 15000 });
-            for (const cookie of cookieList) {
-              await page.setCookie({
-                name: cookie.name, value: cookie.value,
-                domain: cookie.domain || '.facebook.com',
-                path: cookie.path || '/',
-              }).catch(() => {});
-            }
-            await page.goto('https://www.facebook.com/', { waitUntil: 'domcontentloaded', timeout: 20000 });
-          } catch { /* ignore */ }
-        } else {
-          await page.goto('https://www.facebook.com/', { waitUntil: 'domcontentloaded', timeout: 15000 }).catch(() => {});
+        // 复用 ensureLoggedIn 完整流程：cookie 注入 → 失效则用账号密码自动登录
+        try {
+          await page.goto('https://www.facebook.com/', { waitUntil: 'domcontentloaded', timeout: 20000 }).catch(() => {});
+          const loggedIn = await this.ensureLoggedIn(page, accountId, id);
+          if (!loggedIn) {
+            appendLog(id, 'warn', `⚠️ 监控窗口：账号 ${acc?.name || accountId} 自动登录失败，请在窗口中手动输入密码`);
+          }
+        } catch (e: any) {
+          appendLog(id, 'error', `⚠️ 监控窗口登录异常（${acc?.name || accountId}）：${e.message}`);
         }
 
         // 存入 Map，任务完成时自动关闭；15 分钟兜底关闭

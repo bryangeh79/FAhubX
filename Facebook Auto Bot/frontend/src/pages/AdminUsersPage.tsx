@@ -243,15 +243,16 @@ const AdminUsersPage: React.FC = () => {
     {
       title: t('admin.colPlan'),
       key: 'plan',
-      render: (_: any, r: TenantUser) => (
-        r.role === 'admin' ? (
-          <Tag color="purple">{t('admin.planUnlimited')}</Tag>
-        ) : (
-          <Tag color={r.plan === 'pro' ? 'gold' : 'default'}>
-            {r.plan === 'pro' ? t('admin.planPro') : t('admin.planBasic')}
-          </Tag>
-        )
-      ),
+      render: (_: any, r: TenantUser) => {
+        if (r.role === 'admin') return <Tag color="purple">{t('admin.planUnlimited')}</Tag>;
+        const map: Record<string, { color: string; key: string }> = {
+          enterprise: { color: 'blue', key: 'admin.planEnterprise' },
+          pro:        { color: 'gold', key: 'admin.planPro' },
+          basic:      { color: 'default', key: 'admin.planBasic' },
+        };
+        const p = map[r.plan] || map.basic;
+        return <Tag color={p.color}>{t(p.key)}</Tag>;
+      },
     },
     {
       title: t('admin.colExpiry'),
