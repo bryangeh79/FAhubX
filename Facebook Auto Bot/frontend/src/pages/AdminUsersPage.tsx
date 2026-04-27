@@ -391,6 +391,7 @@ const AdminUsersPage: React.FC = () => {
               <Select>
                 <Option value="basic">{t('admin.planBasicOption')}</Option>
                 <Option value="pro">{t('admin.planProOption')}</Option>
+                <Option value="enterprise">{t('admin.planEnterpriseOption')}</Option>
               </Select>
             </Form.Item>
           )}

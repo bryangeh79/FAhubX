@@ -43,9 +43,10 @@ export async function handleCreateLicense(request: Request, env: Env): Promise<R
 
   const plan = body.plan || 'basic';
   const planDefaults: Record<string, { maxAccounts: number; maxTasks: number; maxScripts: number }> = {
-    basic: { maxAccounts: 10,   maxTasks: 50,   maxScripts: 10 },
-    pro:   { maxAccounts: 30,   maxTasks: 200,  maxScripts: 50 },
-    admin: { maxAccounts: 9999, maxTasks: 9999, maxScripts: 9999 },
+    basic:      { maxAccounts: 10,   maxTasks: 50,   maxScripts: 10  },
+    pro:        { maxAccounts: 30,   maxTasks: 200,  maxScripts: 50  },
+    enterprise: { maxAccounts: 50,   maxTasks: 300,  maxScripts: 100 }, // v1.4.0
+    admin:      { maxAccounts: 9999, maxTasks: 9999, maxScripts: 9999 },
   };
   const defaults = planDefaults[plan] || planDefaults.basic;
 

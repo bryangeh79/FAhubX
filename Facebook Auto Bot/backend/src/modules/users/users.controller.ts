@@ -295,8 +295,8 @@ export class UsersController {
     @Body() body: { groupCount: number },
   ): Promise<{ groupCount: number }> {
     const n = parseInt(String(body?.groupCount), 10);
-    if (!Number.isFinite(n) || n < 2 || n > 6) {
-      throw new BadRequestException('groupCount 必须是 2-6 之间的整数');
+    if (!Number.isFinite(n) || n < 2 || n > 9) {
+      throw new BadRequestException('groupCount 必须是 2-9 之间的整数');
     }
     return this.usersService.updateWarmupSettings(user.id, { groupCount: n });
   }

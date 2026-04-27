@@ -35,9 +35,9 @@ export class User {
   @Column({ type: 'varchar', length: 20, default: 'tenant' })
   role: 'admin' | 'tenant';
 
-  @ApiProperty({ description: '订阅套餐', example: 'basic', enum: ['basic', 'pro', 'admin'] })
+  @ApiProperty({ description: '订阅套餐', example: 'basic', enum: ['basic', 'pro', 'enterprise', 'admin'] })
   @Column({ type: 'varchar', length: 20, default: 'basic' })
-  plan: 'basic' | 'pro' | 'admin';
+  plan: 'basic' | 'pro' | 'enterprise' | 'admin';
 
   @ApiProperty({ description: '最大Facebook账号数', example: 10 })
   @Column({ type: 'int', default: 10, name: 'max_accounts' })
@@ -180,16 +180,17 @@ export class User {
   }
 
   /** 配套默认值映射 */
-  static getPlanDefaults(plan: 'basic' | 'pro' | 'admin'): {
+  static getPlanDefaults(plan: 'basic' | 'pro' | 'enterprise' | 'admin'): {
     maxAccounts: number;
     maxTasks: number;
     maxScripts: number;
   } {
     switch (plan) {
-      case 'pro':    return { maxAccounts: 30,   maxTasks: 200, maxScripts: 50 };
-      case 'admin':  return { maxAccounts: 9999, maxTasks: 9999, maxScripts: 9999 };
+      case 'pro':         return { maxAccounts: 30,   maxTasks: 200,  maxScripts: 50  };
+      case 'enterprise':  return { maxAccounts: 50,   maxTasks: 300,  maxScripts: 100 };
+      case 'admin':       return { maxAccounts: 9999, maxTasks: 9999, maxScripts: 9999 };
       case 'basic':
-      default:       return { maxAccounts: 10,   maxTasks: 50,  maxScripts: 10 };
+      default:            return { maxAccounts: 10,   maxTasks: 50,   maxScripts: 10  };
     }
   }
 }

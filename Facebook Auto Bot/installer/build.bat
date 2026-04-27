@@ -204,11 +204,11 @@ echo ============================================================
 echo   BUILD COMPLETE!
 echo ============================================================
 echo.
-echo   Installer: %OUTPUT_DIR%\FAhubX-Setup-v1.3.1.exe
+echo   Installer: %OUTPUT_DIR%\FAhubX-Setup-v1.4.0.exe
 echo.
 
 :: Show file size
-for %%F in ("%OUTPUT_DIR%\FAhubX-Setup-v1.3.1.exe") do (
+for %%F in ("%OUTPUT_DIR%\FAhubX-Setup-v1.4.0.exe") do (
     set SIZE=%%~zF
     set /a SIZE_MB=!SIZE! / 1048576
     echo   Size: ~!SIZE_MB! MB

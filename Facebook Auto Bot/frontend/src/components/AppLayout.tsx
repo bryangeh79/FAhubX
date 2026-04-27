@@ -31,7 +31,7 @@ import { useT } from '../i18n';
 import LanguageSwitcher from './LanguageSwitcher';
 
 // App version — bump this when releasing a new installer
-const APP_VERSION = '1.3.1';
+const APP_VERSION = '1.4.0';
 
 const { Header, Content, Sider } = Layout;
 const { Text } = Typography;
@@ -226,8 +226,17 @@ const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
             <div>v{APP_VERSION}</div>
           ) : (
             <>
-              <div style={{ color: plan === 'admin' ? '#b37feb' : plan === 'pro' ? '#ffd666' : 'rgba(255,255,255,0.6)', fontWeight: 500 }}>
-                {plan === 'admin' ? 'Admin Edition' : plan === 'pro' ? 'Pro Version' : 'Basic Version'}
+              <div style={{
+                color: plan === 'admin' ? '#b37feb'
+                  : plan === 'enterprise' ? '#69b1ff'   // v1.4.0 钻石蓝
+                  : plan === 'pro' ? '#ffd666'
+                  : 'rgba(255,255,255,0.6)',
+                fontWeight: 500,
+              }}>
+                {plan === 'admin' ? 'Admin Edition'
+                  : plan === 'enterprise' ? '💎 Enterprise'
+                  : plan === 'pro' ? 'Pro Version'
+                  : 'Basic Version'}
               </div>
               <div>v{APP_VERSION}</div>
             </>

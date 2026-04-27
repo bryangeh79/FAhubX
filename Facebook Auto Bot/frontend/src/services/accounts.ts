@@ -307,6 +307,7 @@ export function formatGroupLabel(n?: number | null): string {
  */
 export function getGroupColor(n?: number | null): string {
   if (n == null) return 'default';
-  const colors = ['blue', 'green', 'gold', 'purple', 'magenta', 'cyan'];
+  // v1.4.0：扩到 9 组（Enterprise 配套）
+  const colors = ['blue', 'green', 'gold', 'purple', 'magenta', 'cyan', 'orange', 'volcano', 'geekblue'];
   return colors[(n - 1) % colors.length] || 'default';
 }

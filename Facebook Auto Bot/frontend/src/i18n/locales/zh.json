@@ -364,6 +364,7 @@
     "planLabel": "套餐",
     "planBasicOption": "Basic — 最多 10 个 Facebook 账号",
     "planProOption": "Pro — 最多 30 个 Facebook 账号",
+    "planEnterpriseOption": "💎 Enterprise — 最多 50 个 Facebook 账号",
     "expiryLabel": "订阅到期日",
     "expiryExtra": "留空表示未设置到期日",
     "expiryPlaceholder": "选择到期日期",

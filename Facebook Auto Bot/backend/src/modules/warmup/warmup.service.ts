@@ -10,6 +10,8 @@ import {
   findJustMissedWindow,
   getPackageInfo,
   getWarmupWindowHours,
+  getWarmupWindowMinutes,
+  isAccountTurnInWindow,
   localDateKey,
   pickWarmupActions,
   PackageInfo,
@@ -299,12 +301,15 @@ export class WarmupService implements OnModuleInit {
     };
     const account = await this.accountRepo.findOne({ where: { id: accountId } });
     const groupNumber = account?.warmupGroupNumber ?? 1;
+    const groupCount = await this.getUserGroupCount(userId);
     const now = new Date();
     const packageInfo = getPackageInfo(p.startedAt, p.packageMode, now);
-    const activeWindowIndex = findActiveWindow(groupNumber, now);
-    const hours = getWarmupWindowHours(groupNumber).sort((a, b) => a - b);
-    const currentHour = now.getHours();
-    const nextWindowHour = hours.find(h => h > currentHour) ?? hours[0];
+    const activeWindowIndex = findActiveWindow(groupNumber, now, groupCount);
+    // 取分钟级窗口的整点 hour（前端展示用 —— 简化）
+    const windowMinutes = getWarmupWindowMinutes(groupNumber, groupCount).sort((a, b) => a - b);
+    const currentMin = now.getHours() * 60 + now.getMinutes();
+    const nextWindowMinute = windowMinutes.find(m => m > currentMin) ?? windowMinutes[0];
+    const nextWindowHour = Math.floor(nextWindowMinute / 60);
     return {
       progress: p,
       packageInfo,
@@ -361,6 +366,10 @@ export class WarmupService implements OnModuleInit {
     const groupNumber = account.warmupGroupNumber;
     const todayKey = localDateKey(now);
 
+    // v1.4.0 —— 取该租户的 groupCount + 组内账号位置（用于自适应矩阵 + 错峰）
+    const groupCount = await this.getUserGroupCount(p.userId);
+    const accountPosition = await this.getAccountPositionInGroup(p.userId, groupNumber, account.id);
+
     // 日期滚动 → 重置 missedToday
     if (p.missedDateKey !== todayKey) {
       p.missedDateKey = todayKey;
@@ -372,7 +381,7 @@ export class WarmupService implements OnModuleInit {
     if (info.shouldTransitionToP3) {
       const oldMode = p.packageMode;
       p.packageMode = 'P3';
-      p.startedAt = now; // P3 从头开始算天数
+      p.startedAt = now;
       p.lastFiredWindow = null;
       await this.progressRepo.save(p);
       if (p.taskId) {
@@ -380,12 +389,12 @@ export class WarmupService implements OnModuleInit {
           `🎉 ${this.getPackageLabel(oldMode as PackageMode)} 已完成！自动进入 P3 运营维护模式（无限周期）`);
         await this.simpleTasksService.persistLogsToDb(p.taskId).catch(() => {});
       }
-      return; // 下一次 tick 再触发窗口
+      return;
     }
 
     // 错过窗口检测
     const lastChecked = p.lastCheckedAt ?? new Date(now.getTime() - 6 * 60 * 1000);
-    const missedIdx = findJustMissedWindow(groupNumber, lastChecked, now);
+    const missedIdx = findJustMissedWindow(groupNumber, lastChecked, now, groupCount);
     if (missedIdx >= 0) {
       const windowKey = `${todayKey}:${missedIdx}`;
       if (p.lastFiredWindow !== windowKey) {
@@ -398,11 +407,13 @@ export class WarmupService implements OnModuleInit {
       }
     }
 
-    // 当前窗口触发
-    const activeIdx = findActiveWindow(groupNumber, now);
+    // 当前窗口触发（含组内账号 5 分钟错峰）
+    const activeIdx = findActiveWindow(groupNumber, now, groupCount);
     if (activeIdx >= 0) {
       const windowKey = `${todayKey}:${activeIdx}`;
-      if (p.lastFiredWindow !== windowKey) {
+      // 检查这个账号在 group 内的 5 分钟时间槽是否轮到
+      const isMyTurn = isAccountTurnInWindow(accountPosition, groupNumber, now, groupCount);
+      if (p.lastFiredWindow !== windowKey && isMyTurn) {
         await this.executeWindowAction(p, account, info, activeIdx as 0 | 1 | 2);
         p.lastFiredWindow = windowKey;
         p.firedTotal += 1;
@@ -411,6 +422,47 @@ export class WarmupService implements OnModuleInit {
 
     p.lastCheckedAt = now;
     await this.progressRepo.save(p);
+  }
+
+  /**
+   * v1.4.0 —— 读用户的 groupCount 设置（默认 3）
+   * 缓存 30 秒避免每次 tick 都打 DB
+   */
+  private groupCountCache = new Map<string, { count: number; ts: number }>();
+  private async getUserGroupCount(userId: string): Promise<number> {
+    const cached = this.groupCountCache.get(userId);
+    if (cached && Date.now() - cached.ts < 30_000) return cached.count;
+    try {
+      const [row] = await this.dataSource.query(
+        `SELECT preferences FROM users WHERE id = $1`, [userId],
+      );
+      const count = row?.preferences?.warmup?.groupCount ?? 3;
+      this.groupCountCache.set(userId, { count, ts: Date.now() });
+      return count;
+    } catch {
+      return 3;
+    }
+  }
+
+  /**
+   * v1.4.0 —— 算账号在该组内的 0-based 位置（按 accountNumber ASC 排序）
+   * 用于组内 5 分钟错峰
+   */
+  private async getAccountPositionInGroup(
+    userId: string, groupNumber: number, accountId: string,
+  ): Promise<number> {
+    try {
+      const rows = await this.dataSource.query(
+        `SELECT id FROM facebook_accounts
+          WHERE "userId" = $1 AND "warmupGroupNumber" = $2 AND "deletedAt" IS NULL
+          ORDER BY "accountNumber" ASC NULLS LAST, "createdAt" ASC`,
+        [userId, groupNumber],
+      );
+      const idx = rows.findIndex((r: any) => r.id === accountId);
+      return idx >= 0 ? idx : 0;
+    } catch {
+      return 0;
+    }
   }
 
   /**

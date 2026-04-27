@@ -1731,7 +1731,7 @@ const TasksPage: React.FC = () => {
                     return (
                       <Form.Item name="warmupGroupNumber" label={t('tasks.warmupSelectGroup')} rules={[{ required: true, message: t('tasks.warmupSelectGroup') }]}>
                         <Select placeholder={t('tasks.warmupSelectGroupPlaceholder')}>
-                          {[1, 2, 3, 4, 5, 6].map(g => {
+                          {[1, 2, 3, 4, 5, 6, 7, 8, 9].map(g => {
                             const count = accounts.filter((a: any) => a.warmupGroupNumber === g).length;
                             return (
                               <Option key={g} value={g} disabled={count === 0}>

@@ -717,10 +717,10 @@ export class FacebookAccountsService implements OnModuleInit {
       total += Number(r.count);
     }
     const groups: { group: number; count: number }[] = [];
-    for (let i = 1; i <= 6; i++) {
+    // v1.4.0：扩到 9 组（Enterprise 配套支持 9 组 × 6 号 = 54 ≥ 50）
+    for (let i = 1; i <= 9; i++) {
       const c = byGroup.get(i) ?? 0;
       if (i <= groupCount || c > 0) {
-        // 显示 1..groupCount，以及超出范围但仍有账号的组（让租户能看到需要重新分配的账号）
         groups.push({ group: i, count: c });
       }
     }

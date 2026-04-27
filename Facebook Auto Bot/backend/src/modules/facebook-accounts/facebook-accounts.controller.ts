@@ -266,8 +266,8 @@ export class FacebookAccountsController {
     @Body() body: { groupNumber: number | null },
   ): Promise<FacebookAccountResponseDto> {
     const g = body?.groupNumber;
-    if (g != null && (typeof g !== 'number' || g < 1 || g > 6 || !Number.isInteger(g))) {
-      throw new BadRequestException('groupNumber 必须是 1-6 之间的整数，或 null（取消分组）');
+    if (g != null && (typeof g !== 'number' || g < 1 || g > 9 || !Number.isInteger(g))) {
+      throw new BadRequestException('groupNumber 必须是 1-9 之间的整数，或 null（取消分组）');
     }
     return this.facebookAccountsService.assignGroup(req.user.id, id, g ?? null);
   }
@@ -291,8 +291,8 @@ export class FacebookAccountsController {
     if (!Array.isArray(accountIds) || accountIds.length === 0) {
       throw new BadRequestException('accountIds 必须是非空数组');
     }
-    if (groupNumber != null && (typeof groupNumber !== 'number' || groupNumber < 1 || groupNumber > 6 || !Number.isInteger(groupNumber))) {
-      throw new BadRequestException('groupNumber 必须是 1-6 之间的整数，或 null');
+    if (groupNumber != null && (typeof groupNumber !== 'number' || groupNumber < 1 || groupNumber > 9 || !Number.isInteger(groupNumber))) {
+      throw new BadRequestException('groupNumber 必须是 1-9 之间的整数，或 null');
     }
     const updated = await this.facebookAccountsService.batchAssignGroup(
       req.user.id,

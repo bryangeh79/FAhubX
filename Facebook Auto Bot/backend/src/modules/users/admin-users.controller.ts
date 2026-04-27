@@ -49,7 +49,7 @@ export class AdminUsersController {
     password: string;
     fullName?: string;
     role?: 'admin' | 'tenant';
-    plan?: 'basic' | 'pro';
+    plan?: 'basic' | 'pro' | 'enterprise';
     subscriptionExpiry?: string | null;
   }) {
     this.assertAdmin(req);
@@ -119,7 +119,7 @@ export class AdminUsersController {
     role?: 'admin' | 'tenant';
     fullName?: string;
     password?: string;
-    plan?: 'basic' | 'pro';
+    plan?: 'basic' | 'pro' | 'enterprise';
     subscriptionExpiry?: string | null;
   }) {
     this.assertAdmin(req);

@@ -867,7 +867,7 @@ const AccountsPage: React.FC = () => {
               onChange={setPendingGroupCount}
               size="large"
             >
-              {[2, 3, 4, 5, 6].map(n => (
+              {[2, 3, 4, 5, 6, 7, 8, 9].map(n => (
                 <Option key={n} value={n}>{n} {t('accounts.groupCountLabel')}</Option>
               ))}
             </Select>

@@ -364,6 +364,7 @@
     "planLabel": "Plan",
     "planBasicOption": "Basic — up to 10 Facebook accounts",
     "planProOption": "Pro — up to 30 Facebook accounts",
+    "planEnterpriseOption": "💎 Enterprise — up to 50 Facebook accounts",
     "expiryLabel": "Subscription Expiry",
     "expiryExtra": "Leave empty for no expiry",
     "expiryPlaceholder": "Select expiry date",
