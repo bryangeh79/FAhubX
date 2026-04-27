@@ -281,6 +281,67 @@ git push origin main
 
 ---
 
+## 🚀 部署模式（小修复推荐用法）
+
+修了一个 bug 后，问 Bryan 「部署到哪里」时给 **3 个选项**：
+
+| 选项 | 范围 | 时长 | 中断 | 适合验证 |
+|---|---|---|---|---|
+| **A** | 本地 C:\FAhubX | 2-3 分钟 | 本地 9600 短暂下线 | UI 修复 / 本地能复现的 bug |
+| **B** | VPS（用户手动 SSH）| 5 分钟 | 网站短暂中断 ~5s | 真实租户数据 / Cloudflare 涉及的 |
+| **C** | 两个都部署 | 5 分钟（并行）| 同上 | 完整验证（**默认推荐**）|
+
+执行 C 时：
+- **A 你自动跑**（背景任务）
+- **B 给用户完整命令一段贴**（用户 Termius 粘贴并行）
+- 别等 A 跑完再让用户开始 B —— 让两者并行节省时间
+
+A 步骤：`stop.bat → 清 dist → nest build → vite build → xcopy → start.bat → poll until 401`
+
+B 给用户的命令（一段粘贴）：
+```bash
+cd "/opt/fahubx/Facebook Auto Bot"
+git pull origin main
+cd backend && npm install --legacy-peer-deps && npx nest build && cd ..
+cd frontend && npm install && npx vite build && cd ..
+pm2 restart fahubx-backend
+sleep 8
+curl -s -o /dev/null -w "warmup/stats HTTP=%{http_code}\n" http://localhost:3000/api/v1/warmup/stats
+pm2 status fahubx-backend
+```
+
+**部署后告诉用户**两件事：
+1. 「本地强刷 Ctrl+Shift+R 后这样验证 ...」
+2. 「VPS 跑完后这样验证 ...」
+
+具体说明哪个修复在哪个环境**能看到效果**：
+- 「查看窗口」相关的 puppeteer 修复 → 只能本地验（VPS 是无头）
+- Enterprise UI / 真实租户数据 → 只能 VPS 验（本地一般只有 admin 一个号）
+
+---
+
+## 🔑 SSH 密码故障处理
+
+VPS 密码：`)A5z$T)5u?j#FqjL`（16 个字符，`)` 出现 2 次）
+
+如果 Bryan 反映 SSH 被拒：
+
+1. **第一反应**：让 Bryan **手动逐字符敲**，不要复制粘贴。Windows Terminal / Termius 粘贴特殊字符（`$ ) #`）有时带隐藏字符。
+
+2. **第二步**：让 Bryan 用 PowerShell 标准化粘贴：
+   ```powershell
+   Set-Clipboard -Value ')A5z$T)5u?j#FqjL'
+   ```
+   然后在 SSH 框里右键粘贴。
+
+3. **第三步**：如果还不行，Bryan 可能改过密码。让他通过 **Vultr 控制台 → Server → Reset Root Password** 重置。重置后**让他告诉你新密码**，**你立刻更新这个 HANDOFF + CLAUDE.md** 的密码记录。
+
+**不要**：
+- ❌ 不要假设密码错了就让 Bryan 重置 —— 90% 是粘贴问题
+- ❌ 不要尝试自己 SSH（沙箱没 sshpass / plink，也不应该把密码写进自动化）
+
+---
+
 ## 🛠️ 常见操作 Playbook
 
 ### 重新部署本地 FAhubX（v1.4.0 已安装，下次小改动用）
