@@ -414,9 +414,21 @@ export class WarmupService implements OnModuleInit {
       // 检查这个账号在 group 内的 5 分钟时间槽是否轮到
       const isMyTurn = isAccountTurnInWindow(accountPosition, groupNumber, now, groupCount);
       if (p.lastFiredWindow !== windowKey && isMyTurn) {
-        await this.executeWindowAction(p, account, info, activeIdx as 0 | 1 | 2);
+        // 先持久化触发标记，避免后续 cron tick 重复 fire
         p.lastFiredWindow = windowKey;
         p.firedTotal += 1;
+        p.lastCheckedAt = now;
+        await this.progressRepo.save(p);
+        // Fire-and-forget: action 在后台跑（25 分钟），不阻塞 scheduleTick
+        // 否则同组 position>0 的账号会因为 5 分钟 slot 早过而永远轮不到
+        // BrowserSessionService 已有 per-account semaphore，并发安全
+        const accountSnapshot = account;
+        const progressSnapshot = p;
+        void this.executeWindowAction(progressSnapshot, accountSnapshot, info, activeIdx as 0 | 1 | 2)
+          .catch(err => this.logger.error(
+            `[warmup:${progressSnapshot.accountId}] window action failed: ${err?.message ?? err}`,
+          ));
+        return;
       }
     }
 
